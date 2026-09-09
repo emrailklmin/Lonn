@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/lonnlogo.svg" width="180" alt="Lönn AI">
+  <img src="assets/Lonnlogo.png" width="180" alt="Lönn AI">
 </p>
 
 <h1 align="center">Lönn AI</h1>
