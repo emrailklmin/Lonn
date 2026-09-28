@@ -23,6 +23,26 @@ Requires Python 3.10 or newer.
    what LiteLLM's `nvidia_nim/...` provider reads.
 4. `.env` is gitignored — never commit it.
 
+## Complexity scoring
+
+The complexity scorer uses [Laya](https://pypi.org/project/laya/) to produce a
+`ComplexityResult`: a topic probability distribution over `coding`,
+`math_reasoning`, `creative_writing`, and `general_knowledge_extraction`, plus a
+complexity score in [0, 1]. Laya is loaded on first use.
+
+```python
+from lonn.complexity import ComplexityScorer
+
+result = ComplexityScorer().score_prompt(prompt)
+print(result.complexity, result.topic_scores)
+```
+
+To try it by hand (add `--debug` to see Laya's raw output):
+
+```bash
+python3 examples/classify_prompt.py "Write a Python function that sorts a list"
+```
+
 ## Execution
 
 With `src` on Python's import path (`PYTHONPATH=src`), pass the router's
@@ -45,7 +65,7 @@ variables. The selected model ID must be the full `nvidia_nim/...` ID from
 prices; they are not NVIDIA billing figures. `finish_reason` exposes truncation.
 Provider errors propagate to the caller without rerouting or automatic retries.
 
-The pool loader, complexity scorer, and app are still unimplemented. The NVIDIA
+The pool loader and app are still unimplemented. The NVIDIA
 pool needs context limits and topic aptitudes before it can populate the shared
 `Model` contract for routing. See `docs/prototype_architecture.md` for details.
 
@@ -56,3 +76,5 @@ python3 -m unittest discover -s tests -v
 ```
 
 Executor tests mock provider calls and require no credentials or network access.
+Complexity tests use a fake Laya; the one live Laya test is skipped when `laya`
+is not installed.

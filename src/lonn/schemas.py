@@ -6,8 +6,7 @@ from enum import Enum
 
 class TopicCategory(str, Enum):
     CODING = "coding"
-    MATH = "math"
-    REASONING = "reasoning"
+    MATH_REASONING = "math_reasoning"
     CREATIVE_WRITING = "creative_writing"
     GENERAL_KNOWLEDGE_EXTRACTION = "general_knowledge_extraction"
 

@@ -145,8 +145,7 @@ classDiagram
     class TopicCategory {
         <<enumeration>>
         CODING
-        MATH
-        REASONING
+        MATH_REASONING
         CREATIVE_WRITING
         GENERAL_KNOWLEDGE_EXTRACTION
     }
@@ -280,8 +279,7 @@ Example:
 ```python
 topic_scores = {
     "coding": 0.35,
-    "math": 0.05,
-    "reasoning": 0.40,
+    "math_reasoning": 0.45,
     "creative_writing": 0.08,
     "general_knowledge_extraction": 0.12,
 }
@@ -290,7 +288,7 @@ topic_scores = {
 The values sum to:
 
 ```text
-0.35 + 0.05 + 0.40 + 0.08 + 0.12 = 1.00
+0.35 + 0.45 + 0.08 + 0.12 = 1.00
 ```
 
 ---

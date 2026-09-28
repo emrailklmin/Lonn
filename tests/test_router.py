@@ -25,8 +25,8 @@ class RouterTests(unittest.TestCase):
     def test_uses_full_topic_distribution(self):
         coding = model("coding", 0.9)
         mixed = model("mixed", 0.6, 2)
-        mixed.topic_aptitudes[Topic.MATH] = 0.8
-        signal = ComplexityResult(0.6, {Topic.CODING: 0.5, Topic.MATH: 0.5})
+        mixed.topic_aptitudes[Topic.MATH_REASONING] = 0.8
+        signal = ComplexityResult(0.6, {Topic.CODING: 0.5, Topic.MATH_REASONING: 0.5})
         self.assertIs(select_model(signal, [coding, mixed], alpha=1), mixed)
 
     def test_ties_are_independent_of_pool_order(self):
@@ -72,7 +72,7 @@ class RouterTests(unittest.TestCase):
             ComplexityResult(1.1, {Topic.CODING: 1}),
             ComplexityResult(0.5, {}),
             ComplexityResult(0.5, {Topic.CODING: 0.3}),
-            ComplexityResult(0.5, {Topic.CODING: -1, Topic.MATH: 2}),
+            ComplexityResult(0.5, {Topic.CODING: -1, Topic.MATH_REASONING: 2}),
             ComplexityResult(0.5, {"unknown": 1}),
         ]
         for signal in signals:
