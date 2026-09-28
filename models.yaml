@@ -1,0 +1,65 @@
+models:
+  # --------------------------------------------------------------------------
+  # 1. Local Zero-Cost Workhorse
+  # --------------------------------------------------------------------------
+  qwen-2.5-7b-local:
+    litellm_model: openai/Qwen2.5-7B-Instruct-4bit
+    api_base: http://localhost:8000/v1
+    api_key_env: LOCAL_API_KEY
+    cost_per_m_input: 0.0
+    cost_per_m_output: 0.0
+    max_context_tokens: 8192
+    p90_latency_ms: 600
+    capabilities:
+      coding: 0.55
+      math_reasoning: 0.50
+      creative_nuanced_writing: 0.70
+      general_knowledge_extraction: 0.4
+
+  # --------------------------------------------------------------------------
+  # 2. Fast / Mega-Context Cloud Model (Gemini 3.6 Flash)
+  # --------------------------------------------------------------------------
+  gemini-3.6-flash:
+    litellm_model: gemini/gemini-3.6-flash
+    api_key_env: GEMINI_API_KEY
+    cost_per_m_input: 0.75       # Set to 0.0 if using free tier API keys
+    cost_per_m_output: 3.75      # Set to 0.0 if using free tier API keys
+    max_context_tokens: 1048576
+    p90_latency_ms: 300
+    capabilities:
+      coding: 0.69               # Artificial Analysis Coding Index (69.2)
+      math_reasoning: 0.80
+      creative_nuanced_writing: 
+      general_knowledge_extraction: 0.75        # Full 1M context
+
+  # --------------------------------------------------------------------------
+  # 3. High-Speed Logic & Open-Weights (Groq)
+  # --------------------------------------------------------------------------
+  groq-oss-20b:
+    litellm_model: groq/openai/gpt-oss-20b
+    api_key_env: GROQ_API_KEY
+    cost_per_m_input: 0.07
+    cost_per_m_output: 0.20
+    max_context_tokens: 131072
+    p90_latency_ms: 220
+    capabilities:
+      coding: 0.65
+      math_reasoning: 0.72
+      creative_nuanced_writing: 0.80
+      general_knowledge_extraction: 0.75
+
+  # --------------------------------------------------------------------------
+  # TEMPLATE: Copy and paste this block when adding any future model
+  # --------------------------------------------------------------------------
+  # new-model-alias:
+  #   litellm_model: "provider/model-id"
+  #   api_key_env: "PROVIDER_API_KEY"
+  #   cost_per_m_input: "[MANUAL_INPUT_REQUIRED]"
+  #   cost_per_m_output: "[MANUAL_INPUT_REQUIRED]"
+  #   max_context_tokens: "[MANUAL_INPUT_REQUIRED]"
+  #   p90_latency_ms: 400
+  #   capabilities:
+  #     coding: "[MANUAL_INPUT_REQUIRED]"
+  #     math_reasoning: "[MANUAL_INPUT_REQUIRED]"
+  #     creative_nuanced_writing: 0.85
+  #     general_knowledge_extraction: 0.75
