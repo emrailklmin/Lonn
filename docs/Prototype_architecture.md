@@ -160,8 +160,8 @@ classDiagram
         +str id
         +str provider
 
-        +float input_cost_per_1k
-        +float output_cost_per_1k
+        +float cost_per_m_input
+        +float cost_per_m_output
 
         +int context_window
 
@@ -314,8 +314,8 @@ models:
   - id: gpt-5-mini
     provider: openai
 
-    input_cost_per_1k: 0.00025
-    output_cost_per_1k: 0.002
+    cost_per_m_input: 0.25
+    cost_per_m_output: 2.0
 
     context_window: 128000
 
@@ -330,8 +330,8 @@ models:
   - id: example-reasoning-model
     provider: example-provider
 
-    input_cost_per_1k: 0.001
-    output_cost_per_1k: 0.004
+    cost_per_m_input: 1.0
+    cost_per_m_output: 4.0
 
     context_window: 200000
 
@@ -484,6 +484,48 @@ The web app can therefore display information such as:
 ---
 
 # 7. Responsibility Boundaries
+
+## Prototype routing policy
+
+`router.select_model(signal, models, alpha=0.5)` (also available as
+`Router().select_model(signal, models, alpha=0.5)`) returns a model from the pool.
+
+1. Compute quality as `sum(topic_probability * model_topic_aptitude)`.
+   Missing aptitudes count as zero.
+2. Add `cost_per_m_input` and `cost_per_m_output`, both prices per million
+   tokens in the same currency. This is an equal-token price proxy, not an
+   actual request cost estimate.
+3. Normalize cost by dividing by the highest combined price in the pool.
+   When all models are free, every normalized cost is zero.
+4. Maximize `alpha * quality - (1 - alpha) * normalized_cost`.
+5. Break score ties by lower price, higher quality, then `(provider, id)`.
+
+`weighted_score(quality, cost, alpha=0.5)` exposes the weighted function.
+All three arguments must be finite and in [0, 1]. Alpha 0 prioritizes cost;
+alpha 1 prioritizes quality. The default is 0.5. Pool-relative normalization
+puts cost on the same [0, 1] scale as quality, but adding/removing models can
+change the tradeoff. Raw price units do not affect selection.
+
+Complexity is still validated as part of the input contract, but no longer
+imposes a quality threshold. Callers may explicitly pass
+`alpha=signal.complexity` if they want complexity to control the tradeoff.
+Context-window filtering still requires prompt tokens and an output budget.
+
+An empty pool, duplicate `(provider, id)` entries, invalid probabilities,
+aptitudes, complexity, alpha, or prices raise `ValueError`. Probabilities must
+sum to one within an absolute tolerance of `1e-6`.
+
+Run the router tests with `python3 tests/test_router.py` or
+`python3 -m unittest discover -s tests` from the repository root.
+
+The current `config/models.yaml` uses a different format from the contract above.
+The price fields already match the per-million model contract. The future
+model-pool loader must map context and capability fields and resolve
+provider/model identities.
+Its combined `math_reasoning` category needs a decision on separate math and
+reasoning aptitudes; `creative_nuanced_writing` maps to `creative_writing`.
+The Gemini writing aptitude is currently blank and needs a value or an explicit
+missing-aptitude policy before that configuration can be used.
 
 ```mermaid
 flowchart TB
