@@ -70,7 +70,7 @@ flowchart LR
         model_pool.py
         ----------------
         INPUT:
-        config/models.yaml
+        model_pool/pool.yaml
 
         OUTPUT:
         list[Model]"]
@@ -82,7 +82,7 @@ flowchart LR
     %% CONFIGURATION
     %% =========================
 
-    CONFIG["config/models.yaml
+    CONFIG["model_pool/pool.yaml
     ----------------
     Model metadata
     Provider
@@ -198,6 +198,7 @@ classDiagram
         +Model model
         +TokenUsage usage
         +float latency_ms
+        +str finish_reason
     }
 
 
@@ -306,42 +307,19 @@ Each aptitude is independently defined between:
 
 They therefore do **not** have to sum to 1.
 
-Example `config/models.yaml`:
+The NVIDIA prototype uses `model_pool/pool.yaml`. Entries contain full LiteLLM
+IDs (`nvidia_nim/<publisher>/<model>`), `active`, `tier`, `usd_per_m_in`,
+`usd_per_m_out`, and a pricing reference in `matched_provider_key`.
 
-```yaml
-models:
+The model-pool loader must filter inactive entries, preserve the full ID, set
+`provider="nvidia_nim"`, and map `usd_per_m_in` / `usd_per_m_out` to
+`cost_per_m_input` / `cost_per_m_output`. The pricing reference is metadata;
+it must not replace the NVIDIA execution ID.
 
-  - id: gpt-5-mini
-    provider: openai
-
-    cost_per_m_input: 0.25
-    cost_per_m_output: 2.0
-
-    context_window: 128000
-
-    topic_aptitudes:
-      coding: 0.80
-      math: 0.40
-      reasoning: 0.60
-      creative_writing: 0.30
-      general_knowledge_extraction: 0.70
-
-
-  - id: example-reasoning-model
-    provider: example-provider
-
-    cost_per_m_input: 1.0
-    cost_per_m_output: 4.0
-
-    context_window: 200000
-
-    topic_aptitudes:
-      coding: 0.75
-      math: 0.95
-      reasoning: 0.95
-      creative_writing: 0.40
-      general_knowledge_extraction: 0.65
-```
+The pool currently lacks context limits and topic aptitudes. These must be
+supplied before loading complete `Model` objects; tiers alone do not define
+those values. Prices sourced from other providers are prototype cost estimates,
+not NVIDIA billing rates. The previous `config/models.yaml` is a legacy example.
 
 ---
 
@@ -518,14 +496,30 @@ sum to one within an absolute tolerance of `1e-6`.
 Run the router tests with `python3 tests/test_router.py` or
 `python3 -m unittest discover -s tests` from the repository root.
 
-The current `config/models.yaml` uses a different format from the contract above.
-The price fields already match the per-million model contract. The future
-model-pool loader must map context and capability fields and resolve
-provider/model identities.
-Its combined `math_reasoning` category needs a decision on separate math and
-reasoning aptitudes; `creative_nuanced_writing` maps to `creative_writing`.
-The Gemini writing aptitude is currently blank and needs a value or an explicit
-missing-aptitude policy before that configuration can be used.
+## Executor policy and shared contracts
+
+`schemas.py` owns the shared dataclasses: `ComplexityResult`, `Model`,
+`TokenUsage`, and `ModelResponse`. A dataclass supplies generated initialization,
+representation, and equality methods; it does not validate field types itself.
+The router and executor consume these contracts, and the app displays them.
+
+`executor.execute(prompt, model, timeout=60, max_tokens=1024)` and
+`ModelExecutor().execute(...)` send a non-streaming text request using LiteLLM's
+NVIDIA NIM provider. The executor loads the repository `.env` without overriding
+existing environment values and uses `NVIDIA_NIM_API_KEY`.
+
+The result contains text, the selected model, measured request latency in
+milliseconds, token counts, estimated costs, and `finish_reason`. Cost is
+`tokens / 1_000_000 * configured_price` for input and output separately.
+A `length` finish reason allows the app to identify a truncated response.
+
+Invalid inputs, missing credentials, missing usage, or non-text responses fail
+explicitly. Provider exceptions propagate to the caller. The executor performs
+no rerouting, automatic retries, streaming, or tool execution. Its output budget
+must be below the context window; full prompt-plus-output context validation
+remains a future task requiring model-specific token counting.
+
+Dependencies are listed in `requirements.txt`; executor tests use mocked calls.
 
 ```mermaid
 flowchart TB
