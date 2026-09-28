@@ -1,0 +1,20 @@
+- id: nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b
+  tier: anchor
+  active: true
+  usd_per_m_in: 0.6
+  usd_per_m_out: 3.6
+  matched_provider_key: together_ai/nvidia/nemotron-3-ultra-550b-a55b
+
+- id: nvidia_nim/meta/muse-glimmer-30b
+  tier: mid
+  active: true
+  usd_per_m_in: 0.35
+  usd_per_m_out: 1.5
+  matched_provider_key: fireworks_ai/muse-glimmer-30b
+
+- id: nvidia_nim/openai/gpt-oss-20b
+  tier: cheap
+  active: true
+  usd_per_m_in: 0.03
+  usd_per_m_out: 0.14
+  matched_provider_key: deepinfra/openai/gpt-oss-20b
