@@ -70,7 +70,7 @@ flowchart LR
         model_pool.py
         ----------------
         INPUT:
-        model_pool/pool.yaml
+        config/models.yaml
 
         OUTPUT:
         list[Model]"]
@@ -82,7 +82,7 @@ flowchart LR
     %% CONFIGURATION
     %% =========================
 
-    CONFIG["model_pool/pool.yaml
+    CONFIG["config/models.yaml
     ----------------
     Model metadata
     Provider
@@ -305,19 +305,35 @@ Each aptitude is independently defined between:
 
 They therefore do **not** have to sum to 1.
 
-The NVIDIA prototype uses `model_pool/pool.yaml`. Entries contain full LiteLLM
-IDs (`nvidia_nim/<publisher>/<model>`), `active`, `tier`, `usd_per_m_in`,
-`usd_per_m_out`, and a pricing reference in `matched_provider_key`.
+The single model configuration is `config/models.yaml`. It contains a YAML
+list with the same field names as `Model`: `id`, `provider`,
+`cost_per_m_input`, `cost_per_m_output`, `context_window`, and `topic_aptitudes`.
+Full LiteLLM IDs use `nvidia_nim/<publisher>/<model>`.
 
-The model-pool loader must filter inactive entries, preserve the full ID, set
-`provider="nvidia_nim"`, and map `usd_per_m_in` / `usd_per_m_out` to
-`cost_per_m_input` / `cost_per_m_output`. The pricing reference is metadata;
-it must not replace the NVIDIA execution ID.
+Additional configuration fields are `active`, `price_basis`, and
+`matched_provider_key` (the source of a third-party price estimate). The loader
+filters inactive entries and validates the shared contract. Pricing references
+are metadata and must never replace the NVIDIA execution ID.
 
-The pool currently lacks context limits and topic aptitudes. These must be
-supplied before loading complete `Model` objects; tiers alone do not define
-those values. Prices sourced from other providers are prototype cost estimates,
-not NVIDIA billing rates. The previous `config/models.yaml` is a legacy example.
+Discovery (`scripts/discover_models.py`) saves every catalog ID
+without requiring pricing or guessing chat support from names. Availability
+probing (`scripts/check_models.py`) separately checks text generation, records
+timestamps and attempt outcomes, and never mutates routing configuration.
+Timeouts and rate limits are transient failures; tool capability is separate.
+A catalog listing is not a successful inference check. Generated JSON reports
+are written to the ignored `reports/` directory and are not model configuration.
+
+`load_model_pool(path)` validates all active entries and returns `list[Model]`.
+It rejects duplicate IDs, unknown context limits, incomplete aptitude maps,
+invalid prices, and missing price provenance (`price_basis`). It never invents
+aptitudes or treats missing metadata as zero. A pool with no active models fails
+explicitly. Configuration may retain inactive incomplete candidates.
+
+The pool contains documented context values and benchmark-derived aptitude
+proxies. Sources, raw results, normalization, and deployment limitations are
+recorded in [model_metadata.md](model_metadata.md). These are initial routing
+estimates, not measured performance of our hosted requests. Prices sourced
+from other providers remain prototype cost estimates, not NVIDIA billing rates.
 
 ---
 
@@ -403,10 +419,16 @@ sequenceDiagram
 
 # 6. Runtime Web App
 
-The prototype web app should expose the internal routing process rather than
+The local Streamlit app in `examples/app.py` exposes the internal routing process rather than
 only showing the final LLM response.
 
-A request should visually progress through:
+Run with `python3 -m streamlit run examples/app.py --server.address localhost`.
+Automatic mode uses Laya; manual mode supplies an explicit topic/complexity for
+isolated routing and API tests. Analyze-only mode makes no NVIDIA request.
+Submitting a live request invokes scorer → router → executor; changing controls
+does not resend it. Results and provider-error categories are shown in the UI.
+
+A request progresses through:
 
 ```mermaid
 flowchart LR
@@ -501,7 +523,7 @@ Run the router tests with `python3 tests/test_router.py` or
 representation, and equality methods; it does not validate field types itself.
 The router and executor consume these contracts, and the app displays them.
 
-`executor.execute(prompt, model, timeout=60, max_tokens=1024)` and
+`executor.execute(prompt, model, timeout=120, max_tokens=4096)` and
 `ModelExecutor().execute(...)` send a non-streaming text request using LiteLLM's
 NVIDIA NIM provider. The executor loads the repository `.env` without overriding
 existing environment values and uses `NVIDIA_NIM_API_KEY`.

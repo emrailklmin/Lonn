@@ -61,6 +61,19 @@ class ExecutorTests(unittest.TestCase):
         result = execute("Hi", replace(self.model, cost_per_m_input=0, cost_per_m_output=0))
         self.assertEqual(result.usage.total_cost, 0)
 
+    def test_reasoning_exhausts_budget_before_final_text(self):
+        self.response.choices[0].message.content = None
+        self.response.choices[0].finish_reason = "length"
+        result = execute("Hi", self.model)
+        self.assertEqual(result.content, "")
+        self.assertEqual(result.finish_reason, "length")
+        self.assertEqual(result.usage.completion_tokens, 50)
+
+    def test_empty_final_text_is_not_silently_successful(self):
+        self.response.choices[0].message.content = " "
+        with self.assertRaisesRegex(ValueError, "no final text"):
+            execute("Hi", self.model)
+
     def test_invalid_inputs_do_not_call_provider(self):
         for changes in ({"prompt": " "}, {"timeout": 0}, {"timeout": float("nan")},
                         {"max_tokens": True}, {"max_tokens": 0}, {"max_tokens": 8192},

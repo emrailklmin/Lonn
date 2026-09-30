@@ -2,3 +2,4 @@ litellm>=1,<2
 python-dotenv>=1,<2
 PyYAML>=6,<7
 laya>=0.3.21,<0.4
+streamlit>=1.50,<2

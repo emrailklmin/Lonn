@@ -1,7 +1,7 @@
 """Execute a selected NVIDIA NIM model through LiteLLM.
 
 Requires ``litellm`` and ``python-dotenv``. The caller supplies a schemas.Model
-whose ID is the full ``nvidia_nim/...`` ID from model_pool/pool.yaml. Loading
+whose ID is the full ``nvidia_nim/...`` ID from config/models.yaml. Loading
 the pool, filtering active models, and routing remain the caller's job.
 
 Costs are estimates from configured prices, not NVIDIA billing information.
@@ -19,8 +19,8 @@ def execute(
     prompt: str,
     model: Model,
     *,
-    timeout: float = 60.0,
-    max_tokens: int = 1024,
+    timeout: float = 120.0,
+    max_tokens: int = 4096,
 ) -> ModelResponse:
     """Send one non-streaming text request to the selected model.
 
@@ -79,8 +79,15 @@ def execute(
         raise ValueError("Provider returned no response choices")
     message = getattr(choices[0], "message", None)
     content = getattr(message, "content", None)
+    finish_reason = getattr(choices[0], "finish_reason", None)
+    # Reasoning can exhaust the output budget before any final text is emitted.
+    # Preserve usage and finish_reason so the caller can explain the outcome.
+    if message is not None and content is None and finish_reason == "length":
+        content = ""
     if not isinstance(content, str) or getattr(message, "tool_calls", None):
         raise ValueError("Executor expected a text response, not tool calls or null content")
+    if not content.strip() and finish_reason != "length":
+        raise ValueError("Provider returned no final text")
 
     usage = getattr(response, "usage", None)
     prompt_tokens = getattr(usage, "prompt_tokens", None)
@@ -101,7 +108,7 @@ def execute(
             total_cost=input_cost + output_cost,
         ),
         latency_ms=latency_ms,
-        finish_reason=getattr(choices[0], "finish_reason", None),
+        finish_reason=finish_reason,
     )
 
 
