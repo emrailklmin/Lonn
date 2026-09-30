@@ -4,8 +4,8 @@ Times the model load, the first (cold) call, and repeated warm calls for each
 Laya round separately and for a full score_prompt (both rounds).
 
 Usage:
-    python examples/benchmark_complexity.py
-    python examples/benchmark_complexity.py --runs 50
+    python examples/scorer_benchmark.py
+    python examples/scorer_benchmark.py --runs 50
 """
 
 import argparse

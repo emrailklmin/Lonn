@@ -37,11 +37,23 @@ result = ComplexityScorer().score_prompt(prompt)
 print(result.complexity, result.topic_scores)
 ```
 
-To try it by hand (add `--debug` to see Laya's raw output):
+Two scripts in `examples/` let you try the scorer with the real Laya model:
 
-```bash
-python3 examples/classify_prompt.py "Write a Python function that sorts a list"
-```
+- `scorer_demo.py` loads Laya once, then scores each prompt you type and shows
+  how long it took (add `--debug` to see Laya's raw output):
+
+  ```bash
+  python3 examples/scorer_demo.py
+  ```
+
+- `scorer_benchmark.py` measures load time and per-prompt speed on your machine:
+
+  ```bash
+  python3 examples/scorer_benchmark.py
+  ```
+
+Prompts longer than Laya's window (about 377 tokens for English) are shortened
+to their beginning and end, where the actual request usually is.
 
 ## Execution
 

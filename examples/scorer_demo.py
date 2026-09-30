@@ -4,9 +4,9 @@ Laya is loaded and warmed up once at startup; after that each prompt is scored
 with the model already in memory, and the time per prompt is shown.
 
 Usage:
-    python examples/classify_prompt.py            # interactive, Ctrl+C to quit
-    python examples/classify_prompt.py "Write a Python function that sorts a list"
-    python examples/classify_prompt.py "..." --debug   # also log Laya's raw output
+    python examples/scorer_demo.py            # interactive, Ctrl+C to quit
+    python examples/scorer_demo.py "Write a Python function that sorts a list"
+    python examples/scorer_demo.py "..." --debug   # also log Laya's raw output
 """
 
 import argparse
