@@ -1,5 +1,6 @@
 import importlib.util
 import sys
+import types
 import unittest
 import warnings
 from math import fsum
@@ -13,17 +14,46 @@ from lonn.router import select_model
 from lonn.schemas import ComplexityResult, Model, TopicCategory as Topic
 
 
+class WordTokenizer:
+    """One token per word, standing in for a Laya checkpoint's tokenizer."""
+
+    def __call__(self, text, add_special_tokens=True):
+        return {"input_ids": text.split()}
+
+    def decode(self, ids, clean_up_tokenization_spaces=True):
+        return " ".join(ids)
+
+
+class FakeAgent:
+    tok = WordTokenizer()
+    cfg = {"max_len": 30}
+
+
 class FakeLaya:
-    """Stands in for laya.Router, returning canned answers per question."""
+    """Stands in for laya.Router, returning canned answers per question.
+
+    Each question takes 10 tokens of a 30-token window, leaving 12 prompt
+    tokens after the scorer's margin.
+    """
 
     def __init__(self, category_answer, complexity_score):
         self.category_answer = category_answer
         self.complexity_score = complexity_score
+        self.seen = []
 
-    def predict(self, text, question):
+    def route(self, text, question):
+        return types.SimpleNamespace(model="english")
+
+    def load(self, name):
+        return FakeAgent()
+
+    def predict(self, text, question, model=None):
+        self.seen.append(text)
+        state_tokens = len(text.split())
+        usage = {"input_tokens": min(30, 10 + state_tokens), "state_tokens": state_tokens}
         if "category" in question:
-            return {"answers": {"category": self.category_answer}}
-        return {"answers": {"complexity": {"score": self.complexity_score}}}
+            return {"answers": {"category": self.category_answer}, "usage": usage}
+        return {"answers": {"complexity": {"score": self.complexity_score}}, "usage": usage}
 
 
 def probs(**values):
@@ -31,9 +61,9 @@ def probs(**values):
 
 
 class ComplexityScorerTests(unittest.TestCase):
-    def score(self, category_answer, complexity_score=2.0):
-        laya = FakeLaya(category_answer, complexity_score)
-        return ComplexityScorer(laya).score_prompt("prompt")
+    def score(self, category_answer, complexity_score=2.0, prompt="prompt"):
+        self.laya = FakeLaya(category_answer, complexity_score)
+        return ComplexityScorer(self.laya).score_prompt(prompt)
 
     def test_returns_schema_result(self):
         result = self.score({"choice": "coding",
@@ -79,6 +109,18 @@ class ComplexityScorerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.score(answer, float("nan"))
 
+    def test_short_prompt_is_sent_unchanged(self):
+        prompt = " ".join(f"w{i}" for i in range(12))
+        self.score({"choice": "coding", "probabilities": probs(coding=1)}, prompt=prompt)
+        self.assertEqual([t for t in self.laya.seen if t != "Hi"], [prompt, prompt])
+
+    def test_long_prompt_keeps_start_and_end(self):
+        prompt = " ".join(f"w{i}" for i in range(100))
+        self.score({"choice": "coding", "probabilities": probs(coding=1)}, prompt=prompt)
+        # 12-token budget: first int(12 * 0.35) = 4 words, last 8 words.
+        expected = "w0 w1 w2 w3 ... " + " ".join(f"w{i}" for i in range(92, 100))
+        self.assertEqual([t for t in self.laya.seen if t != "Hi"], [expected, expected])
+
     def test_output_is_accepted_by_router(self):
         # Awkward probabilities that would not sum to 1 if rounded.
         answer = {"choice": "coding", "probabilities": probs(
@@ -93,6 +135,13 @@ class LiveLayaTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.scorer = ComplexityScorer()
+
+    def test_request_after_long_context_is_seen(self):
+        notes = "Meeting notes: revenue rose, the warehouse is full, carriers raised prices. " * 60
+        result = self.scorer.score_prompt(
+            notes + "Task: turn these notes into a humorous short story told by the warehouse.")
+        self.assertEqual(max(result.topic_scores, key=result.topic_scores.get),
+                         Topic.CREATIVE_WRITING)
 
     def test_coding_prompt(self):
         result = self.scorer.score_prompt("Write a Python function that sorts a list")

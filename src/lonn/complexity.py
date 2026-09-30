@@ -48,6 +48,12 @@ COMPLEXITY_QUESTION = {
 
 NAMES = [topic.value for topic in TopicCategory]
 
+# Share of the token budget kept from the start of an over-long prompt; the
+# rest comes from its end. The margin covers the " ... " joint and tokenizer
+# boundary effects when the two halves are re-encoded.
+HEAD_SHARE = 0.35
+HEAD_TAIL_MARGIN = 8
+
 
 def _find_distribution(answer: dict) -> dict[str, float] | None:
     """Find the per-category probabilities inside Laya's 'choice' answer."""
@@ -85,6 +91,7 @@ class ComplexityScorer:
 
     def __init__(self, laya_router=None):
         self._laya = laya_router
+        self._budgets: dict[tuple[str, str], int] = {}
 
     @property
     def laya(self):
@@ -92,8 +99,40 @@ class ComplexityScorer:
             self._laya = _load_laya_router()
         return self._laya
 
+    def _budget(self, model: str, question: dict) -> int:
+        """Prompt tokens that fit beside `question` in one `model` window."""
+        key = (model, next(iter(question)))
+        if key not in self._budgets:
+            usage = self.laya.predict("Hi", question, model=model)["usage"]
+            question_tokens = usage["input_tokens"] - usage["state_tokens"]
+            max_len = self.laya.load(model).cfg.get("max_len", 512)
+            self._budgets[key] = max_len - question_tokens - HEAD_TAIL_MARGIN
+        return self._budgets[key]
+
+    def _fit(self, prompt: str, model: str, question: dict) -> str:
+        """Shorten a prompt that would be truncated, keeping its start and end.
+
+        Laya only reads the first window of a prompt, but requests often come
+        after long pasted context, so the middle is dropped instead of the end.
+        """
+        tok = self.laya.load(model).tok
+        ids = tok(prompt, add_special_tokens=False)["input_ids"]
+        budget = self._budget(model, question)
+        if len(ids) <= budget:
+            return prompt
+        head = int(budget * HEAD_SHARE)
+        tail = budget - head
+        logger.info("prompt of %d tokens shortened to its first %d and last %d tokens",
+                    len(ids), head, tail)
+        decode = lambda part: tok.decode(part, clean_up_tokenization_spaces=False)
+        return f"{decode(ids[:head])} ... {decode(ids[-tail:])}"
+
+    def _predict(self, prompt: str, question: dict) -> dict:
+        model = self.laya.route(prompt, question).model
+        return self.laya.predict(self._fit(prompt, model, question), question, model=model)
+
     def topic_scores(self, prompt: str) -> dict[TopicCategory, float]:
-        res = self.laya.predict(prompt, CATEGORY_QUESTION)
+        res = self._predict(prompt, CATEGORY_QUESTION)
         logger.debug("category raw: %s", json.dumps(res, indent=2, default=str))
         answer = res["answers"]["category"]
 
@@ -109,7 +148,7 @@ class ComplexityScorer:
         return {TopicCategory(name): p / total for name, p in dist.items()}
 
     def complexity(self, prompt: str) -> float:
-        res = self.laya.predict(prompt, COMPLEXITY_QUESTION)
+        res = self._predict(prompt, COMPLEXITY_QUESTION)
         logger.debug("complexity raw: %s", json.dumps(res, indent=2, default=str))
         level = float(res["answers"]["complexity"]["score"])  # Expected level, 0..4.
         if not isfinite(level):
