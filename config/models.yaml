@@ -24,7 +24,7 @@
   active: true
   price_basis: estimate
   context_window: 131072
-  context_source: https://build.nvidia.com/meta/muse-glimmer-30b/modelcard
+  context_source: https://build.nvidia.com/meta/muse-glimmer-30b/modelcardonenote
   metadata_checked_at: "2026-09-29"
   aptitude_basis: benchmark_proxy
   topic_aptitudes:
