@@ -20,3 +20,6 @@ htmlcov/
 
 # Generated discovery and availability reports
 /reports/
+
+# Fine-tuned Laya checkpoints (published to Hugging Face, not git)
+/models/

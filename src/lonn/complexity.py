@@ -6,9 +6,15 @@ Both outputs are produced in a single Laya inference:
     probability distribution across TopicCategory values.
 
 - Complexity:
-    expected difficulty level mapped to [0, 1].
+    Laya's probability that the task is hard, in [0, 1].
 
-The Laya router is loaded lazily and reused across requests.
+Prompts longer than Laya's window keep their start and end; the middle is
+dropped, because requests often follow long pasted context.
+
+The Laya router is loaded lazily and reused across requests. Set
+LONN_LAYA_MODEL (environment or repository .env) to a Hugging Face repo id or
+local directory to replace the English checkpoint with a fine-tuned one; see
+scripts/finetune_laya.py.
 """
 
 import json
@@ -16,6 +22,7 @@ import logging
 import os
 import warnings
 from math import fsum, isfinite
+from pathlib import Path
 
 from .schemas import ComplexityResult, TopicCategory
 
@@ -51,13 +58,18 @@ TOPIC_CRITERIA = {
 # Complexity definitions
 # ---------------------------------------------------------------------------
 
-COMPLEXITY_LEVELS = [
-    "trivial: a single simple step, short answer",
-    "simple: straightforward, one clear task",
-    "moderate: several steps or some domain knowledge needed",
-    "hard: multi-step, needs careful reasoning or expertise",
-    "very hard: expert-level, long or highly constrained multi-part task",
-]
+# A yes/no question rather than a 0-4 difficulty scale: Laya's expected level
+# stayed between levels 1 and 2 for almost every prompt, while this wording's
+# probability spreads out and ranks the pilot labels better (Spearman 0.37 vs
+# 0.27; AUC 0.81 vs 0.72 for labels 3-5). Negative wordings ("can a small
+# model do it?", "is it simple?") came out inverted, so keep it positive.
+COMPLEXITY_CRITERIA = {
+    "true": (
+        "hard: needs expert knowledge, careful multi-step reasoning, "
+        "or many constraints"
+    ),
+    "false": "easy: a simple, common request any assistant handles",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -81,11 +93,11 @@ CATEGORY_QUESTION = {
 
 COMPLEXITY_QUESTION = {
     "complexity": {
-        "type": "score",
+        "type": "noul",
         "instructions": (
-            "How difficult is this task for an AI assistant to do well?"
+            "Is this task hard for an AI assistant to do well?"
         ),
-        "criteria": COMPLEXITY_LEVELS,
+        "criteria": COMPLEXITY_CRITERIA,
     }
 }
 
@@ -100,6 +112,13 @@ QUESTIONS = {
 
 
 TOPIC_NAMES = [topic.value for topic in TopicCategory]
+
+
+# Share of the token budget kept from the start of an over-long prompt; the
+# rest comes from its end. The margin covers the " ... " joint and tokenizer
+# boundary effects when the two parts are re-encoded.
+HEAD_SHARE = 0.35
+HEAD_TAIL_MARGIN = 8
 
 
 # ---------------------------------------------------------------------------
@@ -214,21 +233,17 @@ def _parse_topic_scores(
 
 
 def _parse_complexity(answer: dict) -> float:
-    """Convert Laya's expected complexity level to [0, 1]."""
+    """Return Laya's probability that the task is hard, clamped to [0, 1]."""
 
-    level = float(answer["score"])
+    probability = float(answer["noul"])
 
-    if not isfinite(level):
+    if not isfinite(probability):
         raise ValueError(
-            f"Laya returned a non-finite complexity score: {level!r}"
+            f"Laya returned a non-finite complexity probability: {probability!r}"
         )
 
-    max_level = len(COMPLEXITY_LEVELS) - 1
-
-    normalized = level / max_level
-
     return min(
-        max(normalized, 0.0),
+        max(probability, 0.0),
         1.0,
     )
 
@@ -244,15 +259,23 @@ def _load_laya_router():
 
     max_loaded=2 allows both the English and multilingual checkpoints to
     remain resident instead of constantly evicting/reloading each other.
+
+    LONN_LAYA_MODEL replaces only the English checkpoint; non-English
+    prompts still use Laya's multilingual one.
     """
 
     # Must be set before importing Laya / transformers.
     # Avoids a known TensorFlow import hang.
     os.environ.setdefault("USE_TF", "0")
 
+    from dotenv import load_dotenv
     from laya import Router
 
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+    english = os.environ.get("LONN_LAYA_MODEL", "").strip()
+
     return Router(
+        models={"english": english} if english else None,
         preload=False,
         default="english",
         max_loaded=2,
@@ -276,6 +299,7 @@ class ComplexityScorer:
 
     def __init__(self, laya_router=None):
         self._laya = laya_router
+        self._budgets: dict[tuple[str, tuple[str, ...]], int] = {}
 
     @property
     def laya(self):
@@ -286,10 +310,71 @@ class ComplexityScorer:
 
         return self._laya
 
+    def _budget(self, model: str, questions: dict) -> int:
+        """Prompt tokens that fit beside every question in one `model` window.
+
+        Each question is its own row sharing the prompt, so the question with
+        the longest instructions and options sets the budget.
+        """
+
+        key = (model, tuple(questions))
+
+        if key not in self._budgets:
+            max_len = self.laya.load(model).cfg.get("max_len", 512)
+            question_tokens = 0
+
+            for qid, question in questions.items():
+                usage = self.laya.predict("Hi", {qid: question}, model=model)["usage"]
+                question_tokens = max(
+                    question_tokens,
+                    usage["input_tokens"] - usage["state_tokens"],
+                )
+
+            self._budgets[key] = max_len - question_tokens - HEAD_TAIL_MARGIN
+
+        return self._budgets[key]
+
+    def _fit(self, prompt: str, model: str, questions: dict) -> str:
+        """Shorten a prompt that would be truncated, keeping its start and end.
+
+        Laya only reads the first window of a prompt, but requests often come
+        after long pasted context, so the middle is dropped instead of the end.
+        """
+
+        tok = self.laya.load(model).tok
+        ids = tok(prompt, add_special_tokens=False)["input_ids"]
+        budget = self._budget(model, questions)
+
+        if len(ids) <= budget:
+            return prompt
+
+        head = int(budget * HEAD_SHARE)
+        tail = budget - head
+
+        logger.info(
+            "prompt of %d tokens shortened to its first %d and last %d tokens",
+            len(ids), head, tail,
+        )
+
+        decode = lambda part: tok.decode(part, clean_up_tokenization_spaces=False)
+
+        return f"{decode(ids[:head])} ... {decode(ids[-tail:])}"
+
+    def _predict(self, prompt: str, questions: dict) -> dict:
+        """Route the prompt, fit it to the chosen checkpoint, and ask Laya."""
+
+        model = self.laya.route(prompt, questions).model
+
+        return self.laya.predict(
+            self._fit(prompt, model, questions),
+            questions,
+            model=model,
+        )
+
     def score_prompt(self, prompt: str) -> ComplexityResult:
         """Score topic distribution and complexity in one forward pass."""
 
-        result = self.laya.predict(
+        result = self._predict(
             prompt,
             QUESTIONS,
         )
@@ -329,7 +414,7 @@ class ComplexityScorer:
         Laya inference calls.
         """
 
-        result = self.laya.predict(
+        result = self._predict(
             prompt,
             CATEGORY_QUESTION,
         )
@@ -356,7 +441,7 @@ class ComplexityScorer:
         Prefer ``score_prompt`` when both topic and complexity are needed.
         """
 
-        result = self.laya.predict(
+        result = self._predict(
             prompt,
             COMPLEXITY_QUESTION,
         )

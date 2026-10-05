@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/Lonnlogo.png" width="300" alt="Lönn AI">
+  <img src="assets/Lonnlogo.png" width="300" alt="Lonn AI">
 </p>
 
 
@@ -17,6 +17,8 @@ src/lonn/                   # Runtime code
     schemas.py              # Shared data contracts
 scripts/discover_models.py  # Optional catalog discovery
 scripts/check_models.py     # Optional live text-availability checks
+scripts/finetune_laya.py    # Fine-tune Laya's decision head on labelled prompts
+scripts/push_laya.py        # Upload a fine-tuned checkpoint to Hugging Face
 examples/                   # App and usage examples
 tests/                      # Automated tests
 docs/                       # Architecture
@@ -69,7 +71,8 @@ still require a live test. The UI keeps the API key on the Python server.
 The complexity scorer uses [Laya](https://pypi.org/project/laya/) to produce a
 `ComplexityResult`: a topic probability distribution over `coding`,
 `math_reasoning`, `creative_writing`, and `general_knowledge_extraction`, plus a
-complexity score in [0, 1]. Laya is loaded on first use.
+complexity score in [0, 1]: Laya's probability that the task is hard, from a
+yes/no question. Both come from one Laya call. Laya is loaded on first use.
 
 ```python
 from lonn.complexity import ComplexityScorer
@@ -78,11 +81,57 @@ result = ComplexityScorer().score_prompt(prompt)
 print(result.complexity, result.topic_scores)
 ```
 
-To try it by hand (add `--debug` to see Laya's raw output):
+Two scripts in `examples/` let you try the scorer with the real Laya model:
+
+- `scorer_demo.py` loads Laya once, then scores each prompt you type and shows
+  how long it took (add `--debug` to see Laya's raw output):
+
+  ```bash
+  python3 examples/scorer_demo.py
+  ```
+
+- `scorer_benchmark.py` measures load time and per-prompt speed on your machine:
+
+  ```bash
+  python3 examples/scorer_benchmark.py
+  ```
+
+Prompts longer than Laya's window (about 370 tokens for English, after the
+questions) are shortened to their beginning and end, where the actual request
+usually is.
+
+### Fine-tuned Laya checkpoint
+
+The team's fine-tuned model is `LonnAI/laya-lonn` (private). See
+[docs/fine_tuned_laya.md](docs/fine_tuned_laya.md) for access, setup, what it
+changes, and its results.
+
+To use a fine-tuned checkpoint for English prompts, set `LONN_LAYA_MODEL` in
+`.env` to its Hugging Face repo id (or a local directory). For a private repo,
+run `hf auth login` once with an account that has access. Unset, the stock
+`convaiinnovations/laya` checkpoint is used. Non-English prompts always go to
+Laya's multilingual checkpoint.
+
+To train one from labelled prompts (format and rules in
+`docs/labeling_guide.md`):
 
 ```bash
-python3 examples/classify_prompt.py "Write a Python function that sorts a list"
+python3 scripts/finetune_laya.py --data data/labels/pilot.jsonl --out models/laya-lonn
 ```
+
+Only the decision head is trained; the encoder stays frozen. A stratified 20%
+of prompts is held out, and the script prints base versus fine-tuned topic
+accuracy and how well complexity ranks the labelled levels (Spearman and AUC,
+next to prompt length alone as a baseline). The output directory (gitignored) also
+holds `metrics.json` and a model card. Upload it to a private repo with:
+
+```bash
+hf auth login
+python3 scripts/push_laya.py --repo <hf-user>/laya-lonn
+```
+
+The checkpoint is trained for the exact question wording in
+`src/lonn/complexity.py`; retrain after changing it.
 
 ## Execution
 

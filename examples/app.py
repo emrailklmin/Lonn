@@ -12,8 +12,8 @@ from lonn.model_pool import load_model_pool
 from lonn.router import select_model
 from lonn.schemas import ComplexityResult, TopicCategory
 
-st.set_page_config(page_title='Lönn · Routing lab', page_icon='🍁', layout='wide')
-st.title('Lönn · Routing lab')
+st.set_page_config(page_title='Lonn · Routing lab', page_icon='🍁', layout='wide')
+st.title('Lonn · Routing lab')
 st.caption('Explore the tradeoff between model quality and cost, then try a live NVIDIA response.')
 
 with st.sidebar:
