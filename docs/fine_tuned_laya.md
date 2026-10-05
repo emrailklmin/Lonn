@@ -70,16 +70,25 @@ model do it?") gave inverted answers, so keep it positive.
 
 ### Results on held-out prompts
 
-45 prompts the model never trained on:
+45 prompts the model never trained on, scored with each version's own code:
 
-| | Stock Laya | Fine-tuned |
-|---|---:|---:|
-| Topic accuracy | 67% | 76% |
-| Complexity, separating hard prompts (AUC) | 0.92 | 0.89 |
+| | Prototype (stock Laya, 1-5 question) | Stock Laya, yes/no question | Fine-tuned |
+|---|---:|---:|---:|
+| Topic accuracy | 67% | 67% | 76% |
+| General knowledge correct | 1 of 15 | 1 of 15 | 9 of 15 |
+| Creative writing correct | 17 of 17 | 17 of 17 | 13 of 17 |
+| Complexity, separating hard prompts (AUC) | 0.77 | 0.92 | 0.89 |
+| Complexity, rank correlation with labels | 0.18 | 0.32 | 0.31 |
+| Speed per prompt (Apple-silicon Mac) | 134 ms | 133 ms | 143 ms |
 
-The topic gain comes mostly from general-knowledge prompts (summaries, factual
-questions), which stock Laya usually labelled creative writing. The complexity
-difference is within noise; the test set has only about 10 hard prompts.
+The topic gain comes from general-knowledge prompts (summaries, factual
+questions), which stock Laya almost always labelled creative writing. The
+fine-tuned model gives up some creative-writing prompts in exchange.
+
+Only 4 of the 45 prompts are labelled hard (3-5), so the AUC figures are rough.
+Across all 228 pilot prompts, which is fair for the two untrained versions only,
+the yes/no question also beats the 1-5 question: AUC 0.81 versus 0.72, rank
+correlation 0.37 versus 0.27.
 
 ### New and moved files
 
