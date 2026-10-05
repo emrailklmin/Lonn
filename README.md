@@ -38,7 +38,9 @@ Requires Python 3.10 or newer.
 2. Copy `.env.example` to `.env` if `.env` does not already exist.
 3. Fill in your NVIDIA NIM API key (get one at https://build.nvidia.com) as
    `NVIDIA_NIM_API_KEY=nvapi-...` — that exact variable name is required, it's
-   what LiteLLM's `nvidia_nim/...` provider reads.
+   what LiteLLM's `nvidia_nim/...` provider reads. To call `openrouter/...`
+   models, also set `OPENROUTER_API_KEY=sk-or-...` (https://openrouter.ai/keys).
+   Only the key for the provider actually called is required.
 4. `.env` is gitignored — never commit it.
 
 ## Run the prototype web app
@@ -101,9 +103,10 @@ print(response.usage.total_cost, response.latency_ms)
 ```
 
 The executor loads the repository `.env` without overriding existing environment
-variables. The selected model ID must be the full `nvidia_nim/...` ID from
-`config/models.yaml`. Costs are estimates based on configured per-million
-prices; they are not NVIDIA billing figures. `finish_reason` exposes truncation.
+variables. The selected model ID must be the full `nvidia_nim/...` or `openrouter/...` ID
+from `config/models.yaml`, and the matching key (`NVIDIA_NIM_API_KEY` or
+`OPENROUTER_API_KEY`) must be set. Costs are computed from configured
+per-million prices, not from provider billing. `finish_reason` exposes truncation.
 Provider errors propagate to the caller without rerouting or automatic retries.
 
 The pool loader and local Streamlit app are implemented. Model context values

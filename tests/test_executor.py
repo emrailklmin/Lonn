@@ -90,6 +90,32 @@ class ExecutorTests(unittest.TestCase):
             execute("Hi", self.model)
         self.completion.assert_not_called()
 
+    def test_openrouter_uses_its_own_key(self):
+        model = Model("openrouter/openai/gpt-oss-20b", "openrouter", 0.03, 0.14, 8192, {})
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "or-key"}):
+            execute("Hi", model)
+        self.assertEqual(self.completion.call_args.kwargs["model"], model.id)
+        self.assertEqual(self.completion.call_args.kwargs["api_key"], "or-key")
+
+    def test_only_the_called_providers_key_is_required(self):
+        model = Model("openrouter/openai/gpt-oss-20b", "openrouter", 0.03, 0.14, 8192, {})
+        for value in ("", "sk-or-your-key-here"):
+            with self.subTest(value=value), patch.dict(os.environ, {"OPENROUTER_API_KEY": value}):
+                with self.assertRaisesRegex(ValueError, "OPENROUTER_API_KEY"):
+                    execute("Hi", model)
+        os.environ.pop("NVIDIA_NIM_API_KEY")
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "or-key"}):
+            execute("Hi", model)
+        self.completion.assert_called_once()
+
+    def test_provider_must_match_id(self):
+        for model in (replace(self.model, provider="openrouter"),
+                      replace(self.model, provider="together_ai"),
+                      replace(self.model, id="openrouter/openai/gpt-oss-20b")):
+            with self.subTest(model=model), self.assertRaises(ValueError):
+                execute("Hi", model)
+        self.completion.assert_not_called()
+
     def test_malformed_responses(self):
         for response in (
             NS(choices=[]), NS(choices=[NS()]),
