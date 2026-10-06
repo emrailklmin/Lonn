@@ -36,17 +36,17 @@ Requires Python 3.10 or newer.
    ```
 
 2. Copy `.env.example` to `.env` if `.env` does not already exist.
-3. Fill in your NVIDIA NIM API key (get one at https://build.nvidia.com) as
-   `NVIDIA_NIM_API_KEY=nvapi-...` — that exact variable name is required, it's
-   what LiteLLM's `nvidia_nim/...` provider reads. To call `openrouter/...`
-   models, also set `OPENROUTER_API_KEY=sk-or-...` (https://openrouter.ai/keys).
-   Only the key for the provider actually called is required.
+3. Fill in your OpenRouter API key (https://openrouter.ai/keys) as
+   `OPENROUTER_API_KEY=sk-or-...`. The active pool runs on OpenRouter. The
+   inactive `nvidia_nim/...` entries need `NVIDIA_NIM_API_KEY=nvapi-...`
+   (https://build.nvidia.com) if you enable them. Only the key for the provider
+   actually called is required.
 4. `.env` is gitignored — never commit it.
 
 ## Run the prototype web app
 
 From the repository root, after installing `requirements.txt` and setting
-`NVIDIA_NIM_API_KEY` in `.env`:
+`OPENROUTER_API_KEY` in `.env`:
 
 ```bash
 source .venv/bin/activate
@@ -56,7 +56,7 @@ python3 -m streamlit run examples/app.py --server.address localhost
 Open http://localhost:8501. Choose **Manual topic** for a quick test without
 Laya, or **Automatic (Laya)** for the full analysis flow. First automatic use
 may download classifier weights. **Analyze & route** displays routing without
-calling NVIDIA; **Route & call NVIDIA** sends the prompt to the chosen model.
+calling a provider; **Route & call model** sends the prompt to the chosen model.
 Adjust alpha, output token budget, and timeout in the sidebar. The app displays
 complexity, topic probabilities, selected model, response, token usage, latency,
 and estimated cost. Settings changes do not repeat a submitted API request.

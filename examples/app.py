@@ -10,11 +10,11 @@ from lonn.complexity import ComplexityScorer
 from lonn.executor import execute
 from lonn.model_pool import load_model_pool
 from lonn.router import select_model
-from lonn.schemas import ComplexityResult, TopicCategory
+from lonn.schemas import PROVIDER_API_KEYS, ComplexityResult, TopicCategory
 
 st.set_page_config(page_title='Lönn · Routing lab', page_icon='🍁', layout='wide')
 st.title('Lönn · Routing lab')
-st.caption('Explore the tradeoff between model quality and cost, then try a live NVIDIA response.')
+st.caption('Explore the tradeoff between model quality and cost, then try a live response.')
 
 with st.sidebar:
     st.header('Routing controls')
@@ -41,14 +41,14 @@ with st.expander('Available models and estimated prices'):
                    'Input $/M': m.cost_per_m_input, 'Output $/M': m.cost_per_m_output,
                    **{t.value: v for t, v in m.topic_aptitudes.items()}}
                   for m in models], hide_index=True, width='stretch')
-st.caption('Aptitudes are benchmark proxies. Prices are third-party estimates, not NVIDIA charges.')
+st.caption('Aptitudes are benchmark proxies. Prices come from config/models.yaml (see price_basis).')
 
 with st.form('request', enter_to_submit=False):
     prompt = st.text_area('Your prompt', height=160,
                           placeholder='Write a Python function that removes duplicates while preserving order.')
     left, right = st.columns(2)
     analyze = left.form_submit_button('Analyze & route')
-    run = right.form_submit_button('Route & call NVIDIA', type='primary')
+    run = right.form_submit_button('Route & call model', type='primary')
 
 if analyze or run:
     # Clear the previous result before starting so errors cannot display stale output.
@@ -71,7 +71,7 @@ if analyze or run:
                 record['selected'] = selected
                 st.write(f'Selected: {selected.id}')
                 if run:
-                    status.update(label='Waiting for NVIDIA…')
+                    status.update(label=f'Waiting for {selected.provider}…')
                     record['response'] = execute(prompt, selected, timeout=timeout, max_tokens=max_tokens)
                     status.update(label='Response received', state='complete', expanded=False)
                 else:
@@ -80,16 +80,19 @@ if analyze or run:
                 # Provider exceptions can contain request bodies or credentials.
                 # Show actionable categories instead of raw exception strings.
                 code = getattr(exc, 'status_code', None)
+                chosen = record.get('selected')
+                provider = chosen.provider if chosen else 'the provider'
+                key_name = PROVIDER_API_KEYS.get(provider, 'the API key')
                 if code in (401, 403):
-                    message = 'NVIDIA rejected access. Check NVIDIA_NIM_API_KEY and account access.'
+                    message = f'{provider} rejected access. Check {key_name} and account access.'
                 elif code == 429:
-                    message = 'NVIDIA rate limit reached. Wait before trying again.'
+                    message = f'{provider} rate limit reached. Wait before trying again.'
                 elif code == 404:
-                    message = 'This model is unavailable at the NVIDIA endpoint. Check its catalog ID.'
+                    message = f'This model is unavailable at {provider}. Check its model ID.'
                 elif code in (408, 504) or 'timeout' in type(exc).__name__.lower():
                     message = 'The request timed out. Increase the timeout or try again later.'
                 else:
-                    message = f'{type(exc).__name__}: check dependencies, model configuration, and NVIDIA_NIM_API_KEY. If automatic analysis failed, try Manual topic.'
+                    message = f'{type(exc).__name__}: check dependencies, model configuration, and {key_name}. If automatic analysis failed, try Manual topic.'
                 record['error'] = message
                 status.update(label='Request failed', state='error', expanded=False)
         st.session_state.last_run = record
