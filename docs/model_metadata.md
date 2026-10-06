@@ -3,6 +3,9 @@
 Research snapshot: 2026-09-29. `config/models.yaml` is the only runtime
 configuration. This note records the evidence and the conversion policy.
 
+Since 2026-10-06 the active pool is the OpenRouter section at the end of this
+note. The NIM entries described first are kept in the config but inactive.
+
 ## Context windows
 
 | NVIDIA model | Configured total tokens | Evidence |
@@ -80,12 +83,19 @@ The pool supports two providers. The ID prefix must match `provider`:
 For an OpenRouter entry, record the price from the model's OpenRouter page and
 the date it was checked. Only OpenRouter's model access is used, not its routing.
 
-## OpenRouter candidates (inactive)
+## OpenRouter pool
 
-Researched 2026-10-06. Eleven OpenRouter entries are in `config/models.yaml`
-with `active: false`. The three NIM entries above stay active. Each candidate was
-kept because it adds something per dollar; models that were worse than another
-candidate in every category and also more expensive were left out (see below).
+Researched 2026-10-06. Eleven OpenRouter entries are in `config/models.yaml`.
+Eight are active: Claude Sonnet 5.5, Muse Spark 1.3, Gemini 3.8 Flash,
+GLM-5.3-Flash, DeepSeek V4.1 Flash, DeepSeek V4 Pro, gpt-oss-120b and gpt-oss-20b.
+Kimi K3 stays inactive (Muse Spark 1.3 matches it at a lower price), as do
+Nemotron 3 Ultra and Muse Glimmer (both below GLM-5.3-Flash and DeepSeek V4 Pro in
+every category at a higher price). The three NIM entries are inactive, so the
+active pool uses one aptitude method and real prices.
+
+Each candidate was kept because it adds something per dollar; models that were
+worse than another candidate in every category and also more expensive were left
+out (see below).
 
 | OpenRouter ID | Role | In / out $/M | Context | Arena coding | Arena math | Arena creative | Arena expert | AA Intelligence Index | AA $ per task | AA HLE % |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -105,7 +115,7 @@ Aptitudes written to `config/models.yaml`:
 
 | OpenRouter ID | Arena name used | coding | math_reasoning | creative_writing | general_knowledge_extraction |
 |---|---|---:|---:|---:|---:|
-| `anthropic/claude-sonnet-5.5` | `claude-sonnet-5.5-xhigh` | 0.6863 | – | 0.5672 | 0.7105 |
+| `anthropic/claude-sonnet-5.5` | `claude-sonnet-5.5-xhigh` (math: `claude-sonnet-5-high`) | 0.6863 | 0.6049 | 0.5672 | 0.7105 |
 | `meta/muse-spark-1.3` | `muse-spark-1.3-max` | 0.69 | 0.6519 | 0.5841 | 0.6776 |
 | `google/gemini-3.8-flash` | `gemini-3.8-flash-high` | 0.6788 | 0.6623 | 0.6199 | 0.6738 |
 | `moonshotai/kimi-k3` | `kimi-k3-max` | 0.6925 | 0.6401 | 0.5855 | 0.6826 |
@@ -153,13 +163,16 @@ GLM-5.3 (max) (about equal to GLM-5.3-Flash at higher cost), Qwen3.8 Max (AA cos
 task), GPT-5.6 Terra (below Sonnet 5.5 at a higher output price), and GPT-5.6 Sol (close to
 Sonnet 5.5 at the same price; a possible second frontier model).
 
-### Known gaps before activating any of these
+### Known gaps
 
-- **Mixed methods.** The active NIM entries use vendor benchmarks (SWE-bench, GPQA, HLE,
-  EQ-Bench); the OpenRouter entries use Arena Elo. Do not activate a mix without re-scoring
-  all active entries with one method.
-- **Sonnet 5.5 has no Arena math score yet** (released 2026-09-28). Its `math_reasoning` is
-  `null`, and the loader will reject it if it is activated before a value is sourced.
+- **Mixed methods.** The NIM entries use vendor benchmarks (SWE-bench, GPQA, HLE,
+  EQ-Bench); the OpenRouter entries use Arena Elo. Do not reactivate a NIM entry next to
+  OpenRouter entries without re-scoring it with Arena Elo.
+- **Sonnet 5.5 has no Arena math score yet** (released 2026-09-28). Its `math_reasoning`
+  uses the Arena math score of its predecessor `claude-sonnet-5-high` (1474 → 0.6049) as a
+  stand-in. Only the score is borrowed; the routed model is Sonnet 5.5. Sonnet 5.5 is above
+  Sonnet 5 in every other category, so this is likely an underestimate. Replace it when
+  Arena publishes a Sonnet 5.5 math score.
 - **Reasoning effort.** Benchmarks were run at high, xhigh or max effort. The executor sends
   no effort setting, so real quality can be lower than the aptitudes suggest. See #1.
 - **Price per token is not cost per task.** Verbose models cost more than their list price

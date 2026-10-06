@@ -22,7 +22,7 @@ python3 -m unittest tests.test_router.RouterTests.test_alpha_changes_selection
 # Test files also run directly
 python3 tests/test_router.py
 
-# Streamlit prototype app (live calls need the selected model's provider key in .env)
+# Streamlit prototype app (live calls need OPENROUTER_API_KEY in .env for the active pool)
 python3 -m streamlit run examples/app.py --server.address localhost
 
 # Try the complexity scorer by hand (--debug prints raw Laya output)

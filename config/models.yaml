@@ -1,10 +1,12 @@
-# Curated routing pool. Metadata researched 2026-09-29.
+# Curated routing pool. NIM metadata researched 2026-09-29; the NIM entries are
+# inactive since 2026-10-06 (their aptitudes use a different method; see
+# docs/model_metadata.md).
 # Context limits are documentation-based, not live boundary-tested.
 # Aptitudes are benchmark-derived proxies; see docs/model_metadata.md.
 # Prices below are third-party estimates, not NVIDIA billing rates.
 - id: nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b
   provider: nvidia_nim
-  active: true
+  active: false
   price_basis: estimate
   context_window: 1000000
   context_source: https://github.com/NVIDIA-NeMo/Nemotron/blob/main/usage-cookbook/Nemotron-3-Ultra/OpenScaffoldingResources/README.md
@@ -21,7 +23,7 @@
 
 - id: nvidia_nim/meta/muse-glimmer-30b
   provider: nvidia_nim
-  active: true
+  active: false
   price_basis: estimate
   context_window: 131072
   context_source: https://build.nvidia.com/meta/muse-glimmer-30b/modelcardonenote
@@ -38,7 +40,7 @@
 
 - id: nvidia_nim/openai/gpt-oss-20b
   provider: nvidia_nim
-  active: true
+  active: false
   price_basis: estimate
   context_window: 131072
   context_source: https://build.nvidia.com/openai/gpt-oss-20b
@@ -53,14 +55,14 @@
   cost_per_m_output: 0.14
   matched_provider_key: deepinfra/openai/gpt-oss-20b
 
-# OpenRouter candidates, researched 2026-10-06. All inactive: the NIM entries above
-# remain the active pool until the team decides which of these to enable.
+# OpenRouter pool, researched 2026-10-06. Eight entries are active; Kimi K3,
+# Nemotron 3 Ultra and Muse Glimmer stay inactive (see docs/model_metadata.md).
 # Prices are OpenRouter's listed prices (price_basis: provider). Aptitudes are
 # Arena category Elo converted with 1 / (1 + 10 ** ((1400 - Elo) / 400)); see
 # docs/model_metadata.md for the sources and the per-model Arena names.
 - id: openrouter/anthropic/claude-sonnet-5.5
   provider: openrouter
-  active: false
+  active: true
   price_basis: provider
   context_window: 1000000
   context_source: https://openrouter.ai/anthropic/claude-sonnet-5.5
@@ -68,7 +70,7 @@
   aptitude_basis: arena_elo
   topic_aptitudes:
     coding: 0.6863
-    math_reasoning: null  # no Arena math score yet
+    math_reasoning: 0.6049  # stand-in: Arena math score of claude-sonnet-5-high (1474); Sonnet 5.5 has none yet
     creative_writing: 0.5672
     general_knowledge_extraction: 0.7105
   cost_per_m_input: 2
@@ -76,7 +78,7 @@
 
 - id: openrouter/meta/muse-spark-1.3
   provider: openrouter
-  active: false
+  active: true
   price_basis: provider
   context_window: 1048576
   context_source: https://openrouter.ai/meta/muse-spark-1.3
@@ -92,7 +94,7 @@
 
 - id: openrouter/google/gemini-3.8-flash
   provider: openrouter
-  active: false
+  active: true
   price_basis: provider
   context_window: 1048576
   context_source: https://openrouter.ai/google/gemini-3.8-flash
@@ -124,7 +126,7 @@
 
 - id: openrouter/z-ai/glm-5.3-flash
   provider: openrouter
-  active: false
+  active: true
   price_basis: provider
   context_window: 1048576
   context_source: https://openrouter.ai/z-ai/glm-5.3-flash
@@ -140,7 +142,7 @@
 
 - id: openrouter/deepseek/deepseek-v4.1-flash
   provider: openrouter
-  active: false
+  active: true
   price_basis: provider
   context_window: 1048576
   context_source: https://openrouter.ai/deepseek/deepseek-v4.1-flash
@@ -156,7 +158,7 @@
 
 - id: openrouter/deepseek/deepseek-v4-pro
   provider: openrouter
-  active: false
+  active: true
   price_basis: provider
   context_window: 1048576
   context_source: https://openrouter.ai/deepseek/deepseek-v4-pro
@@ -204,7 +206,7 @@
 
 - id: openrouter/openai/gpt-oss-120b
   provider: openrouter
-  active: false
+  active: true
   price_basis: provider
   context_window: 131072
   context_source: https://openrouter.ai/openai/gpt-oss-120b
@@ -220,7 +222,7 @@
 
 - id: openrouter/openai/gpt-oss-20b
   provider: openrouter
-  active: false
+  active: true
   price_basis: provider
   context_window: 131072
   context_source: https://openrouter.ai/openai/gpt-oss-20b
