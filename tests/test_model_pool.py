@@ -46,6 +46,20 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(model.cost_per_m_output, 0.14)
         self.assertEqual(set(model.topic_aptitudes), set(TopicCategory))
 
+    def test_openrouter_provider(self):
+        entry = {**self.entry, 'id': 'openrouter/openai/gpt-oss-20b', 'provider': 'openrouter',
+                 'price_basis': 'provider'}
+        nim, openrouter = self.load([self.entry, entry])
+        self.assertEqual(nim.provider, 'nvidia_nim')
+        self.assertEqual(openrouter.provider, 'openrouter')
+        self.assertEqual(openrouter.id, 'openrouter/openai/gpt-oss-20b')
+
+    def test_provider_must_match_id(self):
+        for changes in ({'provider': 'openrouter'}, {'provider': 'together_ai'},
+                        {'provider': None}, {'id': 'openai/gpt-oss-20b'}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                self.load([{**self.entry, **changes}])
+
     def test_missing_metadata_rejected(self):
         for field in ('context_window', 'topic_aptitudes', 'cost_per_m_input', 'price_basis'):
             with self.subTest(field=field), self.assertRaises(ValueError):

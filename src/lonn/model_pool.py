@@ -1,11 +1,11 @@
-"""Load curated NVIDIA model metadata; discovery and probing are separate tools."""
+"""Load curated model metadata; discovery and probing are separate tools."""
 
 from math import isfinite
 from pathlib import Path
 
 import yaml
 
-from .schemas import Model, TopicCategory
+from .schemas import PROVIDER_API_KEYS, Model, TopicCategory
 
 DEFAULT_POOL = Path(__file__).resolve().parents[2] / 'config' / 'models.yaml'
 
@@ -31,11 +31,12 @@ def load_model_pool(path: str | Path = DEFAULT_POOL) -> list[Model]:
             model_id = entry.get('id')
             if not isinstance(model_id, str):
                 raise ValueError('id must be a string')
+            provider = entry.get('provider')
+            if not isinstance(provider, str) or provider not in PROVIDER_API_KEYS:
+                raise ValueError(f'provider must be one of {", ".join(PROVIDER_API_KEYS)}')
             parts = model_id.split('/', 2)
-            if len(parts) != 3 or parts[0] != 'nvidia_nim' or not all(parts):
-                raise ValueError('id must be nvidia_nim/<publisher>/<model>')
-            if entry.get('provider') != 'nvidia_nim':
-                raise ValueError('provider must be nvidia_nim for this prototype')
+            if len(parts) != 3 or parts[0] != provider or not all(parts):
+                raise ValueError(f'id must be {provider}/<publisher>/<model>')
             if model_id in seen:
                 raise ValueError('duplicate model ID')
             seen.add(model_id)
@@ -53,7 +54,7 @@ def load_model_pool(path: str | Path = DEFAULT_POOL) -> list[Model]:
             if any(type(x) not in (int, float) or not isfinite(x) or not 0 <= x <= 1
                    for x in scores.values()):
                 raise ValueError('topic_aptitudes need measured or explicitly estimated scores in [0, 1]')
-            models.append(Model(model_id, entry['provider'], *prices, context,
+            models.append(Model(model_id, provider, *prices, context,
                                 {TopicCategory(k): v for k, v in scores.items()}))
         except ValueError as exc:
             label = entry.get('id', index) if isinstance(entry, dict) else index

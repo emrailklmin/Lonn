@@ -308,12 +308,15 @@ They therefore do **not** have to sum to 1.
 The single model configuration is `config/models.yaml`. It contains a YAML
 list with the same field names as `Model`: `id`, `provider`,
 `cost_per_m_input`, `cost_per_m_output`, `context_window`, and `topic_aptitudes`.
-Full LiteLLM IDs use `nvidia_nim/<publisher>/<model>`.
+Full LiteLLM IDs use `<provider>/<publisher>/<model>`, where `provider` is
+`nvidia_nim` or `openrouter` and must match the entry's `provider` field.
+OpenRouter is used only as a credit-based way to reach models; its own routing
+is not used.
 
 Additional configuration fields are `active`, `price_basis`, and
 `matched_provider_key` (the source of a third-party price estimate). The loader
 filters inactive entries and validates the shared contract. Pricing references
-are metadata and must never replace the NVIDIA execution ID.
+are metadata and must never replace the execution ID.
 
 Discovery (`scripts/discover_models.py`) saves every catalog ID
 without requiring pricing or guessing chat support from names. Availability
@@ -525,8 +528,10 @@ The router and executor consume these contracts, and the app displays them.
 
 `executor.execute(prompt, model, timeout=120, max_tokens=4096)` and
 `ModelExecutor().execute(...)` send a non-streaming text request using LiteLLM's
-NVIDIA NIM provider. The executor loads the repository `.env` without overriding
-existing environment values and uses `NVIDIA_NIM_API_KEY`.
+NVIDIA NIM or OpenRouter provider, chosen by the model's `provider`. The
+executor loads the repository `.env` without overriding existing environment
+values and requires only the key for that provider: `NVIDIA_NIM_API_KEY` or
+`OPENROUTER_API_KEY`.
 
 The result contains text, the selected model, measured request latency in
 milliseconds, token counts, estimated costs, and `finish_reason`. Cost is

@@ -67,3 +67,15 @@ performance. Replace them with results on shared application-specific prompts,
 including extraction tasks, when evaluating routing quality.
 
 Prices remain the existing third-party estimates and are not NVIDIA charges.
+
+## Providers
+
+The pool supports two providers. The ID prefix must match `provider`:
+
+| `provider` | ID form | API key | Typical `price_basis` |
+|---|---|---|---|
+| `nvidia_nim` | `nvidia_nim/<publisher>/<model>` | `NVIDIA_NIM_API_KEY` | `estimate` (NIM is free for prototyping; prices come from other providers, see `matched_provider_key`) |
+| `openrouter` | `openrouter/<publisher>/<model>` | `OPENROUTER_API_KEY` | `provider` (OpenRouter's listed price for the model) |
+
+For an OpenRouter entry, record the price from the model's OpenRouter page and
+the date it was checked. Only OpenRouter's model access is used, not its routing.
