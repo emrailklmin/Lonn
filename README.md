@@ -64,6 +64,112 @@ The app reports truncation; increase the budget and retry if needed. The default
 is 4,096 tokens and a 120-second timeout. API availability and account access
 still require a live test. The UI keeps the API key on the Python server.
 
+## Python SDK for apps and benchmarks
+
+Install the lightweight client from this checkout on the app's machine:
+
+```bash
+python -m pip install ./sdk/python
+```
+
+```python
+from lonnrouter import LonnRouter
+
+with LonnRouter(base_url="http://192.168.1.42:8000") as router:
+    result = router.generate("Explain binary search", alpha=0.7)
+    print(result.content)
+    print(result.model.id, result.usage.total_cost)
+```
+
+Replace the example address with your running Lonn server. You can instead set
+`LONN_BASE_URL` and use `LonnRouter()`. The SDK calls the HTTP API; it does not
+start the server. Only the server needs Laya, NVIDIA credentials, and the model
+configuration. The client package depends only on HTTPX and Pydantic.
+
+Use `router.route(...)` for selection without generation, or `AsyncLonnRouter`
+with `await router.generate(...)` inside an async app. Results expose typed
+attributes and `model_dump()` for saving benchmark records. The client reuses
+connections and performs no automatic retries.
+
+See the [SDK guide](sdk/python/README.md) for async examples, installation,
+timeouts, supplied signals, and error handling. This package is not yet published
+to PyPI; install from the checkout or a built wheel.
+
+## Benchmark HTTP API
+
+Install `requirements.txt`, then start FastAPI from the repository root:
+
+```bash
+source .venv/bin/activate
+python3 -m uvicorn lonn.api:app --app-dir src --host 127.0.0.1 --port 8000
+```
+
+Interactive request/response documentation: http://127.0.0.1:8000/docs.
+This API has no authentication; loopback is the default for local use. For a
+benchmark runner on another device, see
+[network access and SSH tunnel instructions](docs/Prototype_architecture.md#9-calling-from-another-device--new).
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Service health; does not check classifier or provider availability |
+| `GET /models` | Active model pool and configured metadata |
+| `POST /route` | Analyze a prompt and return the selected model without a provider call |
+| `POST /generate` | Analyze, route, and call the selected NVIDIA model once |
+
+Selection-only example, supplying a signal to avoid loading Laya:
+
+```bash
+curl http://127.0.0.1:8000/route \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Write a sorting function","alpha":0.7,"signal":{"complexity":0.5,"topic_scores":{"coding":1.0}}}'
+```
+
+Omit `signal` to analyze the prompt with Laya automatically. The signal requires
+complexity and topic probabilities in [0, 1], with probabilities summing to one;
+omitted topics count as zero. `alpha` defaults to 0.5, matching the core router.
+Responses include `model`, `signal`, `alpha`, `analysis_source` (`provided` or
+`laya`), and `routing_latency_ms` (analysis plus selection, including any wait
+for the classifier).
+
+End-to-end benchmark call from Python:
+
+```python
+import httpx
+
+result = httpx.post(
+    "http://127.0.0.1:8000/generate",
+    json={"prompt": "What is 17 * 23?", "alpha": 0.7,
+          "max_tokens": 4096, "timeout": 120},
+    timeout=300,  # Also allow time for local prompt analysis.
+)
+result.raise_for_status()
+data = result.json()
+print(data["model"]["id"], data["response"]["content"])
+print(data["response"]["usage"], data["total_latency_ms"])
+```
+
+`/generate` accepts the same optional `signal`. It additionally returns `response`
+(the existing `ModelResponse`: content, model, usage, provider latency, and
+finish reason) and `total_latency_ms` for server-side analysis, routing, and
+execution. Neither timing includes HTTP transport; measure client elapsed time
+separately. Costs are configured estimates. Preserve `finish_reason` in benchmark
+results: `length` indicates truncation, potentially with empty final text.
+
+The output budget defaults to 4096 tokens and must be below the selected model's
+context window. Prompt token counting is not yet implemented. Provider timeout
+defaults to 120 seconds (maximum 600); it does not limit classifier time.
+Execution requires `NVIDIA_NIM_API_KEY` in the environment or repository `.env`.
+There are no automatic retries or fallbacks. Invalid requests return 422;
+analysis/routing failures 503; provider rate limits 429; provider timeouts 504;
+other execution failures 502. Error bodies omit raw provider details.
+
+The pool is loaded and validated at startup; restart after changing configuration.
+Laya loads on the first automatic request and is reused. Warm it up with an
+automatic `/route` call before measuring steady-state latency. Classifier calls
+are serialized within each server process; provider calls can overlap. Each
+additional Uvicorn worker loads its own classifier. This is a simple JSON API,
+not an OpenAI chat-completions endpoint.
+
 ## Complexity scoring
 
 The complexity scorer uses [Laya](https://pypi.org/project/laya/) to produce a
@@ -152,7 +258,8 @@ selected_model = select_model(result, models, alpha=0.7)
 Discovery and probes are offline preparation steps, not part of each routed
 request. Generated reports are ignored by Git; `config/models.yaml` is the
 only curated model configuration.
-See `docs/prototype_architecture.md` for the responsibility boundaries.
+See [the architecture and branch changes](docs/Prototype_architecture.md) for
+the responsibility boundaries, HTTP request flow, and highlighted FastAPI additions.
 
 ## Tests
 

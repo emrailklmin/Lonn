@@ -21,9 +21,12 @@ class FakeLaya:
         self.complexity_score = complexity_score
 
     def predict(self, text, question):
+        answers = {}
         if "category" in question:
-            return {"answers": {"category": self.category_answer}}
-        return {"answers": {"complexity": {"score": self.complexity_score}}}
+            answers["category"] = self.category_answer
+        if "complexity" in question:
+            answers["complexity"] = {"score": self.complexity_score}
+        return {"answers": answers}
 
 
 def probs(**values):
