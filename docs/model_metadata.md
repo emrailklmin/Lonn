@@ -85,10 +85,12 @@ the date it was checked. Only OpenRouter's model access is used, not its routing
 
 ## OpenRouter pool
 
-Researched 2026-10-06. Eleven OpenRouter entries are in `config/models.yaml`.
+Researched 2026-10-06. Twelve OpenRouter entries are in `config/models.yaml`.
 Eight are active: Claude Sonnet 5.5, Muse Spark 1.3, Gemini 3.8 Flash,
 GLM-5.3-Flash, DeepSeek V4.1 Flash, DeepSeek V4 Pro, gpt-oss-120b and gpt-oss-20b.
-Kimi K3 stays inactive (Muse Spark 1.3 matches it at a lower price), as do
+Claude Opus 5.5 is inactive as a reference for comparing the router against a
+frontier model; it is not meant to be routed to. Kimi K3 stays inactive (Muse
+Spark 1.3 matches it at a lower price), as do
 Nemotron 3 Ultra and Muse Glimmer (both below GLM-5.3-Flash and DeepSeek V4 Pro in
 every category at a higher price). The three NIM entries are inactive, so the
 active pool uses one aptitude method and real prices.
@@ -100,6 +102,7 @@ out (see below).
 | OpenRouter ID | Role | In / out $/M | Context | Arena coding | Arena math | Arena creative | Arena expert | AA Intelligence Index | AA $ per task | AA HLE % |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
 | `anthropic/claude-sonnet-5.5` | Frontier ceiling; #1 on Arena expert prompts | 2 / 10 | 1,000,000 | 1536 | – | 1447 | 1556 | 47 | 1.12 | – |
+| `anthropic/claude-opus-5.5` | Inactive reference for comparisons: about 1.6× Sonnet 5.5's cost per task, clearly better at creative writing, similar at coding and expert prompts | 4 / 20 | 1,000,000 | 1538 | 1510 | 1516 | 1541 | 54 | 1.82 | 55.6 |
 | `meta/muse-spark-1.3` | Frontier-level coding and math at under half of Sonnet's output price | 1.25 / 4.25 | 1,048,576 | 1539 | 1509 | 1459 | 1529 | 48 | 1.6 | 48.7 |
 | `google/gemini-3.8-flash` | Best creative writing in the set; strong all-rounder at mid price | 0.75 / 3.75 | 1,048,576 | 1530 | 1517 | 1485 | 1526 | 41 | 1.24 | 47.8 |
 | `moonshotai/kimi-k3` | Not for routing yet: top coding Elo, but highest output price and matched by Muse Spark 1.3 | 0.95 / 14 | 1,048,576 | 1541 | 1500 | 1460 | 1533 | 44 | 2 | 46.9 |
@@ -116,6 +119,7 @@ Aptitudes written to `config/models.yaml`:
 | OpenRouter ID | Arena name used | coding | math_reasoning | creative_writing | general_knowledge_extraction |
 |---|---|---:|---:|---:|---:|
 | `anthropic/claude-sonnet-5.5` | `claude-sonnet-5.5-xhigh` (math: `claude-sonnet-5-high`) | 0.6863 | 0.6049 | 0.5672 | 0.7105 |
+| `anthropic/claude-opus-5.5` | `claude-opus-5.5-high` | 0.6888 | 0.6532 | 0.661 | 0.6925 |
 | `meta/muse-spark-1.3` | `muse-spark-1.3-max` | 0.69 | 0.6519 | 0.5841 | 0.6776 |
 | `google/gemini-3.8-flash` | `gemini-3.8-flash-high` | 0.6788 | 0.6623 | 0.6199 | 0.6738 |
 | `moonshotai/kimi-k3` | `kimi-k3-max` | 0.6925 | 0.6401 | 0.5855 | 0.6826 |
@@ -139,7 +143,7 @@ Aptitudes written to `config/models.yaml`:
   [model leaderboard](https://artificialanalysis.ai/leaderboards/models); HLE from the
   [HLE leaderboard](https://artificialanalysis.ai/evaluations/humanitys-last-exam) (top 30 only) and the
   gpt-oss-120b model page. AA measures every model with the same harness. Values are for the
-  reasoning variant named on AA (Sonnet 5.5: high; Muse Spark 1.3, Kimi K3, DeepSeek V4.1 Flash: max;
+  reasoning variant named on AA (Sonnet 5.5 and Opus 5.5: high; Muse Spark 1.3, Kimi K3, DeepSeek V4.1 Flash: max;
   Gemini 3.8 Flash, Muse Glimmer, gpt-oss: high); HLE for Sonnet 5.5 is only published for max (55.0%)
   and is left out. No AA row was matched to OpenRouter's `deepseek-v4-pro`.
 

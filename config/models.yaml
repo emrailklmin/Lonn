@@ -55,8 +55,9 @@
   cost_per_m_output: 0.14
   matched_provider_key: deepinfra/openai/gpt-oss-20b
 
-# OpenRouter pool, researched 2026-10-06. Eight entries are active; Kimi K3,
-# Nemotron 3 Ultra and Muse Glimmer stay inactive (see docs/model_metadata.md).
+# OpenRouter pool, researched 2026-10-06. Eight entries are active; Claude Opus 5.5
+# (comparison reference), Kimi K3, Nemotron 3 Ultra and Muse Glimmer stay inactive
+# (see docs/model_metadata.md).
 # Prices are OpenRouter's listed prices (price_basis: provider). Aptitudes are
 # Arena category Elo converted with 1 / (1 + 10 ** ((1400 - Elo) / 400)); see
 # docs/model_metadata.md for the sources and the per-model Arena names.
@@ -75,6 +76,22 @@
     general_knowledge_extraction: 0.7105
   cost_per_m_input: 2
   cost_per_m_output: 10
+
+- id: openrouter/anthropic/claude-opus-5.5
+  provider: openrouter
+  active: false  # reference for comparisons, not routed
+  price_basis: provider
+  context_window: 1000000
+  context_source: https://openrouter.ai/anthropic/claude-opus-5.5
+  metadata_checked_at: "2026-10-06"
+  aptitude_basis: arena_elo
+  topic_aptitudes:
+    coding: 0.6888
+    math_reasoning: 0.6532
+    creative_writing: 0.661
+    general_knowledge_extraction: 0.6925
+  cost_per_m_input: 4
+  cost_per_m_output: 20
 
 - id: openrouter/meta/muse-spark-1.3
   provider: openrouter
