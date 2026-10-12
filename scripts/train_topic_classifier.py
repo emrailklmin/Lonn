@@ -12,7 +12,8 @@ A feed-forward network then maps the embedding to the four topics:
 
 Training minimises soft-label cross-entropy plus an L2 penalty, l2 * sum of
 squared weights (biases excluded), with Adam. Labels are the soft topic distributions in data/labels/pilot.jsonl, split 70/30
-into train and test, stratified by main topic. There is no validation set: the
+into train and test, stratified by main topic; --extra adds more prompts to
+training only, so the test split is always pilot prompts. There is no validation set: the
 network trains for a fixed number of epochs and is scored once on the test set.
 The trained network is written to models/topic_classifier.pt (gitignored).
 """
@@ -38,7 +39,8 @@ MAX_TOKENS = 256  # The encoder was trained on inputs up to this length.
 
 
 def load_rows(path):
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    # Split on "\n" only: prompts may contain other characters str.splitlines() breaks on.
+    return [json.loads(line) for line in path.read_text().split("\n") if line.strip()]
 
 
 def main_topic(row):
@@ -118,6 +120,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data", type=Path, default=ROOT / "data/labels/pilot.jsonl")
     parser.add_argument("--test-fraction", type=float, default=0.3)
+    parser.add_argument("--extra-weight", type=float, default=1.0,
+                        help="loss weight of each --extra prompt relative to a pilot prompt")
+    parser.add_argument("--extra-topics", nargs="+", choices=TOPICS,
+                        help="only use --extra prompts whose label is one of these topics")
+    parser.add_argument("--extra", type=Path, help="extra labelled prompts added to training only "
+                        "(e.g. data/external/topics.jsonl from scripts/build_external_topics.py)")
     parser.add_argument("--hidden", type=int, default=128)
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--epochs", type=int, default=300)
@@ -132,6 +140,12 @@ def main():
     device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
 
     train_rows, test_rows = split(load_rows(args.data), args.test_fraction, random.Random(args.seed))
+    if args.extra:
+        extra = load_rows(args.extra)
+        if args.extra_topics:
+            extra = [r for r in extra if main_topic(r) in args.extra_topics]
+        train_rows = train_rows + extra
+        print(f"Added {len(extra)} extra training prompts from {args.extra}")
     print(f"{len(train_rows)} train / {len(test_rows)} test prompts; train topics "
           f"{dict(Counter(main_topic(r) for r in train_rows))}")
 
@@ -139,6 +153,9 @@ def main():
     x_train = embed([r["prompt"] for r in train_rows], device)
     x_test = embed([r["prompt"] for r in test_rows], device)
     y_train = targets(train_rows)
+    n_pilot = len(train_rows) - (len(extra) if args.extra else 0)
+    sample_weight = torch.ones(len(train_rows))
+    sample_weight[n_pilot:] = args.extra_weight
 
     model = TopicNet(x_train.shape[1], args.hidden, len(TOPICS), args.dropout)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -148,7 +165,8 @@ def main():
 
     for epoch in range(1, args.epochs + 1):  # Full batch: the training set is tiny.
         model.train()
-        data_loss = -(y_train * F.log_softmax(model(x_train), -1)).sum(-1).mean()
+        per_prompt = -(y_train * F.log_softmax(model(x_train), -1)).sum(-1)
+        data_loss = (sample_weight * per_prompt).sum() / sample_weight.sum()
         l2_penalty = args.l2 * sum(w.pow(2).sum() for w in weights)
         loss = data_loss + l2_penalty
         optimizer.zero_grad()

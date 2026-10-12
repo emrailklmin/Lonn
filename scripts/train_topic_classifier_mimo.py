@@ -95,6 +95,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data", type=Path, default=ROOT / "data/labels/pilot.jsonl")
     parser.add_argument("--test-fraction", type=float, default=0.3)
+    parser.add_argument("--extra", type=Path, help="extra labelled prompts added to training only "
+                        "(e.g. data/external/topics.jsonl from scripts/build_external_topics.py)")
     parser.add_argument("--heads", type=int, default=6)
     parser.add_argument("--hidden", type=int, default=1024)
     parser.add_argument("--layers", type=int, default=2)
@@ -115,6 +117,10 @@ def main():
     device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
 
     train_rows, test_rows = split(load_rows(args.data), args.test_fraction, random.Random(args.seed))
+    if args.extra:
+        extra = load_rows(args.extra)
+        train_rows = train_rows + extra
+        print(f"Added {len(extra)} extra training prompts from {args.extra}")
     print(f"{len(train_rows)} train / {len(test_rows)} test prompts")
     print(f"Embedding on {device} ...")
     x_train = embed([r["prompt"] for r in train_rows], device)

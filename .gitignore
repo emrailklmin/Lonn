@@ -33,3 +33,6 @@ htmlcov/
 # only data/benchmark/manifest.json is committed)
 /data/benchmark/raw/
 /data/benchmark/prompts/
+
+# Extra training prompts built from public datasets (scripts/build_external_topics.py)
+/data/external/
