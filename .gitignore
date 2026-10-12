@@ -28,3 +28,8 @@ htmlcov/
 *.egg-info/
 /sdk/python/build/
 /dist/
+
+# Benchmark source data and samples (build with scripts/benchmark/build_data.py;
+# only data/benchmark/manifest.json is committed)
+/data/benchmark/raw/
+/data/benchmark/prompts/
