@@ -3,6 +3,9 @@
 Research snapshot: 2026-09-29. `config/models.yaml` is the only runtime
 configuration. This note records the evidence and the conversion policy.
 
+Since 2026-10-06 the active pool is the OpenRouter section at the end of this
+note. The NIM entries described first are kept in the config but inactive.
+
 ## Context windows
 
 | NVIDIA model | Configured total tokens | Evidence |
@@ -67,3 +70,122 @@ performance. Replace them with results on shared application-specific prompts,
 including extraction tasks, when evaluating routing quality.
 
 Prices remain the existing third-party estimates and are not NVIDIA charges.
+
+## Providers
+
+The pool supports two providers. The ID prefix must match `provider`:
+
+| `provider` | ID form | API key | Typical `price_basis` |
+|---|---|---|---|
+| `nvidia_nim` | `nvidia_nim/<publisher>/<model>` | `NVIDIA_NIM_API_KEY` | `estimate` (NIM is free for prototyping; prices come from other providers, see `matched_provider_key`) |
+| `openrouter` | `openrouter/<publisher>/<model>` | `OPENROUTER_API_KEY` | `provider` (OpenRouter's listed price for the model) |
+
+For an OpenRouter entry, record the price from the model's OpenRouter page and
+the date it was checked. Only OpenRouter's model access is used, not its routing.
+
+## OpenRouter pool
+
+Researched 2026-10-06. Twelve OpenRouter entries are in `config/models.yaml`.
+Eight are active: Claude Sonnet 5.5, Muse Spark 1.3, Gemini 3.8 Flash,
+GLM-5.3-Flash, DeepSeek V4.1 Flash, DeepSeek V4 Pro, gpt-oss-120b and gpt-oss-20b.
+Claude Opus 5.5 is inactive as a reference for comparing the router against a
+frontier model; it is not meant to be routed to. Kimi K3 stays inactive (Muse
+Spark 1.3 matches it at a lower price), as do
+Nemotron 3 Ultra and Muse Glimmer (both below GLM-5.3-Flash and DeepSeek V4 Pro in
+every category at a higher price). The three NIM entries are inactive, so the
+active pool uses one aptitude method and real prices.
+
+Each candidate was kept because it adds something per dollar; models that were
+worse than another candidate in every category and also more expensive were left
+out (see below).
+
+| OpenRouter ID | Role | In / out $/M | Context | Arena coding | Arena math | Arena creative | Arena expert | AA Intelligence Index | AA $ per task | AA HLE % |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `anthropic/claude-sonnet-5.5` | Frontier ceiling; #1 on Arena expert prompts | 2 / 10 | 1,000,000 | 1536 | – | 1447 | 1556 | 47 | 1.12 | – |
+| `anthropic/claude-opus-5.5` | Inactive reference for comparisons: about 1.6× Sonnet 5.5's cost per task, clearly better at creative writing, similar at coding and expert prompts | 4 / 20 | 1,000,000 | 1538 | 1510 | 1516 | 1541 | 54 | 1.82 | 55.6 |
+| `meta/muse-spark-1.3` | Frontier-level coding and math at under half of Sonnet's output price | 1.25 / 4.25 | 1,048,576 | 1539 | 1509 | 1459 | 1529 | 48 | 1.6 | 48.7 |
+| `google/gemini-3.8-flash` | Best creative writing in the set; strong all-rounder at mid price | 0.75 / 3.75 | 1,048,576 | 1530 | 1517 | 1485 | 1526 | 41 | 1.24 | 47.8 |
+| `moonshotai/kimi-k3` | Not for routing yet: top coding Elo, but highest output price and matched by Muse Spark 1.3 | 0.95 / 14 | 1,048,576 | 1541 | 1500 | 1460 | 1533 | 44 | 2 | 46.9 |
+| `z-ai/glm-5.3-flash` | Best value: near-frontier coding and math at $0.15 / $0.50 | 0.15 / 0.5 | 1,048,576 | 1523 | 1503 | 1433 | 1511 | 42 | 0.25 | 39.9 |
+| `deepseek/deepseek-v4.1-flash` | Cheapest strong reasoning; very low input price, verbose output | 0.0214 / 1.32 | 1,048,576 | 1528 | 1503 | 1440 | 1517 | 39 | 0.27 | 39.2 |
+| `deepseek/deepseek-v4-pro` | Cheap balanced model with the lowest output price above 1440 Elo in creative writing | 0.2088 / 0.4176 | 1,048,576 | 1500 | 1445 | 1446 | 1480 | – | – | – |
+| `nvidia/nemotron-3-ultra-550b-a55b` | OpenRouter twin of the active NIM entry, for comparing estimated and real prices | 0.5 / 2.2 | 262,144 | 1474 | 1442 | 1382 | 1466 | 23 | 0.6 | 28.4 |
+| `meta/muse-glimmer-30b` | OpenRouter twin of the active NIM entry; very concise (AA $0.06 per task, second lowest in the set after gpt-oss-20b) | 0.35 / 1.5 | 131,072 | 1479 | 1446 | 1366 | 1442 | 17 | 0.06 | 22 |
+| `openai/gpt-oss-120b` | Very cheap and fast for simple prompts; weak at creative writing | 0.037 / 0.17 | 131,072 | 1390 | 1381 | 1278 | 1357 | 12 | 0.11 | 20 |
+| `openai/gpt-oss-20b` | Price floor; OpenRouter twin of the active NIM entry | 0.018 / 0.09 | 131,072 | 1369 | 1335 | 1240 | 1314 | 9 | 0.01 | – |
+
+Aptitudes written to `config/models.yaml`:
+
+| OpenRouter ID | Arena name used | coding | math_reasoning | creative_writing | general_knowledge_extraction |
+|---|---|---:|---:|---:|---:|
+| `anthropic/claude-sonnet-5.5` | `claude-sonnet-5.5-xhigh` (math: `claude-sonnet-5-high`) | 0.6863 | 0.6049 | 0.5672 | 0.7105 |
+| `anthropic/claude-opus-5.5` | `claude-opus-5.5-high` | 0.6888 | 0.6532 | 0.661 | 0.6925 |
+| `meta/muse-spark-1.3` | `muse-spark-1.3-max` | 0.69 | 0.6519 | 0.5841 | 0.6776 |
+| `google/gemini-3.8-flash` | `gemini-3.8-flash-high` | 0.6788 | 0.6623 | 0.6199 | 0.6738 |
+| `moonshotai/kimi-k3` | `kimi-k3-max` | 0.6925 | 0.6401 | 0.5855 | 0.6826 |
+| `z-ai/glm-5.3-flash` | `glm-5.3-flash` | 0.67 | 0.644 | 0.5473 | 0.6545 |
+| `deepseek/deepseek-v4.1-flash` | `deepseek-v4.1-flash-max` | 0.6763 | 0.644 | 0.5573 | 0.6623 |
+| `deepseek/deepseek-v4-pro` | `deepseek-v4-pro` | 0.6401 | 0.5644 | 0.5658 | 0.6131 |
+| `nvidia/nemotron-3-ultra-550b-a55b` | `nvidia-nemotron-3-ultra-550b-a55b-nvfp4` | 0.6049 | 0.5602 | 0.4741 | 0.5939 |
+| `meta/muse-glimmer-30b` | `muse-glimmer` | 0.6118 | 0.5658 | 0.4512 | 0.5602 |
+| `openai/gpt-oss-120b` | `gpt-oss-120b` | 0.4856 | 0.4727 | 0.3313 | 0.4384 |
+| `openai/gpt-oss-20b` | `gpt-oss-20b` | 0.4555 | 0.4075 | 0.2847 | 0.3787 |
+
+### Sources
+
+- Prices and context windows: the [OpenRouter models API](https://openrouter.ai/api/v1/models), 2026-10-06.
+- Arena category Elo: [coding](https://arena.ai/leaderboard/text/coding) (page cached 2026-10-05),
+  [math](https://arena.ai/leaderboard/text/math) (2026-10-06),
+  [creative writing](https://arena.ai/leaderboard/text/creative-writing) (2026-10-05) and
+  [expert](https://arena.ai/leaderboard/text/expert) (2026-10-06). Elo comes from blind
+  pairwise human votes; the ± interval on the page is about 5–30 points.
+- Artificial Analysis: Intelligence Index v4.3.2 and cost per Intelligence Index task from the
+  [model leaderboard](https://artificialanalysis.ai/leaderboards/models); HLE from the
+  [HLE leaderboard](https://artificialanalysis.ai/evaluations/humanitys-last-exam) (top 30 only) and the
+  gpt-oss-120b model page. AA measures every model with the same harness. Values are for the
+  reasoning variant named on AA (Sonnet 5.5 and Opus 5.5: high; Muse Spark 1.3, Kimi K3, DeepSeek V4.1 Flash: max;
+  Gemini 3.8 Flash, Muse Glimmer, gpt-oss: high); HLE for Sonnet 5.5 is only published for max (55.0%)
+  and is left out. No AA row was matched to OpenRouter's `deepseek-v4-pro`.
+
+### Conversion to routing scores
+
+OpenRouter entries use one source for all four topics, so the scores are comparable
+across models:
+
+- `coding` = Arena coding, `math_reasoning` = Arena math, `creative_writing` = Arena
+  creative writing, `general_knowledge_extraction` = Arena expert (a proxy: expert-level
+  prompts, not an extraction benchmark).
+- `aptitude = 1 / (1 + 10 ** ((1400 - Elo) / 400))`: the Elo-implied chance of being
+  preferred over a fixed 1400-Elo reference, rounded to four decimals. The reference is a
+  routing policy choice, not a measured success rate.
+
+### Considered and left out
+
+Worse than GLM-5.3-Flash in all four Arena categories and more expensive per token:
+Qwen3.7 Plus, MiniMax M3, Grok 4.7, Mistral Medium 3.5, Kimi K2.5 and K2.6. Also left out:
+GLM-5.3 (max) (about equal to GLM-5.3-Flash at higher cost), Qwen3.8 Max (AA cost $5.41 per
+task), GPT-5.6 Terra (below Sonnet 5.5 at a higher output price), and GPT-5.6 Sol (close to
+Sonnet 5.5 at the same price; a possible second frontier model).
+
+### Known gaps
+
+- **Mixed methods.** The NIM entries use vendor benchmarks (SWE-bench, GPQA, HLE,
+  EQ-Bench); the OpenRouter entries use Arena Elo. Do not reactivate a NIM entry next to
+  OpenRouter entries without re-scoring it with Arena Elo.
+- **Sonnet 5.5 has no Arena math score yet** (released 2026-09-28). Its `math_reasoning`
+  uses the Arena math score of its predecessor `claude-sonnet-5-high` (1474 → 0.6049) as a
+  stand-in. Only the score is borrowed; the routed model is Sonnet 5.5. Sonnet 5.5 is above
+  Sonnet 5 in every other category, so this is likely an underestimate. Replace it when
+  Arena publishes a Sonnet 5.5 math score.
+- **Reasoning effort.** Benchmarks were run at high, xhigh or max effort. The executor sends
+  no effort setting, so real quality can be lower than the aptitudes suggest. See #1.
+- **Price per token is not cost per task.** Verbose models cost more than their list price
+  suggests (AA: DeepSeek V4.1 Flash produced 250M output tokens on the index, Gemini 3.8
+  Flash 170M, Sonnet 5.5 52M). The router only sees list prices.
+- **Output budget.** Verbose reasoning models are likely to hit the executor's 4,096-token
+  default and return `finish_reason == "length"`.
+- **Speed is not routed on.** GLM-5.3-Flash outputs about 53 tokens/s; Gemini 3.8 Flash has
+  about 17 s to first token.
+- **Preliminary Elo.** Arena marks all of Gemini 3.8 Flash's scores as preliminary.
+- **OpenRouter provider choice.** OpenRouter can serve a model from several providers at
+  different prices; the listed price is OpenRouter's. See #6.

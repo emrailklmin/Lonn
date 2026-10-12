@@ -1,4 +1,4 @@
-"""Select a model using aptitude, complexity, and price; no API calls."""
+"""Select a model using topic aptitude, prompt complexity, and price."""
 
 from math import fsum, isclose, isfinite
 
@@ -24,18 +24,22 @@ def weighted_score(quality: float, cost: float, alpha: float = 0.5) -> float:
 def select_model(
     signal: ComplexityResult, models: list[Model], alpha: float = 0.5
 ) -> Model:
-    """Maximize alpha * quality - (1 - alpha) * normalized cost.
+    """Maximize complexity-scaled quality minus normalized cost.
 
     Quality is topic-weighted aptitude; missing aptitudes count as zero.
+    Complexity scales the quality contribution: easy prompts rely less on
+    benchmark-derived aptitude differences, while hard prompts use the full
+    quality-versus-cost tradeoff selected by alpha.
     Price is the sum of input/output costs per million tokens, normalized by
     the highest combined price in this pool (zero when all models are free).
     This assumes equal input/output token counts, not actual request cost.
     Changing the pool can therefore change the normalization and selection.
 
     Score ties prefer lower price, then higher quality, then provider and ID.
-    Alpha defaults to 0.5; 0 prioritizes cost and 1 prioritizes quality.
-    Complexity is validated but does not impose a threshold in this policy.
-    Context limits cannot be checked without request token counts.
+    Alpha defaults to 0.5; 0 prioritizes cost and 1 prioritizes quality for
+    the most complex prompt. At complexity 0, the primary score depends only
+    on price; aptitude breaks price ties. Context limits cannot be checked
+    without request token counts.
     """
     weighted_score(0, 0, alpha)  # Validate even for an empty pool.
     if not models:
@@ -70,7 +74,8 @@ def select_model(
     return min(
         candidates,
         key=lambda item: (
-            -weighted_score(item[1], item[2] / max_price if max_price else 0, alpha),
+            -(alpha * signal.complexity * item[1]
+              - (1 - alpha) * (item[2] / max_price if max_price else 0)),
             item[2],
             -item[1],
             item[0].provider,

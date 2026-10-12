@@ -5,130 +5,85 @@ The Lonn prototype consists of four core responsibilities:
 1. Analyse the incoming prompt.
 2. Produce a complexity score and topic probability distribution.
 3. Deterministically select the most suitable model.
-4. Execute the request and return the result to the web application.
+4. Execute the request and return the result to the Streamlit UI or an HTTP benchmark client.
 
 ---
+
+## Changes on `12-fastapi-layer`
+
+The **NEW** labels and blue nodes below highlight the FastAPI work in this
+branch's working tree relative to its starting commit `e128f50`. These changes
+have not yet been committed at the time of this documentation update.
+
+| Area | Before FastAPI | New in this branch's working tree |
+| --- | --- | --- |
+| Entry points | Streamlit UI and direct Python calls | `src/lonn/api.py`: HTTP access through Uvicorn/FastAPI |
+| App integration | Hand-written HTTP calls | Installable `lonnrouter` Python SDK, sync and async clients, typed results and exceptions |
+| Routing benchmark | Call `select_model` from Python | `POST /route`: automatic analysis or a supplied signal |
+| End-to-end benchmark | Execute through Python or Streamlit | `POST /generate`: selection, response, usage, costs, and timings |
+| Service inspection | Local configuration | `GET /health`, `GET /models`, `/docs`, `/openapi.json` |
+| HTTP contracts | None | Pydantic input validation, typed responses, sanitized HTTP errors |
+| Service lifecycle | UI-managed scorer | Pool loaded at startup; lazy scorer and inference lock per API process |
+| Dependencies | Existing core and UI dependencies | FastAPI, Pydantic, Uvicorn, and HTTPX explicitly listed |
+| Verification | Core and UI tests | Nine API tests and ten SDK tests; existing fake Laya fixed to answer combined questions |
+| Documentation | Local UI/Python usage | API examples, benchmark timing semantics, and remote access instructions |
+
+The broader branch comparison against the locally available `origin/main`
+(`f1ade59`) also includes the earlier curated model pool, Streamlit app, discovery
+and probe scripts, combined Laya analysis, and executor truncation metadata from
+`924d7a8`, plus ignore-file changes from `e128f50`. Those are existing foundations,
+not additions made by the FastAPI layer. The routing formula and NVIDIA executor
+are reused by both entry points.
 
 # 1. System Architecture
 
 ```mermaid
 flowchart LR
-
-    %% =========================
-    %% WEB APPLICATION
-    %% =========================
-
-    subgraph WEB["Web App — examples/app.py"]
-
-        USER["User"]
-
-        UI["Web App UI
-        ----------------
-        submit_prompt(prompt)
-        display_execution_state()
-        display_response()"]
-
+    USER["Interactive user"] --> UI["Streamlit UI<br/>examples/app.py"]
+    CLIENT["NEW: App or benchmark client<br/>same host or another device"]
+    SDK["NEW: Python SDK<br/>lonnrouter.LonnRouter / AsyncLonnRouter<br/>sdk/python"]
+    subgraph SERVICE["NEW: HTTP service on Lonn host"]
+        HTTP["NEW: Uvicorn + FastAPI<br/>src/lonn/api.py<br/>validation, orchestration, JSON responses"]
     end
-
-
-    %% =========================
-    %% Lonn CORE
-    %% =========================
-
-    subgraph CORE["Lonn Core — src/lonn"]
-
-        COMPLEXITY["Complexity Scorer
-        complexity.py
-        ----------------
-        INPUT:
-        prompt: str
-
-        OUTPUT:
-        ComplexityResult"]
-
-        ROUTER["Deterministic Router
-        router.py
-        ----------------
-        INPUT:
-        ComplexityResult
-        list[Model]
-
-        OUTPUT:
-        Selected Model"]
-
-        EXECUTOR["Model Executor
-        executor.py
-        ----------------
-        INPUT:
-        prompt: str
-        model: Model
-
-        OUTPUT:
-        ModelResponse"]
-
-        MODELPOOL["Model Pool
-        model_pool.py
-        ----------------
-        INPUT:
-        config/models.yaml
-
-        OUTPUT:
-        list[Model]"]
-
+    CLIENT -->|"route() / generate()"| SDK
+    SDK -->|"HTTP JSON: /route or /generate"| HTTP
+    HTTP -->|"JSON response"| SDK
+    SDK -->|"Typed results + benchmark metadata"| CLIENT
+    subgraph CORE["Shared Lonn core — src/lonn"]
+        CS["ComplexityScorer<br/>complexity.py<br/>topic probabilities + complexity"]
+        MP["Model pool loader<br/>model_pool.py"]
+        R["Router<br/>router.py<br/>deterministic selection"]
+        E["Executor<br/>executor.py<br/>one model call"]
     end
-
-
-    %% =========================
-    %% CONFIGURATION
-    %% =========================
-
-    CONFIG["config/models.yaml
-    ----------------
-    Model metadata
-    Provider
-    Token cost
-    Context window
-    Topic aptitude"]
-
-
-    %% =========================
-    %% EXTERNAL PROVIDER
-    %% =========================
-
-    PROVIDER["External LLM Provider
-    ----------------
-    OpenAI
-    Anthropic
-    Google
-    etc."]
-
-
-    %% =========================
-    %% FLOW
-    %% =========================
-
-    USER -->|"Prompt"| UI
-
-    UI -->|"prompt: str"| COMPLEXITY
-
-    COMPLEXITY -->|"ComplexityResult"| ROUTER
-
-    CONFIG --> MODELPOOL
-
-    MODELPOOL -->|"list[Model]"| ROUTER
-
-    ROUTER -->|"Selected Model"| EXECUTOR
-
-    UI -->|"Original prompt"| EXECUTOR
-
-    EXECUTOR -->|"API Request"| PROVIDER
-
-    PROVIDER -->|"LLM Response + usage"| EXECUTOR
-
-    EXECUTOR -->|"ModelResponse"| UI
-
-    UI -->|"Runtime flow + final response"| USER
+    CONFIG["config/models.yaml"] --> MP
+    MP -->|"Validated models"| HTTP
+    MP -->|"Validated models"| UI
+    HTTP -->|"Automatic analysis only"| CS
+    UI -->|"Automatic analysis only"| CS
+    CS -->|"Signal"| HTTP
+    CS -->|"Signal"| UI
+    HTTP -->|"Analyzed or supplied signal + pool + alpha"| R
+    UI -->|"Analyzed or manual signal + pool + alpha"| R
+    R -->|"Selected model"| HTTP
+    R -->|"Selected model"| UI
+    HTTP -->|"/generate only: prompt + selected model"| E
+    UI -->|"Route and call: prompt + selected model"| E
+    E -->|"LiteLLM request"| NVIDIA["NVIDIA NIM"]
+    NVIDIA -->|"Content + usage"| E
+    E -->|"ModelResponse"| HTTP
+    E -->|"ModelResponse"| UI
+    UI -->|"Display results"| USER
+    classDef added fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#172554
+    class CLIENT,SDK,HTTP added
 ```
+
+The arrows show calls and returned data. The UI and API each orchestrate the
+shared core directly. Streamlit does not call the new HTTP service. `/route`
+stops after selection; `/generate` proceeds to the executor. Supplying `signal`
+bypasses the scorer. The API model pool is held in memory after startup.
+The SDK runs in the calling app and needs only HTTPX and Pydantic. It serializes
+requests, parses typed results, and translates HTTP/transport failures into
+SDK exceptions. Direct HTTP callers can use the same endpoints without it.
 
 ---
 
@@ -174,10 +129,7 @@ classDiagram
 
 
     class Router {
-        +select_model(
-            signal: ComplexityResult,
-            models: list~Model~
-        ) Model
+        +select_model(ComplexityResult signal, Model[] models, float alpha) Model
     }
 
 
@@ -202,10 +154,7 @@ classDiagram
 
 
     class ModelExecutor {
-        +execute(
-            prompt: str,
-            model: Model
-        ) ModelResponse
+        +execute(str prompt, Model model) ModelResponse
     }
 
 
@@ -241,6 +190,43 @@ classDiagram
     WebApp --> Router : observes result
 
     WebApp --> ModelExecutor : receives response
+
+    class BenchmarkAPI {
+        +route(RouteRequest) RouteResponse
+        +generate(GenerateRequest) GenerateResponse
+    }
+    class RouteRequest {
+        +str prompt
+        +float alpha
+        +SignalInput signal_optional
+    }
+    class SignalInput {
+        +float complexity
+        +dict~TopicCategory,float~ topic_scores
+    }
+    class GenerateRequest {
+        +int max_tokens
+        +float timeout
+    }
+    class RouteResponse {
+        +Model model
+        +ComplexityResult signal
+        +float alpha
+        +str analysis_source
+        +float routing_latency_ms
+    }
+    class GenerateResponse {
+        +ModelResponse response
+        +float total_latency_ms
+    }
+    GenerateRequest --|> RouteRequest
+    GenerateResponse --|> RouteResponse
+    RouteRequest --> SignalInput : optional
+    BenchmarkAPI --> ComplexityScorer : automatic analysis
+    BenchmarkAPI --> Router : select
+    BenchmarkAPI --> ModelExecutor : generate only
+    BenchmarkAPI --> RouteRequest : validates
+    BenchmarkAPI --> RouteResponse : returns
 ```
 
 ---
@@ -308,12 +294,15 @@ They therefore do **not** have to sum to 1.
 The single model configuration is `config/models.yaml`. It contains a YAML
 list with the same field names as `Model`: `id`, `provider`,
 `cost_per_m_input`, `cost_per_m_output`, `context_window`, and `topic_aptitudes`.
-Full LiteLLM IDs use `nvidia_nim/<publisher>/<model>`.
+Full LiteLLM IDs use `<provider>/<publisher>/<model>`, where `provider` is
+`nvidia_nim` or `openrouter` and must match the entry's `provider` field.
+OpenRouter is used only as a credit-based way to reach models; its own routing
+is not used.
 
 Additional configuration fields are `active`, `price_basis`, and
 `matched_provider_key` (the source of a third-party price estimate). The loader
 filters inactive entries and validates the shared contract. Pricing references
-are metadata and must never replace the NVIDIA execution ID.
+are metadata and must never replace the execution ID.
 
 Discovery (`scripts/discover_models.py`) saves every catalog ID
 without requiring pricing or guessing chat support from names. Availability
@@ -337,83 +326,48 @@ from other providers remain prototype cost estimates, not NVIDIA billing rates.
 
 ---
 
-# 5. Runtime Execution Flow
+# 5. Runtime Execution Flow — NEW HTTP path
 
 ```mermaid
 sequenceDiagram
-
-    actor User
-
-    participant UI as Web App
-    participant CS as Complexity Scorer
-    participant MP as Model Pool
+    participant B as Benchmark client
+    participant API as NEW FastAPI service
+    participant MP as Model pool
+    participant CS as Complexity scorer
     participant R as Router
     participant E as Executor
-    participant LLM as LLM Provider
-
-
-    User->>UI: Submit prompt
-
-    UI->>CS: score_prompt(prompt)
-
-    activate CS
-
-    CS-->>UI: ComplexityResult
-
-    deactivate CS
-
-
-    Note over UI,CS: complexity = 0.72
-
-    Note over UI,CS: topic_scores sum to 1.0
-
-
-    UI->>MP: load_model_pool()
-
-    activate MP
-
-    MP-->>UI: list[Model]
-
-    deactivate MP
-
-
-    UI->>R: select_model(ComplexityResult, models)
-
-    activate R
-
-    R-->>UI: Selected Model
-
-    deactivate R
-
-
-    Note over UI,R: Web app displays selected model
-
-
-    UI->>E: execute(prompt, selected_model)
-
-    activate E
-
-
-    E->>LLM: API request
-
-
-    activate LLM
-
-    LLM-->>E: content + token usage
-
-    deactivate LLM
-
-
-    E-->>UI: ModelResponse
-
-    deactivate E
-
-
-    UI-->>User: Display response
-
-
-    Note over UI,User: UI also displays runtime execution details
+    participant N as NVIDIA NIM
+    Note over API,MP: Startup, once per server process
+    API->>MP: load_model_pool()
+    MP-->>API: Validated active models (invalid configuration aborts startup)
+    Note over API,CS: Create lazy scorer and inference lock
+    B->>API: POST /route or /generate (JSON)
+    API->>API: Validate prompt, alpha, optional signal and generation controls
+    alt Signal supplied
+        API->>API: Convert supplied signal to ComplexityResult
+    else Automatic analysis
+        API->>CS: score_prompt(prompt), under process-local lock
+        Note over CS: First automatic call loads Laya
+        CS-->>API: ComplexityResult
+    end
+    API->>R: select_model(signal, pool, alpha)
+    R-->>API: Selected model
+    alt POST /route
+        API-->>B: Model + signal + routing latency
+    else POST /generate
+        API->>API: Check output budget against selected model context window
+        API->>E: execute(prompt, model, timeout, max_tokens)
+        E->>N: One non-streaming completion request
+        N-->>E: Content, token usage, finish reason
+        E-->>API: ModelResponse with estimated cost and provider latency
+        API-->>B: Routing metadata + ModelResponse + total server latency
+    end
 ```
+
+This diagram shows the successful paths. Validation failures return 422;
+analysis/routing failures 503; provider rate limits 429; provider timeouts 504;
+other execution failures 502. Raw provider exceptions are not returned to clients.
+The API performs no automatic retries or model fallback.
 
 ---
 
@@ -495,18 +449,19 @@ The web app can therefore display information such as:
    actual request cost estimate.
 3. Normalize cost by dividing by the highest combined price in the pool.
    When all models are free, every normalized cost is zero.
-4. Maximize `alpha * quality - (1 - alpha) * normalized_cost`.
+4. Maximize `alpha * complexity * quality - (1 - alpha) * normalized_cost`.
 5. Break score ties by lower price, higher quality, then `(provider, id)`.
 
 `weighted_score(quality, cost, alpha=0.5)` exposes the weighted function.
 All three arguments must be finite and in [0, 1]. Alpha 0 prioritizes cost;
 alpha 1 prioritizes quality. The default is 0.5. Pool-relative normalization
 puts cost on the same [0, 1] scale as quality, but adding/removing models can
-change the tradeoff. Raw price units do not affect selection.
-
-Complexity is still validated as part of the input contract, but no longer
-imposes a quality threshold. Callers may explicitly pass
-`alpha=signal.complexity` if they want complexity to control the tradeoff.
+change the tradeoff. Raw price units do not affect selection. Complexity scales
+the quality contribution automatically: at 0, cost determines the primary
+score; at 1, routing follows the full `alpha` quality/cost tradeoff. `alpha`
+remains the caller's preference for the most complex prompts. Complexity is a
+heuristic difficulty signal, and the current topic aptitudes are not calibrated
+by difficulty, so evaluate this policy against application-specific prompts.
 Context-window filtering still requires prompt tokens and an output budget.
 
 An empty pool, duplicate `(provider, id)` entries, invalid probabilities,
@@ -525,8 +480,10 @@ The router and executor consume these contracts, and the app displays them.
 
 `executor.execute(prompt, model, timeout=120, max_tokens=4096)` and
 `ModelExecutor().execute(...)` send a non-streaming text request using LiteLLM's
-NVIDIA NIM provider. The executor loads the repository `.env` without overriding
-existing environment values and uses `NVIDIA_NIM_API_KEY`.
+NVIDIA NIM or OpenRouter provider, chosen by the model's `provider`. The
+executor loads the repository `.env` without overriding existing environment
+values and requires only the key for that provider: `NVIDIA_NIM_API_KEY` or
+`OPENROUTER_API_KEY`.
 
 The result contains text, the selected model, measured request latency in
 milliseconds, token counts, estimated costs, and `finish_reason`. Cost is
@@ -559,6 +516,8 @@ flowchart TB
     E["app.py
     Visualise the entire process"]
 
+    F["NEW: api.py
+    Orchestrate HTTP requests and return benchmark metadata"]
 
     A --> B
 
@@ -571,6 +530,13 @@ flowchart TB
     B -.runtime state.-> E
 
     D -.runtime state.-> E
+
+    F -->|"Automatic analysis"| A
+    F -->|"Load pool"| C
+    F -->|"Select model"| B
+    F -->|"Generate only"| D
+    classDef added fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#172554
+    class F added
 ```
 
 The modules should remain independent:
@@ -580,3 +546,107 @@ The modules should remain independent:
 - `model_pool.py` does not make routing decisions.
 - `executor.py` does not determine which model is best.
 - `app.py` orchestrates the prototype and visualises what happens at runtime.
+- **NEW:** `api.py` orchestrates HTTP requests and returns benchmark metadata.
+
+
+# 8. Benchmark HTTP contract — NEW
+
+| Endpoint | Input | Output / effect |
+| --- | --- | --- |
+| `GET /health` | None | `{"status":"ok"}`; no classifier/provider readiness probe |
+| `GET /models` | None | Active models with context windows, topic aptitudes and configured prices |
+| `POST /route` | `prompt`, optional `alpha` and `signal` | Selected model, signal, alpha, analysis source, routing latency; no NVIDIA call |
+| `POST /generate` | Routing input plus optional `max_tokens` and `timeout` | Route fields plus `response` (`ModelResponse`) and total latency |
+| `GET /docs` | None | Interactive API documentation |
+| `GET /openapi.json` | None | Machine-readable request/response schema |
+
+`prompt` is nonblank and preserved verbatim. `alpha` defaults to 0.5 and must be
+finite in [0, 1]. Optional `signal` contains `complexity` and `topic_scores`;
+probabilities must sum to 1 within 1e-6, and omitted categories count as zero.
+Extra request fields are rejected. `analysis_source` is `laya` or `provided`.
+The API uses the core dataclasses for response data, with Pydantic models for
+HTTP validation and serialization.
+
+`max_tokens` is a positive integer (default 4096) below the selected model's
+context window. `timeout` is a positive number of seconds up to 600 (default
+120), passed to the provider call. It is not an overall HTTP or classifier
+deadline. Full prompt-plus-output token validation is not implemented.
+
+| Timing field | Measured work |
+| --- | --- |
+| `routing_latency_ms` | Analysis and selection, including classifier lock wait and first-use loading |
+| `response.latency_ms` | The executor's provider completion call |
+| `total_latency_ms` | Server handler work for routing and execution, excluding HTTP transport and response serialization |
+
+Measure elapsed time in the benchmark client for network-inclusive latency.
+Warm up with an automatic `/route` request before steady-state measurements.
+The classifier lock serializes automatic analysis within each process; provider
+calls can overlap in FastAPI's worker threads. Each Uvicorn process owns its own
+pool, scorer, and lock. Restart to reload the model configuration.
+
+The `response.usage` object contains prompt/completion/total tokens and estimated
+input/output/total cost. Record `response.finish_reason`: `length` can mean the
+budget was consumed by reasoning before a final answer. `/route` has no token
+usage or execution cost because it makes no provider request.
+
+`api.py` owns HTTP orchestration, lifecycle, validation and error translation.
+It does not change the routing policy or executor. This interface currently
+accepts single text prompts; it does not implement OpenAI chat completions,
+streaming, tool calls, authentication, or server-side batch jobs.
+
+# 9. Calling from another device — NEW
+
+Python apps should install the [SDK](../sdk/python/README.md) and configure
+`LonnRouter(base_url="http://HOST_IP:8000")` once, then call `route(...)` or
+`generate(...)`. `AsyncLonnRouter` provides matching async methods. `LONN_BASE_URL`
+can supply the address instead. The network setup below applies equally to SDK
+and direct HTTP calls; installation alone does not deploy or start the server.
+
+For a benchmark client on the same trusted LAN, start the server from the Lonn
+repository on the host machine:
+
+```bash
+source .venv/bin/activate
+python3 -m uvicorn lonn.api:app --app-dir src --host 0.0.0.0 --port 8000
+```
+
+`0.0.0.0` binds all IPv4 interfaces, making the application available on the local
+network ([Uvicorn settings](https://www.uvicorn.org/settings/)). Clients use the
+host's LAN IP, not `0.0.0.0` or their own `localhost`. Find the host's IP in its
+network settings. On macOS, `ipconfig getifaddr en0` works when `en0` is the
+active interface; otherwise use the interface shown by `networksetup -listallhardwareports`.
+
+On the other device, replace `192.168.1.42` below with that host IP:
+
+```bash
+curl http://192.168.1.42:8000/health
+curl http://192.168.1.42:8000/route \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Write a sorting function","alpha":0.7,"signal":{"complexity":0.5,"topic_scores":{"coding":1.0}}}'
+```
+
+The supplied signal makes this a connectivity and routing check without loading
+Laya or calling NVIDIA. Omit `signal` for automatic analysis. Use `/generate`
+for an actual response and optionally supply `max_tokens` and `timeout`.
+The NVIDIA key stays on the server in its environment or repository `.env`;
+clients do not send that key. API docs are at `http://HOST_IP:8000/docs`.
+
+If connecting fails, confirm the server is running, allow inbound TCP port 8000
+in the host firewall for the benchmark device, and check that Wi-Fi client
+isolation or guest-network rules are not blocking peer access. A Python or curl
+client does not need CORS; a browser app served from another origin would need
+an explicit CORS policy, which this API does not currently configure.
+
+The service has no authentication or TLS. Every device that can reach it can
+call `/generate` using the server's NVIDIA account, so use direct HTTP only on a
+trusted network and do not port-forward it publicly. For access from outside
+that network, use an existing private VPN or an SSH tunnel. With SSH access to
+the host, keep Uvicorn bound to `127.0.0.1` and run on the client:
+
+```bash
+ssh -N -L 8001:127.0.0.1:8000 USER@HOST
+```
+
+Then call `http://127.0.0.1:8001/route` or `/generate` from that client. SSH must
+already be reachable and enabled on the host. A LAN IP alone is not reachable
+from the public internet.

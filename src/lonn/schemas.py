@@ -3,6 +3,13 @@
 from dataclasses import dataclass
 from enum import Enum
 
+# Supported LiteLLM providers and the environment variable holding each key.
+# A model ID starts with its provider: "<provider>/<publisher>/<model>".
+PROVIDER_API_KEYS = {
+    "nvidia_nim": "NVIDIA_NIM_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+}
+
 
 class TopicCategory(str, Enum):
     CODING = "coding"
