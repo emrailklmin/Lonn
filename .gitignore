@@ -33,3 +33,6 @@ htmlcov/
 # only data/benchmark/manifest.json is committed)
 /data/benchmark/raw/
 /data/benchmark/prompts/
+
+# Extra labelled prompts built from public datasets (not committed)
+/data/external/

@@ -160,6 +160,89 @@ class LayaModelSelectionTests(unittest.TestCase):
         self.assertEqual(self.load(" someone/laya-lonn "), {"english": "someone/laya-lonn"})
 
 
+class FakeQwen:
+    """Stands in for QwenScorer, returning one canned result."""
+
+    def __init__(self, result):
+        self.result = result
+        self.seen = []
+
+    def score_prompt(self, prompt):
+        self.seen.append(prompt)
+        return self.result
+
+
+class QwenSelectionTests(unittest.TestCase):
+    result = ComplexityResult(0.75, {t: 1.0 if t is Topic.CODING else 0.0 for t in Topic})
+
+    def test_injected_qwen_handles_every_call(self):
+        qwen = FakeQwen(self.result)
+        scorer = ComplexityScorer(qwen=qwen)
+        self.assertEqual(scorer.scorer, "qwen")
+        self.assertIs(scorer.score_prompt("p"), self.result)
+        self.assertEqual(scorer.topic_scores("p")[Topic.CODING], 1.0)
+        self.assertEqual(scorer.complexity("p"), 0.75)
+        self.assertEqual(qwen.seen, ["p", "p", "p"])
+
+    def test_env_selects_scorer(self):
+        from unittest import mock
+
+        for value, expected in [("", "laya"), ("laya", "laya"), (" Qwen ", "qwen")]:
+            with self.subTest(value=value), mock.patch("dotenv.load_dotenv"), \
+                    mock.patch.dict("os.environ", {"LONN_SCORER": value}):
+                self.assertEqual(ComplexityScorer().scorer, expected)
+        with mock.patch("dotenv.load_dotenv"), mock.patch.dict("os.environ", {"LONN_SCORER": "gpt"}), \
+                self.assertRaises(ValueError):
+            ComplexityScorer()
+
+    def test_injected_laya_wins_over_env(self):
+        from unittest import mock
+
+        with mock.patch.dict("os.environ", {"LONN_SCORER": "qwen"}):
+            self.assertEqual(ComplexityScorer(FakeLaya({"choice": "coding"}, 0.5)).scorer, "laya")
+
+    def test_calibration_maps_qwen_scale_to_labels(self):
+        from lonn.qwen_scorer import calibrate
+
+        for raw, expected in [(1.0, 0.0), (2.26, 0.0), (3.08, 0.25), (3.51, 0.5), (3.97, 0.75), (5.0, 1.0), (7, 1.0)]:
+            with self.subTest(raw=raw):
+                self.assertAlmostEqual(calibrate(raw), expected)
+        self.assertAlmostEqual(calibrate(3.295), 0.375)  # Halfway between labels 2 and 3.
+        with self.assertRaises(ValueError):
+            calibrate(float("nan"))
+
+    def test_long_prompts_keep_start_and_end(self):
+        from lonn.qwen_scorer import shorten
+
+        self.assertEqual(shorten("a  b\nc"), "a b c")
+        long = "x" * 1000 + "y" * 1000
+        short = shorten(long, max_chars=100)
+        self.assertTrue(short.startswith("x" * 35) and short.endswith("y" * 65))
+
+
+def _qwen_available():
+    if not importlib.util.find_spec("mlx_lm"):
+        return False
+    from huggingface_hub import try_to_load_from_cache
+    from lonn.qwen_scorer import DEFAULT_MODEL
+    return isinstance(try_to_load_from_cache(DEFAULT_MODEL, "config.json"), str)
+
+
+@unittest.skipUnless(_qwen_available(), "MLX or the Qwen model is not available")
+class LiveQwenTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scorer = ComplexityScorer(scorer="qwen")
+
+    def test_topic_and_complexity(self):
+        easy = self.scorer.score_prompt("What is the capital of France?")
+        hard = self.scorer.score_prompt("Code me a nail salon booking app like Airbnb for freelance nail artists")
+        self.assertEqual(max(easy.topic_scores, key=easy.topic_scores.get), Topic.GENERAL_KNOWLEDGE_EXTRACTION)
+        self.assertEqual(max(hard.topic_scores, key=hard.topic_scores.get), Topic.CODING)
+        self.assertAlmostEqual(fsum(hard.topic_scores.values()), 1.0, delta=1e-6)
+        self.assertGreater(hard.complexity, easy.complexity)
+
+
 @unittest.skipUnless(importlib.util.find_spec("laya"), "laya is not installed")
 class LiveLayaTests(unittest.TestCase):
     @classmethod

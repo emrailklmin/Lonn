@@ -15,6 +15,9 @@ The Laya router is loaded lazily and reused across requests. Set
 LONN_LAYA_MODEL (environment or repository .env) to a Hugging Face repo id or
 local directory to replace the English checkpoint with a fine-tuned one; see
 scripts/finetune_laya.py.
+
+Optional: LONN_SCORER=qwen (environment or .env) scores with a local Qwen
+model instead (qwen_scorer.py; Apple-silicon Macs only). Laya is the default.
 """
 
 import json
@@ -286,20 +289,58 @@ def _load_laya_router():
 # Complexity scorer
 # ---------------------------------------------------------------------------
 
+SCORERS = ("laya", "qwen")
+
+
+def _scorer_from_env() -> str:
+    """LONN_SCORER from the environment or repository .env; Laya by default."""
+
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+    name = os.environ.get("LONN_SCORER", "").strip().lower() or "laya"
+
+    if name not in SCORERS:
+        raise ValueError(f"LONN_SCORER must be one of {SCORERS}, got {name!r}")
+
+    return name
+
+
 class ComplexityScorer:
     """Score prompt complexity and topic using one Laya inference.
 
-    Laya is loaded lazily on first use.
+    Laya is loaded lazily on first use. With ``scorer="qwen"`` (or
+    LONN_SCORER=qwen) every call goes to the local Qwen scorer instead.
 
     Pass ``laya_router`` manually to:
     - reuse an existing router
     - inject a fake router for tests
     - control preloading/device behaviour externally
+    Passing ``laya_router`` or ``qwen`` selects that scorer.
     """
 
-    def __init__(self, laya_router=None):
+    def __init__(self, laya_router=None, scorer: str | None = None, qwen=None):
         self._laya = laya_router
         self._budgets: dict[tuple[str, tuple[str, ...]], int] = {}
+
+        if scorer is None:
+            scorer = "laya" if laya_router is not None else "qwen" if qwen is not None else _scorer_from_env()
+        if scorer not in SCORERS:
+            raise ValueError(f"scorer must be one of {SCORERS}, got {scorer!r}")
+
+        self.scorer = scorer
+        self._qwen = qwen
+
+    @property
+    def qwen(self):
+        """Return the local Qwen scorer, creating it if necessary."""
+
+        if self._qwen is None:
+            from .qwen_scorer import QwenScorer
+
+            self._qwen = QwenScorer()
+
+        return self._qwen
 
     @property
     def laya(self):
@@ -374,6 +415,9 @@ class ComplexityScorer:
     def score_prompt(self, prompt: str) -> ComplexityResult:
         """Score topic distribution and complexity in one forward pass."""
 
+        if self.scorer == "qwen":
+            return self.qwen.score_prompt(prompt)
+
         result = self._predict(
             prompt,
             QUESTIONS,
@@ -414,6 +458,9 @@ class ComplexityScorer:
         Laya inference calls.
         """
 
+        if self.scorer == "qwen":
+            return self.qwen.score_prompt(prompt).topic_scores
+
         result = self._predict(
             prompt,
             CATEGORY_QUESTION,
@@ -440,6 +487,9 @@ class ComplexityScorer:
 
         Prefer ``score_prompt`` when both topic and complexity are needed.
         """
+
+        if self.scorer == "qwen":
+            return self.qwen.score_prompt(prompt).complexity
 
         result = self._predict(
             prompt,

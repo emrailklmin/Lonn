@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
 import streamlit as st
 
-from lonn.complexity import ComplexityScorer
+from lonn.complexity import ComplexityScorer, _scorer_from_env
 from lonn.executor import execute
 from lonn.model_pool import load_model_pool
 from lonn.router import rank_models
@@ -20,7 +20,8 @@ with st.sidebar:
     st.header('Routing controls')
     alpha = st.slider('Quality weight (alpha)', 0.0, 1.0, 0.7, 0.05)
     st.caption('0 = cost first · 1 = quality first. Complexity is displayed separately.')
-    mode = st.radio('Prompt analysis', ['Automatic (Laya)', 'Manual topic'])
+    AUTOMATIC = f"Automatic ({_scorer_from_env().capitalize()})"  # LONN_SCORER picks Laya or Qwen.
+    mode = st.radio('Prompt analysis', [AUTOMATIC, 'Manual topic'])
     topic = st.selectbox('Manual topic', list(TopicCategory),
                          format_func=lambda t: t.value.replace('_', ' ').title(),
                          disabled=mode != 'Manual topic')
@@ -59,7 +60,7 @@ if analyze or run:
         record = {'prompt': prompt, 'alpha': alpha, 'mode': mode}
         with st.status('Analyzing prompt…', expanded=True) as status:
             try:
-                if mode == 'Automatic (Laya)':
+                if mode == AUTOMATIC:
                     if 'scorer' not in st.session_state:
                         st.session_state.scorer = ComplexityScorer()
                     signal = st.session_state.scorer.score_prompt(prompt)

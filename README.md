@@ -12,6 +12,7 @@ config/models.yaml          # Single model configuration
 src/lonn/                   # Runtime code
     model_pool.py           # Load and validate configuration into Model objects
     complexity.py           # Analyse prompts
+    qwen_scorer.py          # Optional local Qwen scorer (LONN_SCORER=qwen)
     router.py               # Select a model
     executor.py             # Call the selected model
     schemas.py              # Shared data contracts
@@ -251,6 +252,28 @@ python3 scripts/push_laya.py --repo <hf-user>/laya-lonn
 
 The checkpoint is trained for the exact question wording in
 `src/lonn/complexity.py`; retrain after changing it.
+
+### Optional: local Qwen scorer
+
+On an Apple-silicon Mac you can score prompts with a local Qwen2.5-7B model
+instead of Laya. It is off by default; Laya stays the scorer for everyone else.
+
+```bash
+python3 -m pip install -r requirements-qwen.txt
+```
+
+Then add `LONN_SCORER=qwen` to `.env` (or set it in the environment for one
+run). The app, the API and `ComplexityScorer` all switch to Qwen; the app's
+analysis option then reads "Automatic (Qwen)". The model (about 4 GB, MLX
+format) downloads on first use; `LONN_QWEN_MODEL` selects another MLX chat model.
+
+Qwen reads the prompt once and returns a topic distribution and a 1-5
+difficulty from its token probabilities, without generating text (about
+0.1-0.3 s per prompt after a few seconds of loading, about 4.5 GB of memory).
+Its difficulty is calibrated to the labeling guide's scale, since it rates
+about one level high. On 368 labelled test prompts it scored 75% topic
+accuracy and ranked complexity better than Laya, and it recognises large tasks
+phrased casually ("code me an app like Airbnb") as hard.
 
 ## Execution
 
