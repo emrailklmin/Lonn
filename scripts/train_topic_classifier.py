@@ -2,7 +2,7 @@
 
 Usage:
     python3 scripts/train_topic_classifier.py
-    python3 scripts/train_topic_classifier.py --hidden 128 --epochs 300 --seed 0
+    python3 scripts/train_topic_classifier.py --hidden 128 --epochs 300 --dropout 0.1 --l2 1e-3
 
 Each prompt is embedded once with a frozen BERT sentence encoder
 (sentence-transformers/all-MiniLM-L6-v2: 6 layers, 384 dimensions, mean pooling).
@@ -10,7 +10,8 @@ A feed-forward network then maps the embedding to the four topics:
 
     384 -> Linear -> ReLU -> Dropout -> 4
 
-Labels are the soft topic distributions in data/labels/pilot.jsonl, split 70/30
+Training minimises soft-label cross-entropy plus an L2 penalty, l2 * sum of
+squared weights (biases excluded), with Adam. Labels are the soft topic distributions in data/labels/pilot.jsonl, split 70/30
 into train and test, stratified by main topic. There is no validation set: the
 network trains for a fixed number of epochs and is scored once on the test set.
 The trained network is written to models/topic_classifier.pt (gitignored).
@@ -118,10 +119,10 @@ def main():
     parser.add_argument("--data", type=Path, default=ROOT / "data/labels/pilot.jsonl")
     parser.add_argument("--test-fraction", type=float, default=0.3)
     parser.add_argument("--hidden", type=int, default=128)
-    parser.add_argument("--dropout", type=float, default=0.3)
+    parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight-decay", type=float, default=1e-2)
+    parser.add_argument("--l2", type=float, default=1e-3, help="L2 penalty on weights, added to the loss")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=Path, default=ROOT / "models/topic_classifier.pt")
     args = parser.parse_args()
@@ -140,18 +141,21 @@ def main():
     y_train = targets(train_rows)
 
     model = TopicNet(x_train.shape[1], args.hidden, len(TOPICS), args.dropout)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    weights = [p for name, p in model.named_parameters() if name.endswith("weight")]
     print(f"Network: {x_train.shape[1]} -> {args.hidden} -> {len(TOPICS)} "
-          f"({sum(p.numel() for p in model.parameters()):,} parameters), {args.epochs} epochs")
+          f"({sum(p.numel() for p in model.parameters()):,} parameters), dropout {args.dropout}, L2 {args.l2}, {args.epochs} epochs")
 
     for epoch in range(1, args.epochs + 1):  # Full batch: the training set is tiny.
         model.train()
-        loss = -(y_train * F.log_softmax(model(x_train), -1)).sum(-1).mean()
+        data_loss = -(y_train * F.log_softmax(model(x_train), -1)).sum(-1).mean()
+        l2_penalty = args.l2 * sum(w.pow(2).sum() for w in weights)
+        loss = data_loss + l2_penalty
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         if epoch in (1, args.epochs) or epoch % 50 == 0:
-            print(f"  epoch {epoch:4d}  train loss {loss.item():.4f}")
+            print(f"  epoch {epoch:4d}  cross-entropy {data_loss.item():.4f}  L2 penalty {l2_penalty.item():.4f}")
 
     model.eval()
     with torch.no_grad():
@@ -162,7 +166,7 @@ def main():
     print(f"\nBaseline (always '{majority}'): {baseline:.0%} on test")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"encoder": ENCODER, "topics": TOPICS, "hidden": args.hidden, "dropout": args.dropout,
+    torch.save({"encoder": ENCODER, "topics": TOPICS, "hidden": args.hidden, "dropout": args.dropout, "l2": args.l2,
                 "state_dict": model.state_dict(), "train_accuracy": train_acc, "test_accuracy": test_acc},
                args.out)
     print(f"Saved network to {args.out}")
