@@ -95,6 +95,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data", type=Path, default=ROOT / "data/labels/pilot.jsonl")
     parser.add_argument("--test-fraction", type=float, default=0.3)
+    parser.add_argument("--holdout", type=Path, help="extra test-only labelled prompts, reported "
+                        "separately and combined with the pilot test split")
     parser.add_argument("--extra", type=Path, help="extra labelled prompts added to training only "
                         "(e.g. data/external/topics.jsonl from scripts/build_external_topics.py)")
     parser.add_argument("--heads", type=int, default=6)
@@ -163,6 +165,16 @@ def main():
     print("  individual heads on test: " + "  ".join(f"{a:.0%}" for a in member_acc.tolist()))
     agree = (test_members.argmax(-1) == test_mean.argmax(-1, keepdim=True)).float().mean().item()
     print(f"  heads agreeing with the ensemble's choice: {agree:.0%}")
+
+    if args.holdout:
+        holdout_rows = load_rows(args.holdout)
+        x_holdout = embed([r["prompt"] for r in holdout_rows], device)
+        holdout_mean, _, _ = predict(model, x_holdout)
+        report(f"Holdout ({args.holdout.name})", holdout_mean, holdout_rows)
+        test_rows = test_rows + holdout_rows
+        test_mean, test_members, unc = predict(model, torch.cat([x_test, x_holdout]))
+        report("Pilot test + holdout (ensemble mean)", test_mean, test_rows)
+        truth = torch.tensor([TOPICS.index(main_topic(r)) for r in test_rows])
 
     correct = test_mean.argmax(-1) == truth
     print(f"\nUncertainty on test prompts (nats; max {math.log(len(TOPICS)):.3f})")

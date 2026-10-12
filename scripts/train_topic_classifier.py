@@ -120,6 +120,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data", type=Path, default=ROOT / "data/labels/pilot.jsonl")
     parser.add_argument("--test-fraction", type=float, default=0.3)
+    parser.add_argument("--holdout", type=Path, help="extra test-only labelled prompts, reported "
+                        "separately and combined with the pilot test split")
     parser.add_argument("--extra-weight", type=float, default=1.0,
                         help="loss weight of each --extra prompt relative to a pilot prompt")
     parser.add_argument("--extra-topics", nargs="+", choices=TOPICS,
@@ -179,6 +181,11 @@ def main():
     with torch.no_grad():
         train_acc = report("Train", model(x_train), train_rows)
         test_acc = report("Test", model(x_test), test_rows)
+        if args.holdout:
+            holdout_rows = load_rows(args.holdout)
+            x_holdout = embed([r["prompt"] for r in holdout_rows], device)
+            report(f"Holdout ({args.holdout.name})", model(x_holdout), holdout_rows)
+            report("Pilot test + holdout", model(torch.cat([x_test, x_holdout])), test_rows + holdout_rows)
     majority = Counter(main_topic(r) for r in train_rows).most_common(1)[0][0]
     baseline = sum(main_topic(r) == majority for r in test_rows) / len(test_rows)
     print(f"\nBaseline (always '{majority}'): {baseline:.0%} on test")
