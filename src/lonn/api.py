@@ -101,7 +101,12 @@ def create_app() -> FastAPI:
                 with app.state.scorer_lock:
                     signal = app.state.scorer.score_prompt(request.prompt)
             model = select_model(signal, app.state.models, alpha=request.alpha)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "Prompt analysis or routing failed (source=%s error=%s)",
+                "provided" if request.signal is not None else "laya",
+                type(exc).__name__,
+            )
             raise HTTPException(503, "Prompt analysis or routing failed. Check server dependencies and model configuration.") from None
         return RouteResponse(
             model=model, signal=signal, alpha=request.alpha,
