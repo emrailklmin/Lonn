@@ -39,6 +39,24 @@ class AppTests(unittest.TestCase):
             app.slider[0].set_value(.9).run()
             execute.assert_called_once()
 
+    def test_manual_flow_falls_back_to_next_ranked_model(self):
+        signal = ComplexityResult(.6, {TopicCategory.CODING: 1.0})
+        attempts = []
+        def reply(prompt, model, **kwargs):
+            attempts.append(model)
+            if len(attempts) == 1:
+                raise RuntimeError('unavailable')
+            return ModelResponse('Fallback answer', model,
+                                 TokenUsage(10, 12, 22, 0, 0, 0), 150, 'stop')
+        with patch('lonn.executor.execute', side_effect=reply) as execute:
+            app = AppTest.from_file(str(APP), default_timeout=30).run()
+            app.radio[0].set_value('Manual topic').run()
+            app.text_area[0].set_value('Write a sorting function')
+            app.button[1].click().run()
+            self.assertFalse(app.exception)
+            self.assertEqual(execute.call_count, 2)
+            self.assertIn('Fallback answer', [text.value for text in app.text])
+
     def test_error_does_not_expose_provider_details(self):
         with patch('lonn.executor.execute', side_effect=RuntimeError('secret-key')):
             app = AppTest.from_file(str(APP), default_timeout=30).run()

@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .complexity import ComplexityScorer
 from .executor import execute
 from .model_pool import load_model_pool
-from .router import select_model
+from .router import rank_models
 from .schemas import ComplexityResult, Model, ModelResponse, TopicCategory
 
 
@@ -59,14 +59,19 @@ class GenerateRequest(RouteRequest):
 
 
 class RouteResponse(BaseModel):
-    model: Model
+    models: list[Model]
     signal: ComplexityResult
     alpha: float
     analysis_source: str
     routing_latency_ms: float
 
 
-class GenerateResponse(RouteResponse):
+class GenerateResponse(BaseModel):
+    model: Model
+    signal: ComplexityResult
+    alpha: float
+    analysis_source: str
+    routing_latency_ms: float
     response: ModelResponse
     total_latency_ms: float
 
@@ -100,7 +105,7 @@ def create_app() -> FastAPI:
                 # Protect lazy model initialization and inference across worker threads.
                 with app.state.scorer_lock:
                     signal = app.state.scorer.score_prompt(request.prompt)
-            model = select_model(signal, app.state.models, alpha=request.alpha)
+            models = rank_models(signal, app.state.models, alpha=request.alpha, limit=5)
         except Exception as exc:
             logger.warning(
                 "Prompt analysis or routing failed (source=%s error=%s)",
@@ -109,7 +114,7 @@ def create_app() -> FastAPI:
             )
             raise HTTPException(503, "Prompt analysis or routing failed. Check server dependencies and model configuration.") from None
         return RouteResponse(
-            model=model, signal=signal, alpha=request.alpha,
+            models=models, signal=signal, alpha=request.alpha,
             analysis_source="provided" if request.signal is not None else "laya",
             routing_latency_ms=(perf_counter() - started) * 1000,
         )
@@ -121,30 +126,46 @@ def create_app() -> FastAPI:
 
     @app.post("/generate", response_model=GenerateResponse)
     def generate(request: GenerateRequest):
-        """Route and execute exactly once, without automatic retries or fallback."""
+        """Try up to five ranked models, falling back when execution fails."""
         started = perf_counter()
         routed = route_request(request)
-        if request.max_tokens >= routed.model.context_window:
+        eligible_models = [
+            model for model in routed.models
+            if request.max_tokens < model.context_window
+        ]
+        if not eligible_models:
             raise HTTPException(422, "max_tokens must leave context space for the prompt")
-        try:
-            response = execute(request.prompt, routed.model,
-                               timeout=request.timeout, max_tokens=request.max_tokens)
-        except Exception as exc:
-            # Raw provider errors can contain credentials or benchmark prompts.
-            code = getattr(exc, "status_code", None)
-            logger.warning(
-                "Provider execution failed (provider=%s model=%s error=%s status=%s)",
-                routed.model.provider, routed.model.id, type(exc).__name__, code,
-            )
+        response = None
+        selected_model = None
+        last_error = None
+        for model in eligible_models:
+            try:
+                response = execute(request.prompt, model,
+                                   timeout=request.timeout, max_tokens=request.max_tokens)
+                selected_model = model
+                break
+            except Exception as exc:
+                last_error = exc
+                # Raw provider errors can contain credentials or benchmark prompts.
+                code = getattr(exc, "status_code", None)
+                logger.warning(
+                    "Provider execution failed (provider=%s model=%s error=%s status=%s)",
+                    model.provider, model.id, type(exc).__name__, code,
+                )
+        if response is None:
+            # Preserve the last provider failure's public status when all candidates fail.
+            code = getattr(last_error, "status_code", None)
             if code == 429:
                 raise HTTPException(429, "Provider rate limit reached") from None
-            if code in (408, 504) or isinstance(exc, TimeoutError) or "timeout" in type(exc).__name__.lower():
+            if code in (408, 504) or isinstance(last_error, TimeoutError) or "timeout" in type(last_error).__name__.lower():
                 raise HTTPException(504, "Provider request timed out") from None
             if code in (401, 403):
                 raise HTTPException(502, "Provider rejected server credentials or access") from None
             raise HTTPException(502, "Model execution failed. Check server credentials, dependencies, and provider availability.") from None
         return GenerateResponse(
-            **routed.model_dump(), response=response,
+            model=selected_model, signal=routed.signal, alpha=routed.alpha,
+            analysis_source=routed.analysis_source,
+            routing_latency_ms=routed.routing_latency_ms, response=response,
             total_latency_ms=(perf_counter() - started) * 1000,
         )
 

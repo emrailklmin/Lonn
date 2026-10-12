@@ -37,14 +37,24 @@ class ModelResponse(BaseModel):
 
 
 class RouteResult(BaseModel):
-    model: Model
+    models: list[Model]
     signal: Signal
     alpha: float
     analysis_source: Literal["laya", "provided"]
     routing_latency_ms: float
 
+    @property
+    def model(self) -> Model:
+        """The highest-ranked model, retained for simple routing callers."""
+        return self.models[0]
 
-class GenerateResult(RouteResult):
+
+class GenerateResult(BaseModel):
+    model: Model
+    signal: Signal
+    alpha: float
+    analysis_source: Literal["laya", "provided"]
+    routing_latency_ms: float
     response: ModelResponse
     total_latency_ms: float
 

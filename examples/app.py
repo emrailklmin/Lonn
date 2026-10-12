@@ -9,7 +9,7 @@ import streamlit as st
 from lonn.complexity import ComplexityScorer
 from lonn.executor import execute
 from lonn.model_pool import load_model_pool
-from lonn.router import select_model
+from lonn.router import rank_models
 from lonn.schemas import PROVIDER_API_KEYS, ComplexityResult, TopicCategory
 
 st.set_page_config(page_title='Lonn · Routing lab', page_icon='🍁', layout='wide')
@@ -67,14 +67,29 @@ if analyze or run:
                     signal = ComplexityResult(complexity, {t: float(t == topic) for t in TopicCategory})
                 record['signal'] = signal
                 st.write('Analysis complete. Selecting a model…')
-                selected = select_model(signal, models, alpha=alpha)
-                record['selected'] = selected
-                st.write(f'Selected: {selected.id}')
+                candidates = rank_models(signal, models, alpha=alpha, limit=5)
+                record['candidates'] = candidates
+                st.write('Ranked fallback candidates: ' + ', '.join(m.id for m in candidates))
                 if run:
-                    status.update(label=f'Waiting for {selected.provider}…')
-                    record['response'] = execute(prompt, selected, timeout=timeout, max_tokens=max_tokens)
+                    eligible = [m for m in candidates if max_tokens < m.context_window]
+                    if not eligible:
+                        raise ValueError('Output token budget must leave context space for a candidate model.')
+                    last_error = None
+                    for selected in eligible:
+                        record['selected'] = selected
+                        status.update(label=f'Trying {selected.provider}…')
+                        try:
+                            record['response'] = execute(
+                                prompt, selected, timeout=timeout, max_tokens=max_tokens)
+                            break
+                        except Exception as exc:
+                            last_error = exc
+                    else:
+                        raise last_error
                     status.update(label='Response received', state='complete', expanded=False)
                 else:
+                    record['selected'] = candidates[0]
+                    st.write(f'Top-ranked: {candidates[0].id}')
                     status.update(label='Routing complete — no API call made', state='complete', expanded=False)
             except Exception as exc:
                 # Provider exceptions can contain request bodies or credentials.
