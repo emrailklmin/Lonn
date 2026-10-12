@@ -21,10 +21,11 @@ def weighted_score(quality: float, cost: float, alpha: float = 0.5) -> float:
     return alpha * quality - (1 - alpha) * cost
 
 
-def select_model(
-    signal: ComplexityResult, models: list[Model], alpha: float = 0.5
-) -> Model:
-    """Maximize complexity-scaled quality minus normalized cost.
+def rank_models(
+    signal: ComplexityResult, models: list[Model], alpha: float = 0.5,
+    limit: int = 5,
+) -> list[Model]:
+    """Return the best candidates, ordered by score, for execution/fallback.
 
     Quality is topic-weighted aptitude; missing aptitudes count as zero.
     Complexity scales the quality contribution: easy prompts rely less on
@@ -36,12 +37,16 @@ def select_model(
     Changing the pool can therefore change the normalization and selection.
 
     Score ties prefer lower price, then higher quality, then provider and ID.
+    Returns at most ``limit`` models, so the caller can attempt the next-ranked
+    candidate when execution fails.
     Alpha defaults to 0.5; 0 prioritizes cost and 1 prioritizes quality for
     the most complex prompt. At complexity 0, the primary score depends only
     on price; aptitude breaks price ties. Context limits cannot be checked
     without request token counts.
     """
     weighted_score(0, 0, alpha)  # Validate even for an empty pool.
+    if type(limit) is not int or limit <= 0:
+        raise ValueError("limit must be a positive integer")
     if not models:
         raise ValueError("Cannot route with an empty model pool")
     if not isfinite(signal.complexity) or not 0 <= signal.complexity <= 1:
@@ -71,7 +76,7 @@ def select_model(
         candidates.append((model, aptitude, price))
 
     max_price = max(item[2] for item in candidates)
-    return min(
+    ranked = sorted(
         candidates,
         key=lambda item: (
             -(alpha * signal.complexity * item[1]
@@ -81,10 +86,19 @@ def select_model(
             item[0].provider,
             item[0].id,
         ),
-    )[0]
+    )
+    return [item[0] for item in ranked[:limit]]
+
+
+def select_model(
+    signal: ComplexityResult, models: list[Model], alpha: float = 0.5
+) -> Model:
+    """Return the top-ranked model (compatibility helper)."""
+    return rank_models(signal, models, alpha, limit=1)[0]
 
 
 class Router:
     """Class interface matching the architecture's Router contract."""
 
     select_model = staticmethod(select_model)
+    rank_models = staticmethod(rank_models)

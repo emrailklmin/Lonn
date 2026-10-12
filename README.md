@@ -120,8 +120,8 @@ benchmark runner on another device, see
 | --- | --- |
 | `GET /health` | Service health; does not check classifier or provider availability |
 | `GET /models` | Active model pool and configured metadata |
-| `POST /route` | Analyze a prompt and return the selected model without a provider call |
-| `POST /generate` | Analyze, route, and call the selected NVIDIA model once |
+| `POST /route` | Analyze a prompt and return up to five ranked models without a provider call |
+| `POST /generate` | Analyze, then try up to five ranked models until one succeeds |
 
 Selection-only example, supplying a signal to avoid loading Laya:
 
@@ -137,9 +137,10 @@ omitted topics count as zero. `alpha` defaults to 0.5. Complexity scales the
 quality contribution automatically: simpler prompts favor cheaper models,
 while harder prompts use the full `alpha` quality/cost tradeoff. This is a
 prototype heuristic because current aptitude scores are not difficulty-calibrated.
-Responses include `model`, `signal`, `alpha`, `analysis_source` (`provided` or
-`laya`), and `routing_latency_ms` (analysis plus selection, including any wait
-for the classifier).
+`/route` responses include `models` (highest-ranked first), `signal`, `alpha`,
+`analysis_source` (`provided` or `laya`), and `routing_latency_ms` (analysis
+plus ranking, including any wait for the classifier). `/generate` reports the
+model that successfully answered.
 
 End-to-end benchmark call from Python:
 
@@ -165,13 +166,15 @@ execution. Neither timing includes HTTP transport; measure client elapsed time
 separately. Costs are configured estimates. Preserve `finish_reason` in benchmark
 results: `length` indicates truncation, potentially with empty final text.
 
-The output budget defaults to 4096 tokens and must be below the selected model's
+The output budget defaults to 4096 tokens and must be below a candidate model's
 context window. Prompt token counting is not yet implemented. Provider timeout
 defaults to 120 seconds (maximum 600); it does not limit classifier time.
 Execution requires the API key for the selected model's provider in the server
 environment or repository `.env`: `OPENROUTER_API_KEY` for `openrouter/...`
 models, or `NVIDIA_NIM_API_KEY` for `nvidia_nim/...` models.
-There are no automatic retries or fallbacks. Invalid requests return 422;
+`/generate` attempts up to five ranked candidates, skipping candidates whose
+context window cannot fit the requested output budget. If all attempts fail,
+the API returns a sanitized error. Invalid requests return 422;
 analysis/routing failures 503; provider rate limits 429; provider timeouts 504;
 other execution failures 502. Error bodies omit raw provider details.
 

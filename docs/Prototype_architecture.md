@@ -52,8 +52,8 @@ flowchart LR
     subgraph CORE["Shared Lonn core — src/lonn"]
         CS["ComplexityScorer<br/>complexity.py<br/>topic probabilities + complexity"]
         MP["Model pool loader<br/>model_pool.py"]
-        R["Router<br/>router.py<br/>deterministic selection"]
-        E["Executor<br/>executor.py<br/>one model call"]
+        R["Router<br/>router.py<br/>ranked candidates"]
+        E["Executor<br/>executor.py<br/>one model call per attempt"]
     end
     CONFIG["config/models.yaml"] --> MP
     MP -->|"Validated models"| HTTP
@@ -64,10 +64,10 @@ flowchart LR
     CS -->|"Signal"| UI
     HTTP -->|"Analyzed or supplied signal + pool + alpha"| R
     UI -->|"Analyzed or manual signal + pool + alpha"| R
-    R -->|"Selected model"| HTTP
-    R -->|"Selected model"| UI
-    HTTP -->|"/generate only: prompt + selected model"| E
-    UI -->|"Route and call: prompt + selected model"| E
+    R -->|"Up to five ranked models"| HTTP
+    R -->|"Up to five ranked models"| UI
+    HTTP -->|"/generate: prompt + candidates, tried in order"| E
+    UI -->|"Route and call: prompt + candidates, tried in order"| E
     E -->|"LiteLLM request"| NVIDIA["NVIDIA NIM"]
     NVIDIA -->|"Content + usage"| E
     E -->|"ModelResponse"| HTTP
@@ -350,13 +350,15 @@ sequenceDiagram
         Note over CS: First automatic call loads Laya
         CS-->>API: ComplexityResult
     end
-    API->>R: select_model(signal, pool, alpha)
-    R-->>API: Selected model
+    API->>R: rank_models(signal, pool, alpha, limit=5)
+    R-->>API: Up to five ranked models
     alt POST /route
-        API-->>B: Model + signal + routing latency
+        API-->>B: Models + signal + routing latency
     else POST /generate
-        API->>API: Check output budget against selected model context window
-        API->>E: execute(prompt, model, timeout, max_tokens)
+        loop Candidates in rank order
+            API->>API: Skip candidate if output budget exceeds context window
+            API->>E: execute(prompt, candidate, timeout, max_tokens)
+        end
         E->>N: One non-streaming completion request
         N-->>E: Content, token usage, finish reason
         E-->>API: ModelResponse with estimated cost and provider latency
@@ -367,7 +369,8 @@ sequenceDiagram
 This diagram shows the successful paths. Validation failures return 422;
 analysis/routing failures 503; provider rate limits 429; provider timeouts 504;
 other execution failures 502. Raw provider exceptions are not returned to clients.
-The API performs no automatic retries or model fallback.
+The API retries with the next ranked model after a failed provider attempt,
+up to five candidates. The executor still makes one provider call per attempt.
 
 ---
 
@@ -439,8 +442,10 @@ The web app can therefore display information such as:
 
 ## Prototype routing policy
 
-`router.select_model(signal, models, alpha=0.5)` (also available as
-`Router().select_model(signal, models, alpha=0.5)`) returns a model from the pool.
+`router.rank_models(signal, models, alpha=0.5, limit=5)` (also available as
+`Router().rank_models(...)`) returns up to five models in score order.
+`select_model(...)` remains a compatibility helper for callers that need only
+the first ranked model.
 
 1. Compute quality as `sum(topic_probability * model_topic_aptitude)`.
    Missing aptitudes count as zero.
@@ -555,8 +560,8 @@ The modules should remain independent:
 | --- | --- | --- |
 | `GET /health` | None | `{"status":"ok"}`; no classifier/provider readiness probe |
 | `GET /models` | None | Active models with context windows, topic aptitudes and configured prices |
-| `POST /route` | `prompt`, optional `alpha` and `signal` | Selected model, signal, alpha, analysis source, routing latency; no NVIDIA call |
-| `POST /generate` | Routing input plus optional `max_tokens` and `timeout` | Route fields plus `response` (`ModelResponse`) and total latency |
+| `POST /route` | `prompt`, optional `alpha` and `signal` | Ranked `models` list, signal, alpha, analysis source, routing latency; no provider call |
+| `POST /generate` | Routing input plus optional `max_tokens` and `timeout` | Successful model, route metadata, `response` (`ModelResponse`) and total latency |
 | `GET /docs` | None | Interactive API documentation |
 | `GET /openapi.json` | None | Machine-readable request/response schema |
 
@@ -567,8 +572,8 @@ Extra request fields are rejected. `analysis_source` is `laya` or `provided`.
 The API uses the core dataclasses for response data, with Pydantic models for
 HTTP validation and serialization.
 
-`max_tokens` is a positive integer (default 4096) below the selected model's
-context window. `timeout` is a positive number of seconds up to 600 (default
+`max_tokens` is a positive integer (default 4096) and must fit at least one of
+the ranked candidates' context windows. `timeout` is a positive number of seconds up to 600 (default
 120), passed to the provider call. It is not an overall HTTP or classifier
 deadline. Full prompt-plus-output token validation is not implemented.
 

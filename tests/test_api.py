@@ -40,7 +40,8 @@ class ApiTests(unittest.TestCase):
             response = self.client.post("/route", json={"prompt": "  Write code  ", "alpha": alpha})
             self.assertEqual(response.status_code, 200, response.text)
             result = response.json()
-            self.assertEqual(result["model"]["id"], model.id)
+            self.assertEqual(result["models"][0]["id"], model.id)
+            self.assertEqual(len(result["models"]), 2)
             self.assertEqual(result["analysis_source"], "laya")
             self.assertGreaterEqual(result["routing_latency_ms"], 0)
         self.score.assert_called_with("  Write code  ")
@@ -68,6 +69,18 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result["response"]["latency_ms"], 15)
         self.assertGreaterEqual(result["total_latency_ms"], result["routing_latency_ms"])
 
+    def test_generate_falls_back_to_next_ranked_model(self):
+        fallback_response = ModelResponse(
+            "Fallback answer", self.cheap,
+            TokenUsage(10, 12, 22, 0, 0, 0), 18, "stop")
+        self.execute.side_effect = [RuntimeError("provider unavailable"), fallback_response]
+        response = self.client.post("/generate", json={"prompt": "code", "alpha": 1})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["model"]["id"], self.cheap.id)
+        self.assertEqual(response.json()["response"]["content"], "Fallback answer")
+        self.assertEqual([call.args[1] for call in self.execute.call_args_list],
+                         [self.model, self.cheap])
+
     def test_invalid_inputs_rejected_before_work(self):
         for update in [{"prompt": " "}, {"alpha": -1}, {"alpha": "NaN"}, {"alpha": True},
                        {"max_tokens": 0}, {"max_tokens": 1.5}, {"max_tokens": True},
@@ -85,7 +98,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.execute.assert_not_called()
 
-    def test_provider_errors_sanitized_without_retries(self):
+    def test_provider_errors_sanitized_after_all_fallbacks_fail(self):
         for code, expected in [(429, 429), (401, 502), (403, 502), (504, 504), (500, 502)]:
             with self.subTest(code=code):
                 exc = RuntimeError("secret-key and private prompt")
@@ -96,7 +109,7 @@ class ApiTests(unittest.TestCase):
                 self.assertEqual(response.status_code, expected)
                 self.assertNotIn("secret-key", response.text)
                 self.assertNotIn("private prompt", response.text)
-                self.execute.assert_called_once()
+                self.assertEqual(self.execute.call_count, 2)
 
     def test_analysis_failure_does_not_execute(self):
         self.score.side_effect = RuntimeError("private prompt")
