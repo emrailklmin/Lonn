@@ -140,7 +140,8 @@ def select(records: list, limit, seed: int) -> list:
 
 
 def answer_one(client, record, model, settings) -> dict:
-    """Call, grade and return one result row; call failures become error rows."""
+    """Call the model and return an ungraded result row; call failures become error rows.
+    Runs in a worker thread; grading happens in the main thread (grade_row)."""
     request = build_request(record)
     body = {'model': model.id.removeprefix('openrouter/'), 'messages': request['messages'],
             'max_tokens': settings['max_tokens'], 'temperature': settings['temperature'],
@@ -166,9 +167,17 @@ def answer_one(client, record, model, settings) -> dict:
         row['cost_usd'] = ((row['input_tokens'] or 0) * model.cost_per_m_input
                            + (row['output_tokens'] or 0) * model.cost_per_m_output) / 1e6
         row['cost_source'] = 'estimate'
+    row.update(correct=None, grader='pending')  # Until grade_row succeeds.
+    return row
+
+
+def grade_row(record, row) -> dict:
+    """Grade a fresh answer in place (main thread). Errors stay ungraded."""
+    if row.get('error'):
+        return row
     try:
         row.update(grade(record, row))
-    except Exception as exc:  # A grader bug must not lose a paid answer.
+    except Exception as exc:  # A grader bug must not lose a paid answer; --regrade fixes it.
         row.update(correct=None, grader='error', grade_details=f'{type(exc).__name__}: {exc}'[:300])
     return row
 
@@ -255,37 +264,45 @@ def run(jobs, client, settings, results_dir, budget, bank_spent):
                 print(f'[{_short(model.id)}] {name}: all {saved} saved, skipping')
                 continue
             progress.block(model.id, name, len(pending), saved)
-            queue, running = list(pending), set()
+            queue, running, records = list(pending), set(), {}
             path = result_path(results_dir, DATASETS[name].category, name, model.id)
+
+            def save(future):
+                """Grade one finished call in this (main) thread and save it, even on Ctrl-C."""
+                record, row = records.pop(future), future.result()
+                try:
+                    grade_row(record, row)
+                finally:
+                    append_row(path, row)
+                    progress.add(row)
+
             try:
                 while (queue or running) and not stopped:
                     while queue and len(running) < settings['workers']:
                         if progress.spent + margin >= budget:
                             stopped = f'budget: ${progress.spent:.2f} spent, cap ${budget:.2f}'
                             break
-                        running.add(pool.submit(answer_one, client, queue.pop(0), model, settings))
+                        record = queue.pop(0)
+                        future = pool.submit(answer_one, client, record, model, settings)
+                        records[future] = record
+                        running.add(future)
                     if not running:
                         break
                     finished, running = wait(running, return_when=FIRST_COMPLETED)
                     for future in finished:
                         try:
-                            row = future.result()
+                            save(future)
                         except FatalError as exc:
                             stopped = str(exc)
-                            continue
-                        append_row(path, row)
-                        progress.add(row)
             except KeyboardInterrupt:
                 stopped = 'interrupted (Ctrl-C)'
                 print('\nInterrupted: saving the calls already in flight...', flush=True)
             if stopped:  # Let calls already sent finish and save them: they are paid for.
                 for future in wait(running).done:
                     try:
-                        row = future.result()
+                        save(future)
                     except FatalError:
                         continue
-                    append_row(path, row)
-                    progress.add(row)
             progress.end_block()
     print(f'\nStopped: {stopped}. Rerun the same command to continue.' if stopped
           else '\nAll selected questions are saved.')

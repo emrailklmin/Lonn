@@ -13,7 +13,7 @@ python3 scripts/benchmark/run.py --dry-run              # plan and cost estimate
 python3 scripts/benchmark/run.py --limit 10 --budget 3  # pilot: the same 10 questions per dataset for every model
 python3 scripts/benchmark/run.py                        # everything (resumes)
 python3 scripts/benchmark/run.py --category math --model gpt-oss-20b
-python3 scripts/benchmark/run.py --regrade              # regrade saved answers, no calls
+python3 scripts/benchmark/run.py --regrade              # regrade saved answers, no calls (not while a run is going)
 python3 scripts/benchmark/run.py --summary              # accuracy and cost of saved answers (add fields, e.g. model_id dataset)
 python3 scripts/benchmark/check_graders.py              # graders accept each benchmark's own reference answers
 ```
@@ -76,17 +76,19 @@ bank.summary(by=('model_id', 'category'))   # accuracy, cost, truncations per gr
 
 | Family | Rule |
 |---|---|
-| multiple_choice | the last `Answer: X` line must equal the key |
+| multiple_choice | the last `Answer: X` line must equal the key (`Final answer:`, `The answer:` and list or bold markers are accepted, but the label must end the line or be followed by a delimiter) |
 | math | the last `\boxed{}` must be equivalent to the reference under `math-verify` (so `0.5` = `\frac12`) |
-| code | the last Python block must pass the official tests: HumanEval+ `check()`, MBPP+ asserts, LiveCodeBench public + private tests (stdin output compared line by line with numeric tolerance; LeetCode-style problems call `Solution().<func>`). Limits: 6 s per test and 120 s per answer |
+| code | the last Python block must pass the official tests: HumanEval+ `check()`, MBPP+ asserts, LiveCodeBench public + private tests. For HumanEval+, MBPP+ and LeetCode-style problems, the code is imported as `solution.py` (its `__main__` block does not run), and **a pass needs exit code 0 plus a random token printed after the last test**, so code that exits early never passes. A HumanEval+ answer with only the function body gets the given signature added. LiveCodeBench stdin programs run as `__main__`, and their output is compared line by line: integers exactly, decimals with 1e-6 tolerance. Limits: 6 s per test (actual time counts against the total) and 120 s per answer |
 | tool_calling | the same number of calls as the ground truth, matched in any order. Each call needs the right name and only known arguments, each with an allowed value. Strings are compared case-insensitively, ignoring spaces and punctuation; `""` marks an optional argument. For `irrelevance`, correct means no call |
 | instruction_following | Google's IFEval checkers (vendored in `scripts/benchmark/ifeval/`), strict and prompt-level: every instruction must be followed |
 | writing | not graded yet (`correct: null`). An Opus 5.5 judge with the WritingBench rubric is deferred until the budget allows |
 
+Before grading, `<think>…</think>` blocks inside the response are removed; an unfinished `<think>` counts as no answer. Grading runs **in the main thread, one answer at a time**: API calls stay parallel, but math-verify's 5-second timeouts only work there, and sandboxed tests can't slow each other into false timeouts. If grading crashes, the paid answer is still saved (`grader: error`), and `--regrade` grades it later.
+
 **Sandbox:** generated code runs under macOS `sandbox-exec`.
 - **Blocked:** network access, writes outside a temporary folder, and reading the home folder (so `.env` and tokens can't be read), except the virtualenv.
 - **Environment:** a clean one, with no API keys.
-- **Limits:** CPU time and file size. Memory **cannot** be capped reliably on macOS.
+- **Limits:** CPU time, no forking, and output written to files capped at 64 MB, so endless printing is cut off. Memory **cannot** be capped reliably on macOS.
 
 `check_graders.py` confirms that every reference answer the data has is graded correct: BFCL, HumanEval+, MBPP+, multiple choice and MATH-500. LiveCodeBench and IFEval have no reference answers, so unit tests cover them.
 

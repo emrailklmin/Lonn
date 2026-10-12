@@ -210,6 +210,93 @@ class InstructionAndWritingTests(unittest.TestCase):
         self.assertEqual((graded['correct'], graded['grader']), (None, 'deferred'))
 
 
+class GraderEdgeCaseTests(unittest.TestCase):
+    """Cases found in the grader review (2026-10-12)."""
+    humaneval = CodeTests.humaneval
+    stdin_record = rec('livecodebench', input={'starter_code': ''}, reference={
+        'public_test_cases': [{'input': '1\n', 'output': '1000000\n', 'testtype': 'stdin'}],
+        'private_test_cases': [], 'metadata': {}})
+
+    def grade(self, record, response, **answer):
+        return graders.grade(record, {'response': response, **answer})
+
+    # False passes: wrong answers must not be graded correct.
+    def test_exit_zero_before_tests_is_not_a_pass(self):
+        for body in ('import sys\nsys.exit(0)', 'import os\nos._exit(0)', 'exit()', 'raise SystemExit'):
+            with self.subTest(body):
+                self.assertFalse(self.grade(self.humaneval, code(f'def add(a, b):\n    return 0\n{body}'))['correct'])
+        mbpp = rec('mbpp_plus', input={}, reference={'test_imports': [], 'test': 'assert add(2, 3) == 5'})
+        self.assertFalse(self.grade(mbpp, code('def add(a, b):\n    return 0\nexit(0)'))['correct'])
+        functional = rec('livecodebench', input={'starter_code': 'class Solution:'}, reference={
+            'public_test_cases': [{'input': '1', 'output': '2', 'testtype': 'functional'}],
+            'private_test_cases': [], 'metadata': {'func_name': 'f'}})
+        body = 'class Solution:\n    def f(self, x):\n        return 0\nimport sys\nsys.exit(0)'
+        self.assertFalse(self.grade(functional, code(body))['correct'])
+
+    def test_integer_outputs_need_exact_match(self):
+        self.assertFalse(self.grade(self.stdin_record, code('print(1000001)'))['correct'])
+        self.assertFalse(graders._outputs_match('123456789012345678', '123456789012345679'))
+        self.assertTrue(graders._outputs_match('0.3333333', '0.33333333'))
+        self.assertFalse(graders._outputs_match('nan', 'nan1'))
+
+    def test_parallel_matching_is_not_greedy(self):
+        truth = [{'f': {'x': [1, 2]}}, {'f': {'x': [1]}}]
+        record = bfcl(truth, functions=[{'name': 'f', 'parameters': {'type': 'dict', 'properties': {}}}],
+                      dataset='bfcl_parallel')
+        self.assertTrue(self.grade(record, '', tool_calls=[call('f', x=1), call('f', x=2)])['correct'])
+
+    # False failures: right answers in reasonable shapes.
+    def test_think_tags_in_the_response_are_ignored(self):
+        ifeval = rec('ifeval', input={'prompt': 'p'}, reference={
+            'instruction_id_list': ['punctuation:no_comma'], 'kwargs': [{}]})
+        self.assertTrue(self.grade(ifeval, '<think>Well, hmm, ok.</think>\nNo commas here.')['correct'])
+        self.assertTrue(self.grade(mc(), '<think>Answer: A</think>Answer: B')['correct'])
+        self.assertFalse(self.grade(mc(), '<think>Answer: B')['correct'])  # Unfinished thinking.
+
+    def test_final_answer_and_list_prefixes(self):
+        for text in ('Final Answer: B', 'The final answer: B', '- Answer: B', '**Final answer:** B'):
+            self.assertTrue(self.grade(mc(), f'Reasoning\n{text}')['correct'], text)
+        self.assertFalse(self.grade(mc(), 'The answer: B is wrong, Answer: C')['correct'])
+
+    def test_main_guard_and_body_only_humaneval(self):
+        guarded = 'def add(a, b):\n    return a + b\nif __name__ == "__main__":\n    print(add(int(input()), 1))'
+        self.assertTrue(self.grade(self.humaneval, code(guarded))['correct'])
+        self.assertTrue(self.grade(self.humaneval, code('    return a + b'))['correct'])
+
+    def test_functional_inputs_with_trailing_newline(self):
+        record = rec('livecodebench', input={'starter_code': 'class Solution:'}, reference={
+            'public_test_cases': [{'input': '[1, 2]\n3\n', 'output': '6', 'testtype': 'functional'}],
+            'private_test_cases': [], 'metadata': {'func_name': 'f'}})
+        body = 'class Solution:\n    def f(self, nums, k):\n        return sum(nums) * 2'
+        self.assertTrue(self.grade(record, code(body))['correct'])
+
+    def test_tool_arguments_as_dict_or_non_object(self):
+        truth = [{'math.area': {'base': [10]}}]
+        as_dict = [{'name': 'math_area', 'arguments': {'base': 10}}]
+        self.assertTrue(self.grade(bfcl(truth), '', tool_calls=as_dict)['correct'])
+        as_list = [{'name': 'math_area', 'arguments': '[10]'}]
+        self.assertFalse(self.grade(bfcl(truth), '', tool_calls=as_list)['correct'])
+
+    # Robustness of the sandbox.
+    def test_output_flood_is_cut_off(self):
+        with tempfile.TemporaryDirectory() as workdir:
+            code_rc, out, _ = graders.run_sandboxed('while True: print("x" * 10000)', workdir, timeout=10)
+        self.assertNotEqual(code_rc, 0)
+        self.assertLessEqual(len(out), graders.MAX_OUTPUT_BYTES)
+
+    def test_fork_bomb_is_contained(self):
+        with tempfile.TemporaryDirectory() as workdir:
+            code_rc, out, _ = graders.run_sandboxed(
+                'import os\ntry:\n    os.fork(); print("forked")\nexcept OSError:\n    print("blocked")',
+                workdir, timeout=5)
+        self.assertEqual(out.split(), ['blocked'])
+
+    def test_math_number_with_thousands_separator(self):
+        record = rec('math500', input={'problem': 'p'}, reference={'answer': '10,\\!080'})
+        for prediction in ('10080', '10,080', '10{,}080'):
+            self.assertTrue(self.grade(record, f'\\boxed{{{prediction}}}')['correct'], prediction)
+
+
 class ResultBankTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
@@ -309,6 +396,24 @@ class RunnerTests(unittest.TestCase):
         self.assertNotIn('messages', row)
         self.assertEqual(client.bodies[0]['model'], 'test/cheap')
         self.assertEqual(sum(len(job[2]) for job in self.jobs()), 0)
+
+    def test_grading_runs_in_the_main_thread(self):
+        import threading
+        threads = []
+
+        def spy(record, answer):
+            threads.append(threading.current_thread() is threading.main_thread())
+            return graders.grade(record, answer)
+
+        with patch.object(run, 'grade', side_effect=spy):
+            run.run(self.jobs(), FakeClient(), SETTINGS, self.dir, budget=10, bank_spent=0)
+        self.assertEqual(threads, [True] * 5)
+
+    def test_grader_crash_keeps_the_paid_answer(self):
+        with patch.object(run, 'grade', side_effect=RuntimeError('bug')):
+            run.run(self.jobs(), FakeClient(), SETTINGS, self.dir, budget=10, bank_spent=0)
+        row = self.rows()['mmlu_pro-001']
+        self.assertEqual((row['grader'], row['correct'], row['response']), ('error', None, 'Answer: B'))
 
     def test_errors_are_recorded_then_retried_on_the_next_run(self):
         flaky = run.CallError('HTTP 503', 503, retryable=True)
