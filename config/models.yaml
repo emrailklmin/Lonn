@@ -147,15 +147,15 @@
   price_basis: provider
   context_window: 1048576
   context_source: https://openrouter.ai/z-ai/glm-5.3-flash
-  metadata_checked_at: "2026-10-06"
+  metadata_checked_at: "2026-10-12"  # prices re-read from openrouter.ai/api/v1/models
   aptitude_basis: arena_elo
   topic_aptitudes:
     coding: 0.67
     math_reasoning: 0.644
     creative_writing: 0.5473
     general_knowledge_extraction: 0.6545
-  cost_per_m_input: 0.15
-  cost_per_m_output: 0.5
+  cost_per_m_input: 0.0232
+  cost_per_m_output: 1.2
 
 - id: openrouter/deepseek/deepseek-v4.1-flash
   provider: openrouter
@@ -163,15 +163,15 @@
   price_basis: provider
   context_window: 1048576
   context_source: https://openrouter.ai/deepseek/deepseek-v4.1-flash
-  metadata_checked_at: "2026-10-06"
+  metadata_checked_at: "2026-10-12"  # prices re-read from openrouter.ai/api/v1/models
   aptitude_basis: arena_elo
   topic_aptitudes:
     coding: 0.6763
     math_reasoning: 0.644
     creative_writing: 0.5573
     general_knowledge_extraction: 0.6623
-  cost_per_m_input: 0.0214
-  cost_per_m_output: 1.32
+  cost_per_m_input: 0.15
+  cost_per_m_output: 0.6
 
 - id: openrouter/deepseek/deepseek-v4-pro
   provider: openrouter
@@ -179,15 +179,15 @@
   price_basis: provider
   context_window: 1048576
   context_source: https://openrouter.ai/deepseek/deepseek-v4-pro
-  metadata_checked_at: "2026-10-06"
+  metadata_checked_at: "2026-10-12"  # prices re-read from openrouter.ai/api/v1/models
   aptitude_basis: arena_elo
   topic_aptitudes:
     coding: 0.6401
     math_reasoning: 0.5644
     creative_writing: 0.5658
     general_knowledge_extraction: 0.6131
-  cost_per_m_input: 0.2088
-  cost_per_m_output: 0.4176
+  cost_per_m_input: 0.442656
+  cost_per_m_output: 0.885312
 
 - id: openrouter/nvidia/nemotron-3-ultra-550b-a55b
   provider: openrouter

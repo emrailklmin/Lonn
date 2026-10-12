@@ -1,6 +1,6 @@
 # Benchmark sources
 
-Sources for the routing benchmark (issue #16), checked 2026-10-12 against the Hugging Face API and GitHub. `scripts/benchmark/build_data.py` pins every source to the revision below, downloads it to `data/benchmark/raw/<category>/<dataset>/`, and writes seeded samples to `data/benchmark/prompts/<category>/<dataset>.jsonl`. The categories are `tool_calling` (160 prompts), `coding` (200), `general_knowledge` (200), `math` (150) and `writing` (140). Both folders are gitignored. Only `data/benchmark/manifest.json` is committed: it records revisions, file hashes, the seed, stratum counts and the selected source IDs, and `--check` rebuilds and compares against it.
+Sources for the routing benchmark (issue #16), checked 2026-10-12 against the Hugging Face API and GitHub. `scripts/benchmark/build_data.py` pins every source to the revision below, downloads it to `data/benchmark/raw/<category>/<dataset>/`, and writes seeded samples to `data/benchmark/prompts/<category>/<dataset>.jsonl`. The categories are `tool_calling` (160 prompts), `coding` (200), `general_knowledge` (200), `math` (150) and `writing` (140). Both folders are gitignored. Only `data/benchmark/manifest.json` is committed: it records revisions, file hashes, the seed, stratum counts and, for each selected question, its short ID with the source ID it maps to. `--check` rebuilds the data and compares it against the manifest.
 
 ```bash
 python3 scripts/benchmark/build_data.py              # all datasets
@@ -30,7 +30,7 @@ Seed: `20261012`. Difficulty split, including GPQA: easy 220 (26%), medium 450 (
 
 ## Prompt record
 
-One JSON line per prompt, sorted by `prompt_id` (`<dataset>:<source_id>`):
+One JSON line per prompt, sorted by `prompt_id`, a short ID for lookups (`math500-001` … `math500-150`), numbered in natural source-ID order:
 
 - **Identity and source:** `dataset`, `category` (its folder), `source_dataset`, `source_revision`, `source_id`, `source_split`.
 - **Classification:**
