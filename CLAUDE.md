@@ -40,6 +40,10 @@ python3 scripts/push_laya.py --repo LonnAI/laya-lonn
 # Benchmark prompt sets: download sources, write seeded samples to gitignored
 # data/benchmark/{raw,prompts}, record data/benchmark/manifest.json (docs/benchmark_sources.md)
 python3 scripts/benchmark/build_data.py            # or name datasets; --check verifies a rebuild
+# Answer bank (docs/benchmark_answer_bank.md): every model on every question via OpenRouter,
+# graded, appended to committed results/benchmark/. Paid calls: --dry-run first, ask before running
+python3 scripts/benchmark/run.py --dry-run         # --limit N for a pilot, --budget USD cap, --regrade
+python3 scripts/benchmark/check_graders.py         # graders accept reference answers (no calls)
 
 # Offline pool maintenance (write to gitignored reports/). If urllib fails with
 # CERTIFICATE_VERIFY_FAILED (python.org macOS build), first run:
@@ -64,6 +68,7 @@ Pipeline in `src/lonn/`, orchestrated by `examples/app.py` (Streamlit) and `src/
 - **SDK (`sdk/python`, package `lonnrouter`):** `LonnRouter`/`AsyncLonnRouter`, a thin httpx + pydantic client of the HTTP API. It does not depend on `lonn`. `tests/test_sdk.py` runs it against the real FastAPI app with the pool, scorer, and executor mocked. When you change an API response shape, update `sdk/python/src/lonnrouter/models.py` too.
 - **Pool (`config/models.yaml`):** this is the only curated model config. Every active entry must have `provider` ∈ {nvidia_nim, openrouter} (see `PROVIDER_API_KEYS` in `schemas.py`) and an ID of the form `<provider>/<publisher>/<model>` with a matching prefix, known prices, `price_basis` ∈ {provider, estimate, free_tier}, a positive `context_window`, and all four aptitudes in [0, 1]. The loader rejects unknown values rather than defaulting them to zero, and it reports every invalid entry at once. Inactive entries may stay incomplete. Aptitudes are benchmark proxies. NIM prices are third-party estimates (`matched_provider_key`) rather than NVIDIA billing; OpenRouter prices are OpenRouter's listed prices. OpenRouter is used only for model access with credits, not for its routing. Record the source of any metadata you add.
 - **Executor:** makes a non-streaming LiteLLM call. It loads the repo `.env` without overriding existing environment variables and requires only the key for the model's provider: `NVIDIA_NIM_API_KEY` or `OPENROUTER_API_KEY`. Cost is tokens / 1e6 × the configured price. `finish_reason == "length"` signals truncation, which is common for reasoning models under the default 4096-token budget and 120 s timeout. It does no retries, rerouting, streaming or tool calls, and provider exceptions propagate to the caller.
+- **Benchmark (`scripts/benchmark/`)** is offline tooling and is not imported by `src/lonn`. `build_data.py` writes the prompt sets. `run.py` calls OpenRouter directly (not the executor) with identical per-family system prompts (`templates.py`; bump `TEMPLATE_VERSION` after any wording change). `graders.py` grades answers and runs generated code only inside the macOS `sandbox-exec` profile. `results.py` appends to and reads the answer bank.
 - **Discovery and availability scripts** are offline preparation. They write only to `reports/` and never modify `config/models.yaml`.
 
 ## Agent skills
