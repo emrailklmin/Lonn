@@ -446,18 +446,19 @@ The web app can therefore display information such as:
    actual request cost estimate.
 3. Normalize cost by dividing by the highest combined price in the pool.
    When all models are free, every normalized cost is zero.
-4. Maximize `alpha * quality - (1 - alpha) * normalized_cost`.
+4. Maximize `alpha * complexity * quality - (1 - alpha) * normalized_cost`.
 5. Break score ties by lower price, higher quality, then `(provider, id)`.
 
 `weighted_score(quality, cost, alpha=0.5)` exposes the weighted function.
 All three arguments must be finite and in [0, 1]. Alpha 0 prioritizes cost;
 alpha 1 prioritizes quality. The default is 0.5. Pool-relative normalization
 puts cost on the same [0, 1] scale as quality, but adding/removing models can
-change the tradeoff. Raw price units do not affect selection.
-
-Complexity is still validated as part of the input contract, but no longer
-imposes a quality threshold. Callers may explicitly pass
-`alpha=signal.complexity` if they want complexity to control the tradeoff.
+change the tradeoff. Raw price units do not affect selection. Complexity scales
+the quality contribution automatically: at 0, cost determines the primary
+score; at 1, routing follows the full `alpha` quality/cost tradeoff. `alpha`
+remains the caller's preference for the most complex prompts. Complexity is a
+heuristic difficulty signal, and the current topic aptitudes are not calibrated
+by difficulty, so evaluate this policy against application-specific prompts.
 Context-window filtering still requires prompt tokens and an output budget.
 
 An empty pool, duplicate `(provider, id)` entries, invalid probabilities,

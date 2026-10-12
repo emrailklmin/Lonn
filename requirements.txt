@@ -8,3 +8,5 @@ fastapi>=0.115,<1
 pydantic>=2.9,<3
 uvicorn>=0.30,<1
 httpx>=0.27,<1
+# Install the Python SDK from this checkout for local app/benchmark clients.
+-e ./sdk/python

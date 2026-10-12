@@ -66,7 +66,9 @@ still require a live test. The UI keeps the API key on the Python server.
 
 ## Python SDK for apps and benchmarks
 
-Install the lightweight client from this checkout on the app's machine:
+Installing the root `requirements.txt` also installs this SDK in editable mode.
+For a client-only environment, install the lightweight package from this
+checkout:
 
 ```bash
 python -m pip install ./sdk/python
@@ -126,7 +128,10 @@ curl http://127.0.0.1:8000/route \
 
 Omit `signal` to analyze the prompt with Laya automatically. The signal requires
 complexity and topic probabilities in [0, 1], with probabilities summing to one;
-omitted topics count as zero. `alpha` defaults to 0.5, matching the core router.
+omitted topics count as zero. `alpha` defaults to 0.5. Complexity scales the
+quality contribution automatically: simpler prompts favor cheaper models,
+while harder prompts use the full `alpha` quality/cost tradeoff. This is a
+prototype heuristic because current aptitude scores are not difficulty-calibrated.
 Responses include `model`, `signal`, `alpha`, `analysis_source` (`provided` or
 `laya`), and `routing_latency_ms` (analysis plus selection, including any wait
 for the classifier).
