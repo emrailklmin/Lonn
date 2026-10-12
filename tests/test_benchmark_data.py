@@ -23,7 +23,7 @@ def load_script(name, path):
 
 bd = load_script('benchmark_build_data', 'scripts/benchmark/build_data.py')
 
-RECORD_KEYS = {'prompt_id', 'dataset', 'source_dataset', 'source_revision', 'source_id',
+RECORD_KEYS = {'prompt_id', 'dataset', 'category', 'source_dataset', 'source_revision', 'source_id',
                'source_split', 'task_family', 'topic', 'level_label', 'difficulty', 'subject',
                'has_tools', 'tools', 'input', 'reference', 'seed', 'manifest_version'}
 
@@ -162,6 +162,17 @@ class NormalizerTests(unittest.TestCase):
                     self.assertEqual(record['seed'], 7)
                     json.dumps(record)  # Serializable without custom encoders.
 
+    def test_categories_group_datasets(self):
+        groups = {}
+        for name, spec in bd.DATASETS.items():
+            groups.setdefault(spec.category, []).append(name)
+        self.assertEqual(set(groups), set(bd.CATEGORIES))
+        self.assertEqual({c: sum(bd.DATASETS[n].n for n in names) for c, names in groups.items()},
+                         {'tool_calling': 160, 'coding': 200, 'general_knowledge': 200,
+                          'math': 150, 'writing': 140})
+        for name, spec in bd.DATASETS.items():
+            self.assertEqual({r['category'] for r in self.build(name)}, {spec.category})
+
     def test_total_is_850(self):
         self.assertEqual(sum(spec.n for spec in bd.DATASETS.values()), 850)
 
@@ -262,8 +273,10 @@ class OutputTests(unittest.TestCase):
             self.assertEqual(entry['n'], 30)
             self.assertEqual(entry['revision'], bd.DATASETS['arc_challenge'].revision)
             self.assertEqual(len(entry['source_ids']), 30)
-            self.assertEqual(entry['output_sha256'], bd.sha256(out / 'prompts' / 'arc_challenge.jsonl'))
+            self.assertEqual(entry['output_sha256'], bd.sha256(out / 'prompts' / 'general_knowledge' / 'arc_challenge.jsonl'))
             self.assertEqual(set(entry['raw_files']), {'rows'})
+            self.assertEqual(entry['category'], 'general_knowledge')
+            self.assertEqual(entry['output_file'], 'prompts/general_knowledge/arc_challenge.jsonl')
             saved = json.loads((out / 'manifest.json').read_text())
             self.assertEqual(saved, manifest)
             self.assertEqual(bd.run(['arc_challenge'], out, seed=3, check=True), manifest)

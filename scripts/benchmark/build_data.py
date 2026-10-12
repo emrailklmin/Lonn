@@ -1,7 +1,7 @@
 """Download the benchmark source datasets and draw fixed, seeded prompt samples.
 
-Raw files go to data/benchmark/raw/<dataset>/ and samples to
-data/benchmark/prompts/<dataset>.jsonl (both gitignored). The committed
+Raw files go to data/benchmark/raw/<category>/<dataset>/ and samples to
+data/benchmark/prompts/<category>/<dataset>.jsonl (both gitignored). The committed
 data/benchmark/manifest.json pins each source revision and records file hashes
 and the selected source IDs, so a rebuild can be checked with --check.
 
@@ -30,6 +30,8 @@ DEFAULT_DATA_DIR = ROOT / 'data' / 'benchmark'
 SEED = 20261012
 MANIFEST_VERSION = 1
 DIFFICULTIES = ('easy', 'medium', 'hard')
+# Folders under raw/ and prompts/; each dataset belongs to one.
+CATEGORIES = ('tool_calling', 'coding', 'general_knowledge', 'math', 'writing')
 TOOL_TOPIC = None  # Tool calling is a request flag (has_tools), not a TopicCategory.
 
 
@@ -44,11 +46,17 @@ class Spec:
     normalize: Callable  # (rows by logical name, seed) -> list[record]
     strata: Callable | None = None
     quotas: dict | None = None  # Stratum -> count; equal split across strata when None.
+    category: str = ''
     host: str = 'hf'
     gated: bool = False
     notes: str = ''
     split: str = 'test'
     extra: dict = field(default_factory=dict)
+
+
+    def __post_init__(self):
+        if self.category not in CATEGORIES:
+            raise ValueError(f'{self.name}: category must be one of {CATEGORIES}')
 
 
 class ManualStepRequired(Exception):
@@ -94,7 +102,7 @@ def record(spec, source_id, *, task_family, topic, level_label, difficulty, inpu
     if difficulty not in DIFFICULTIES:
         raise ValueError(f'{spec.name}: unknown difficulty {difficulty!r}')
     return {
-        'prompt_id': f'{spec.name}:{source_id}', 'dataset': spec.name,
+        'prompt_id': f'{spec.name}:{source_id}', 'dataset': spec.name, 'category': spec.category,
         'source_dataset': spec.source, 'source_revision': spec.revision,
         'source_id': str(source_id), 'source_split': spec.split,
         'task_family': task_family, 'topic': topic, 'level_label': level_label,
@@ -235,7 +243,8 @@ def _bfcl(subset, n, level):
     files = {'questions': f'BFCL_v3_{subset}.json'}
     if subset != 'irrelevance':
         files['answers'] = f'possible_answer/BFCL_v3_{subset}.json'
-    return Spec(name=f'bfcl_{subset}', files=files, n=n, normalize=bfcl(level), **BFCL)
+    return Spec(name=f'bfcl_{subset}', files=files, n=n, normalize=bfcl(level),
+                category='tool_calling', **BFCL)
 
 
 _SPECS = [
@@ -245,32 +254,34 @@ _SPECS = [
     _bfcl('irrelevance', 40, 'medium'),
     Spec('humaneval_plus', 'evalplus/humanevalplus', 'd32357cf319e50e9c8d8dab5ea876c72b0fd321b',
          {'rows': 'data/test-00000-of-00001-5973903632b82d40.parquet'}, 'Apache-2.0', 40,
-         humaneval_plus),
+         humaneval_plus, category='coding'),
     Spec('mbpp_plus', 'evalplus/mbppplus', 'b2d74c91837c3f2a20c1299ae98133cbe7cfa077',
          {'rows': 'data/test-00000-of-00001-d5781c9c51e02795.parquet'}, 'Apache-2.0', 40,
-         mbpp_plus),
+         mbpp_plus, category='coding'),
     Spec('livecodebench', 'livecodebench/code_generation_lite',
          '0fe84c3912ea0c4d4a78037083943e8f0c4dd505', {'rows': 'test6.jsonl'}, 'CC (unspecified)',
-         120, livecodebench, strata=lambda r: r['difficulty'],
+         120, livecodebench, category='coding', strata=lambda r: r['difficulty'],
          quotas={'easy': 30, 'medium': 40, 'hard': 50},
          notes='release_v6 additions only (contests 2025-01-04 to 2025-04-06); the full repo is 4.5 GB.'),
     Spec('mmlu_pro', 'TIGER-Lab/MMLU-Pro', 'b189ec765aa7ed75c8acfea42df31fdae71f97be',
          {'rows': 'data/test-00000-of-00001.parquet'}, 'MIT', 120, mmlu_pro,
-         strata=lambda r: r['subject']),
+         category='general_knowledge', strata=lambda r: r['subject']),
     Spec('gpqa_diamond', 'Idavidrein/gpqa', '83022cefff930aea54f654c0b282e74b9eeda5c6',
-         {'rows': 'gpqa_diamond.csv'}, 'CC-BY-4.0', 50, gpqa_diamond, gated=True,
-         split='train', notes='Gated; the authors ask that examples are not published in plain text.'),
+         {'rows': 'gpqa_diamond.csv'}, 'CC-BY-4.0', 50, gpqa_diamond,
+         category='general_knowledge', gated=True, split='train',
+         notes='Gated; the authors ask that examples are not published in plain text.'),
     Spec('arc_challenge', 'allenai/ai2_arc', '210d026faf9955653af8916fad021475a3f00453',
-         {'rows': 'ARC-Challenge/test-00000-of-00001.parquet'}, 'CC-BY-SA-4.0', 30, arc_challenge),
+         {'rows': 'ARC-Challenge/test-00000-of-00001.parquet'}, 'CC-BY-SA-4.0', 30, arc_challenge,
+         category='general_knowledge'),
     Spec('math500', 'HuggingFaceH4/MATH-500', '6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be',
-         {'rows': 'test.jsonl'}, 'MIT (upstream MATH; card has none)', 150, math500,
+         {'rows': 'test.jsonl'}, 'MIT (upstream MATH; card has none)', 150, math500, category='math',
          strata=lambda r: r['level_label'],
          # Weighted toward harder levels; AIME was dropped for its non-commercial licence.
          quotas={'Level 1': 20, 'Level 2': 20, 'Level 3': 30, 'Level 4': 40, 'Level 5': 40}),
     Spec('ifeval', 'google/IFEval', '966cd89545d6b6acfd7638bc708b98261ca58e84',
-         {'rows': 'ifeval_input_data.jsonl'}, 'Apache-2.0', 80, ifeval, split='train'),
+         {'rows': 'ifeval_input_data.jsonl'}, 'Apache-2.0', 80, ifeval, category='writing', split='train'),
     Spec('writingbench_business', 'X-PLUG/WritingBench', 'ae2d5176449b7b769815482641d35926f26793eb',
-         {'rows': 'benchmark_query/benchmark_all.jsonl'}, 'Apache-2.0', 60, writingbench,
+         {'rows': 'benchmark_query/benchmark_all.jsonl'}, 'Apache-2.0', 60, writingbench, category='writing',
          strata=lambda r: r['subject'], host='github',
          notes='English Finance & Business and Advertising & Marketing queries only.'),
 ]
@@ -350,7 +361,7 @@ def _ssl_context():
 
 def download(spec: Spec, raw_dir: Path) -> dict:
     """Fetch the pinned source files; return logical name -> local path."""
-    target = raw_dir / spec.name
+    target = raw_dir / spec.category / spec.name
     paths = {}
     for logical, remote in spec.files.items():
         if spec.host == 'github':
@@ -397,20 +408,20 @@ def run(names, data_dir: Path, seed: int = SEED, check: bool = False) -> dict:
             print(f'SKIP {name}: {exc}')
             continue
         records = build_dataset(spec, {key: read_rows(path) for key, path in paths.items()}, seed)
-        output = data_dir / 'prompts' / f'{name}.jsonl'
+        output = data_dir / 'prompts' / spec.category / f'{name}.jsonl'
         if check:
             expected = manifest['datasets'].get(name)
-            output = data_dir / 'prompts' / f'.{name}.check.jsonl'
+            output = output.with_name(f'.{name}.check.jsonl')
         write_jsonl(output, records)
         entry = {
-            'source': spec.source, 'host': spec.host, 'revision': spec.revision,
+            'category': spec.category, 'source': spec.source, 'host': spec.host, 'revision': spec.revision,
             'license': spec.license, 'gated': spec.gated, 'notes': spec.notes,
             'raw_files': {key: {'path': spec.files[key], 'sha256': sha256(path),
                                 'bytes': path.stat().st_size} for key, path in paths.items()},
             'n': spec.n, 'seed': seed,
             'strata': _strata_counts(spec, records),
             'source_ids': sorted(r['source_id'] for r in records),
-            'output_file': f'prompts/{name}.jsonl', 'output_sha256': sha256(output),
+            'output_file': f'prompts/{spec.category}/{name}.jsonl', 'output_sha256': sha256(output),
         }
         if check:
             output.unlink()

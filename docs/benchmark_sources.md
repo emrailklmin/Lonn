@@ -1,6 +1,6 @@
 # Benchmark sources
 
-Sources for the routing benchmark (issue #16), checked 2026-10-12 against the Hugging Face API and GitHub. `scripts/benchmark/build_data.py` pins every source to the revision below, downloads it to `data/benchmark/raw/`, and writes seeded samples to `data/benchmark/prompts/`. Both folders are gitignored. Only `data/benchmark/manifest.json` is committed: it records revisions, file hashes, the seed, stratum counts and the selected source IDs, and `--check` rebuilds and compares against it.
+Sources for the routing benchmark (issue #16), checked 2026-10-12 against the Hugging Face API and GitHub. `scripts/benchmark/build_data.py` pins every source to the revision below, downloads it to `data/benchmark/raw/<category>/<dataset>/`, and writes seeded samples to `data/benchmark/prompts/<category>/<dataset>.jsonl`. The categories are `tool_calling` (160 prompts), `coding` (200), `general_knowledge` (200), `math` (150) and `writing` (140). Both folders are gitignored. Only `data/benchmark/manifest.json` is committed: it records revisions, file hashes, the seed, stratum counts and the selected source IDs, and `--check` rebuilds and compares against it.
 
 ```bash
 python3 scripts/benchmark/build_data.py              # all datasets
@@ -8,7 +8,7 @@ python3 scripts/benchmark/build_data.py math500      # one dataset
 python3 scripts/benchmark/build_data.py --check      # verify a rebuild is identical
 ```
 
-## Datasets (850 prompts)
+## Datasets (13 datasets from 10 sources, 850 prompts)
 
 | Dataset key | Source (pinned revision) | Used file | Size | n | Sampling | Licence | Notes |
 |---|---|---|---|---|---|---|---|
@@ -32,7 +32,7 @@ Seed: `20261012`. Difficulty split, including GPQA: easy 220 (26%), medium 450 (
 
 One JSON line per prompt, sorted by `prompt_id` (`<dataset>:<source_id>`):
 
-- **Identity and source:** `dataset`, `source_dataset`, `source_revision`, `source_id`, `source_split`.
+- **Identity and source:** `dataset`, `category` (its folder), `source_dataset`, `source_revision`, `source_id`, `source_split`.
 - **Classification:**
   - `task_family`: `tool_calling` | `coding` | `gk` | `math` | `instruction_following` | `business_writing`.
   - `topic`: a `TopicCategory` value. IFEval and WritingBench map to `creative_writing`. BFCL is `null` (decision 2026-10-12: tool use is the `has_tools` flag, not a fifth topic).
