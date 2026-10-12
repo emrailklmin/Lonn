@@ -146,6 +146,14 @@ class CodeTests(unittest.TestCase):
         wrong = self.grade(record, 'print(0)')
         self.assertEqual((wrong['correct'], wrong['grade_details']), (False, 'test 1: wrong output'))
 
+    def test_livecodebench_many_fast_tests_fit_the_total_limit(self):
+        # 45 tests x the 6 s allowance exceeds 120 s; only real run time may count.
+        tests = [{'input': f'{i}\n', 'output': f'{i}\n', 'testtype': 'stdin'} for i in range(45)]
+        record = rec('livecodebench', input={'starter_code': ''}, reference={
+            'public_test_cases': tests, 'private_test_cases': [], 'metadata': {}})
+        graded = self.grade(record, 'print(input())')
+        self.assertTrue(graded['correct'], graded['grade_details'])
+
     def test_livecodebench_functional(self):
         record = rec('livecodebench', input={'starter_code': 'class Solution:'}, reference={
             'public_test_cases': [{'input': '[1, 2, 3]\n2', 'output': '[2, 4, 6]', 'testtype': 'functional'}],

@@ -13,10 +13,11 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 from .templates import FAMILY_OF, tool_name
 
-GRADER_VERSION = '1'
+GRADER_VERSION = '2'
 ROOT = Path(__file__).resolve().parents[2]
 TEST_TIMEOUT = 6.0  # Seconds per test case (LiveCodeBench's own default).
 TOTAL_TIMEOUT = 120.0  # Seconds for all of one answer's tests together.
@@ -180,9 +181,10 @@ def _livecodebench_stdin(code, tests, workdir):
     for number, test in enumerate(tests, 1):
         if remaining <= 0:
             return False, 'total time limit exceeded'
-        timeout = min(TEST_TIMEOUT, remaining)
-        code_rc, out, err = run_sandboxed(code, workdir, stdin=test['input'], timeout=timeout)
-        remaining -= timeout
+        started = time.perf_counter()
+        code_rc, out, err = run_sandboxed(code, workdir, stdin=test['input'],
+                                          timeout=min(TEST_TIMEOUT, remaining))
+        remaining -= time.perf_counter() - started  # Real run time, not the per-test allowance.
         if code_rc is None:
             return False, f'test {number}: timeout'
         if code_rc != 0:
