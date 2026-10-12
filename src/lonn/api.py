@@ -4,6 +4,7 @@ Run: python3 -m uvicorn lonn.api:app --app-dir src --host 127.0.0.1
 """
 
 from contextlib import asynccontextmanager
+import logging
 from math import fsum, isclose
 from threading import Lock
 from time import perf_counter
@@ -17,6 +18,9 @@ from .executor import execute
 from .model_pool import load_model_pool
 from .router import select_model
 from .schemas import ComplexityResult, Model, ModelResponse, TopicCategory
+
+
+logger = logging.getLogger(__name__)
 
 
 UnitScore = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False, strict=True)]
@@ -123,6 +127,10 @@ def create_app() -> FastAPI:
         except Exception as exc:
             # Raw provider errors can contain credentials or benchmark prompts.
             code = getattr(exc, "status_code", None)
+            logger.warning(
+                "Provider execution failed (provider=%s model=%s error=%s status=%s)",
+                routed.model.provider, routed.model.id, type(exc).__name__, code,
+            )
             if code == 429:
                 raise HTTPException(429, "Provider rate limit reached") from None
             if code in (408, 504) or isinstance(exc, TimeoutError) or "timeout" in type(exc).__name__.lower():

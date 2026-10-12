@@ -89,8 +89,9 @@ with LonnRouter(base_url="http://192.168.1.42:8000") as router:
 
 Replace the example address with your running Lonn server. You can instead set
 `LONN_BASE_URL` and use `LonnRouter()`. The SDK calls the HTTP API; it does not
-start the server. Only the server needs Laya, NVIDIA credentials, and the model
-configuration. The client package depends only on HTTPX and Pydantic.
+start the server. Only the server needs Laya, the selected provider's
+credentials, and the model configuration. The client package depends only on
+HTTPX and Pydantic.
 
 Use `router.route(...)` for selection without generation, or `AsyncLonnRouter`
 with `await router.generate(...)` inside an async app. Results expose typed
@@ -167,7 +168,9 @@ results: `length` indicates truncation, potentially with empty final text.
 The output budget defaults to 4096 tokens and must be below the selected model's
 context window. Prompt token counting is not yet implemented. Provider timeout
 defaults to 120 seconds (maximum 600); it does not limit classifier time.
-Execution requires `NVIDIA_NIM_API_KEY` in the environment or repository `.env`.
+Execution requires the API key for the selected model's provider in the server
+environment or repository `.env`: `OPENROUTER_API_KEY` for `openrouter/...`
+models, or `NVIDIA_NIM_API_KEY` for `nvidia_nim/...` models.
 There are no automatic retries or fallbacks. Invalid requests return 422;
 analysis/routing failures 503; provider rate limits 429; provider timeouts 504;
 other execution failures 502. Error bodies omit raw provider details.

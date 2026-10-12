@@ -33,8 +33,9 @@ with LonnRouter(base_url="http://192.168.1.42:8000") as router:
 Replace the example IP with the running server's address. Alternatively set
 `LONN_BASE_URL` and construct `LonnRouter()` with no arguments. The default is
 `http://127.0.0.1:8000`. All model routing and execution happen on the server.
-The server needs `NVIDIA_NIM_API_KEY` to generate responses. The SDK does not
-start or deploy the server.
+The server needs the key for the selected model's provider:
+`OPENROUTER_API_KEY` for `openrouter/...` models or `NVIDIA_NIM_API_KEY` for
+`nvidia_nim/...` models. The SDK does not start or deploy the server.
 
 `alpha` defaults to 0.5; 0 prioritizes cost, 1 prioritizes quality. The returned
 `model` contains the selected model's metadata. `usage` reports tokens and
