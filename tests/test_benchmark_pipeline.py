@@ -345,6 +345,12 @@ class RunnerTests(unittest.TestCase):
             client.assert_not_called()
         self.assertTrue(all(row['correct'] for row in self.rows().values()))
 
+    def test_summary_prints_without_calls(self):
+        run.run(self.jobs(), FakeClient(), SETTINGS, self.dir, budget=10, bank_spent=0)
+        with patch.object(run, 'OpenRouterClient') as client:
+            run.print_summary(self.dir, ('model_id', 'dataset'))
+            client.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

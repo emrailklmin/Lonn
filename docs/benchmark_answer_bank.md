@@ -14,6 +14,7 @@ python3 scripts/benchmark/run.py --limit 10 --budget 3  # pilot: the same 10 que
 python3 scripts/benchmark/run.py                        # everything (resumes)
 python3 scripts/benchmark/run.py --category math --model gpt-oss-20b
 python3 scripts/benchmark/run.py --regrade              # regrade saved answers, no calls
+python3 scripts/benchmark/run.py --summary              # accuracy and cost of saved answers (add fields, e.g. model_id dataset)
 python3 scripts/benchmark/check_graders.py              # graders accept each benchmark's own reference answers
 ```
 

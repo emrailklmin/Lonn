@@ -323,6 +323,23 @@ def dry_run(jobs, results_dir):
           'answers exist, otherwise rough guesses; no calls were made.')
 
 
+def print_summary(results_dir, by):
+    table = ResultBank(results_dir).summary(by=by)
+    if not table:
+        return print('No saved answers yet.')
+    widths = [max(len(str(_short(str(row[key])))) for row in table + [dict(zip(by, by))]) for key in by]
+    header = '  '.join(key.ljust(width) for key, width in zip(by, widths))
+    print(f'{header}  answers  errors  accuracy  truncated  output tok    cost')
+    for row in table:
+        keys = '  '.join(_short(str(row[key])).ljust(width) for key, width in zip(by, widths))
+        accuracy = f"{row['accuracy']:.0%}" if row['accuracy'] is not None else 'n/a'
+        print(f"{keys}  {row['answers']:>7}  {row['errors']:>6}  {accuracy:>8}  {row['truncated']:>9}"
+              f"  {row['output_tokens']:>10}  ${row['cost_usd']:.4f}")
+    bank = ResultBank(results_dir)
+    print(f'Total spent: ${bank.spent():.4f} over {len(bank.rows)} saved answers. '
+          'Accuracy counts graded answers only (WritingBench is ungraded).')
+
+
 def regrade(data_dir, results_dir, names):
     records = load_records(data_dir, names)
     by_id = {r['prompt_id']: r for items in records.values() for r in items}
@@ -375,8 +392,13 @@ def main(argv=None):
                         help='also run the deferred tool-calling (BFCL) datasets')
     parser.add_argument('--dry-run', action='store_true', help='show the plan and cost; no calls')
     parser.add_argument('--regrade', action='store_true', help='regrade saved answers; no calls')
+    parser.add_argument('--summary', nargs='*', metavar='FIELD',
+                        help='print accuracy and cost of saved answers, grouped by fields '
+                             '(default: model_id category); no calls')
     args = parser.parse_args(argv)
 
+    if args.summary is not None:
+        return print_summary(args.results_dir, tuple(args.summary) or ('model_id', 'category'))
     names = select_datasets(args.dataset, args.category, args.include_tool_calling)
     if args.regrade:
         return regrade(args.data_dir, args.results_dir, names)
