@@ -20,3 +20,8 @@ htmlcov/
 
 # Generated discovery and availability reports
 /reports/
+
+# Python SDK build artifacts
+*.egg-info/
+/sdk/python/build/
+/dist/
