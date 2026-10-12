@@ -17,6 +17,7 @@ python3 scripts/benchmark/run.py --regrade              # regrade saved answers,
 python3 scripts/benchmark/check_graders.py              # graders accept each benchmark's own reference answers
 ```
 
+- **Tool calling (BFCL) is deferred** (decision 2026-10-12). Default runs, pilots and dry runs skip the four BFCL datasets (690 questions remain, 5,520 calls). Asking for them with `--dataset` or `--category` stops with an error unless `--include-tool-calling` is given. The templates and grader for BFCL are ready.
 - **API key:** `OPENROUTER_API_KEY` comes from the environment or `.env`.
 - **Direct calls:** requests go straight to OpenRouter's chat completions API, not through `src/lonn/executor.py`.
 - **Defaults:**

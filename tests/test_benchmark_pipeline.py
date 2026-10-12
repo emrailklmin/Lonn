@@ -270,6 +270,17 @@ class RunnerTests(unittest.TestCase):
     def question(self, i):
         return templates.user_message(self.records[i - 1])
 
+    def test_tool_calling_is_deferred_unless_included(self):
+        default = run.select_datasets(None, None)
+        self.assertNotIn('bfcl_simple', default)
+        self.assertIn('math500', default)
+        self.assertEqual(len(default), 9)
+        for request in ((['bfcl_simple'], None), (None, ['tool_calling'])):
+            with self.assertRaises(SystemExit):
+                run.select_datasets(*request)
+        self.assertEqual(run.select_datasets(None, ['tool_calling'], include_deferred=True),
+                         ['bfcl_simple', 'bfcl_multiple', 'bfcl_parallel', 'bfcl_irrelevance'])
+
     def test_parse_answer_fields(self):
         parsed = run.parse_answer(openrouter_reply(tool_calls=[('f', '{"a": 1}')]))
         self.assertEqual(parsed['tool_calls'], [{'id': 'c1', 'name': 'f', 'arguments': '{"a": 1}'}])

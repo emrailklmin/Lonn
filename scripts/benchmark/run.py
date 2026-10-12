@@ -36,6 +36,8 @@ API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 520, 522, 524, 529}
 FATAL_STATUS = {401, 402, 403}  # Bad key, no credits, forbidden: stop the whole run.
 BACKOFF = (5, 15, 45)  # Seconds before each retry.
+# Categories not run unless explicitly included (decision 2026-10-12: tool calling waits).
+DEFERRED_CATEGORIES = {'tool_calling'}
 # Rough output-token guesses per answer (low, high) for --dry-run before any data exists.
 OUTPUT_GUESS = {'multiple_choice': (300, 2000), 'math': (500, 3000), 'code': (500, 2500),
                 'tool_calling': (100, 600), 'instruction_following': (400, 1500), 'writing': (900, 2000)}
@@ -339,6 +341,19 @@ def regrade(data_dir, results_dir, names):
     print(f'Regraded saved answers; {changed} changed. No API calls were made.')
 
 
+def select_datasets(datasets, categories, include_deferred=False) -> list:
+    """Dataset names matching the filters; deferred categories need include_deferred."""
+    names = [n for n, s in DATASETS.items()
+             if (not datasets or n in datasets) and (not categories or s.category in categories)]
+    deferred = [n for n in names if DATASETS[n].category in DEFERRED_CATEGORIES]
+    if deferred and not include_deferred:
+        if datasets or categories:
+            raise SystemExit(f"{', '.join(deferred)} {'is' if len(deferred) == 1 else 'are'} deferred; "
+                             'add --include-tool-calling to run them')
+        names = [n for n in names if n not in deferred]
+    return names
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -356,13 +371,13 @@ def main(argv=None):
     parser.add_argument('--seed', type=int, default=SEED)
     parser.add_argument('--data-dir', type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument('--results-dir', type=Path, default=RESULTS_DIR)
+    parser.add_argument('--include-tool-calling', action='store_true',
+                        help='also run the deferred tool-calling (BFCL) datasets')
     parser.add_argument('--dry-run', action='store_true', help='show the plan and cost; no calls')
     parser.add_argument('--regrade', action='store_true', help='regrade saved answers; no calls')
     args = parser.parse_args(argv)
 
-    names = [n for n, s in DATASETS.items()
-             if (not args.dataset or n in args.dataset)
-             and (not args.category or s.category in args.category)]
+    names = select_datasets(args.dataset, args.category, args.include_tool_calling)
     if args.regrade:
         return regrade(args.data_dir, args.results_dir, names)
 
