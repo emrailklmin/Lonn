@@ -347,7 +347,7 @@ sequenceDiagram
         API->>API: Convert supplied signal to ComplexityResult
     else Automatic analysis
         API->>CS: score_prompt(prompt), under process-local lock
-        Note over CS: First automatic call loads Laya
+        Note over CS: First automatic call loads the classifier
         CS-->>API: ComplexityResult
     end
     API->>R: select_model(signal, pool, alpha)
@@ -377,7 +377,7 @@ The local Streamlit app in `examples/app.py` exposes the internal routing proces
 only showing the final LLM response.
 
 Run with `python3 -m streamlit run examples/app.py --server.address localhost`.
-Automatic mode uses Laya; manual mode supplies an explicit topic/complexity for
+Automatic mode uses the NVIDIA prompt classifier; manual mode supplies an explicit topic/complexity for
 isolated routing and API tests. Analyze-only mode makes no NVIDIA request.
 Submitting a live request invokes scorer → router → executor; changing controls
 does not resend it. Results and provider-error categories are shown in the UI.
@@ -563,7 +563,8 @@ The modules should remain independent:
 `prompt` is nonblank and preserved verbatim. `alpha` defaults to 0.5 and must be
 finite in [0, 1]. Optional `signal` contains `complexity` and `topic_scores`;
 probabilities must sum to 1 within 1e-6, and omitted categories count as zero.
-Extra request fields are rejected. `analysis_source` is `laya` or `provided`.
+Extra request fields are rejected. `analysis_source` is `laya` or `provided`
+(`laya` predates the switch to NVIDIA's classifier and means automatic analysis).
 The API uses the core dataclasses for response data, with Pydantic models for
 HTTP validation and serialization.
 
@@ -626,7 +627,7 @@ curl http://192.168.1.42:8000/route \
 ```
 
 The supplied signal makes this a connectivity and routing check without loading
-Laya or calling NVIDIA. Omit `signal` for automatic analysis. Use `/generate`
+the classifier or calling NVIDIA. Omit `signal` for automatic analysis. Use `/generate`
 for an actual response and optionally supply `max_tokens` and `timeout`.
 The NVIDIA key stays on the server in its environment or repository `.env`;
 clients do not send that key. API docs are at `http://HOST_IP:8000/docs`.

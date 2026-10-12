@@ -21,7 +21,7 @@ htmlcov/
 # Generated discovery and availability reports
 /reports/
 
-# Fine-tuned Laya checkpoints (published to Hugging Face, not git)
+# Local model checkpoints (models are published to Hugging Face, not git)
 /models/
 
 # Python SDK build artifacts

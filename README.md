@@ -11,14 +11,14 @@ AI infrastructure for intelligent LLM routing, cost optimisation and observabili
 config/models.yaml          # Single model configuration
 src/lonn/                   # Runtime code
     model_pool.py           # Load and validate configuration into Model objects
-    complexity.py           # Analyse prompts
+    complexity.py           # Analyse prompts (topic + complexity)
+    nvidia_classifier.py    # Local NVIDIA prompt classifier used by complexity.py
     router.py               # Select a model
     executor.py             # Call the selected model
     schemas.py              # Shared data contracts
 scripts/discover_models.py  # Optional catalog discovery
 scripts/check_models.py     # Optional live text-availability checks
-scripts/finetune_laya.py    # Fine-tune Laya's decision head on labelled prompts
-scripts/push_laya.py        # Upload a fine-tuned checkpoint to Hugging Face
+scripts/evaluate_classifier.py  # Score labelled prompts and compare with labels
 examples/                   # App and usage examples
 tests/                      # Automated tests
 docs/                       # Architecture
@@ -56,8 +56,8 @@ python3 -m streamlit run examples/app.py --server.address localhost
 ```
 
 Open http://localhost:8501. Choose **Manual topic** for a quick test without
-Laya, or **Automatic (Laya)** for the full analysis flow. First automatic use
-may download classifier weights. **Analyze & route** displays routing without
+the classifier, or **Automatic (classifier)** for the full analysis flow. First
+automatic use downloads the classifier (about 0.7 GB). **Analyze & route** displays routing without
 calling a provider; **Route & call model** sends the prompt to the chosen model.
 Adjust alpha, output token budget, and timeout in the sidebar. The app displays
 complexity, topic probabilities, selected model, response, token usage, latency,
@@ -89,7 +89,7 @@ with LonnRouter(base_url="http://192.168.1.42:8000") as router:
 
 Replace the example address with your running Lonn server. You can instead set
 `LONN_BASE_URL` and use `LonnRouter()`. The SDK calls the HTTP API; it does not
-start the server. Only the server needs Laya, the selected provider's
+start the server. Only the server needs the classifier, the selected provider's
 credentials, and the model configuration. The client package depends only on
 HTTPX and Pydantic.
 
@@ -123,7 +123,7 @@ benchmark runner on another device, see
 | `POST /route` | Analyze a prompt and return the selected model without a provider call |
 | `POST /generate` | Analyze, route, and call the selected NVIDIA model once |
 
-Selection-only example, supplying a signal to avoid loading Laya:
+Selection-only example, supplying a signal to avoid loading the classifier:
 
 ```bash
 curl http://127.0.0.1:8000/route \
@@ -131,14 +131,14 @@ curl http://127.0.0.1:8000/route \
   -d '{"prompt":"Write a sorting function","alpha":0.7,"signal":{"complexity":0.5,"topic_scores":{"coding":1.0}}}'
 ```
 
-Omit `signal` to analyze the prompt with Laya automatically. The signal requires
+Omit `signal` to analyze the prompt with the classifier automatically. The signal requires
 complexity and topic probabilities in [0, 1], with probabilities summing to one;
 omitted topics count as zero. `alpha` defaults to 0.5. Complexity scales the
 quality contribution automatically: simpler prompts favor cheaper models,
 while harder prompts use the full `alpha` quality/cost tradeoff. This is a
 prototype heuristic because current aptitude scores are not difficulty-calibrated.
 Responses include `model`, `signal`, `alpha`, `analysis_source` (`provided` or
-`laya`), and `routing_latency_ms` (analysis plus selection, including any wait
+`laya`; the name predates the switch to NVIDIA's classifier and means automatic analysis), and `routing_latency_ms` (analysis plus selection, including any wait
 for the classifier).
 
 End-to-end benchmark call from Python:
@@ -176,7 +176,7 @@ analysis/routing failures 503; provider rate limits 429; provider timeouts 504;
 other execution failures 502. Error bodies omit raw provider details.
 
 The pool is loaded and validated at startup; restart after changing configuration.
-Laya loads on the first automatic request and is reused. Warm it up with an
+The classifier loads on the first automatic request and is reused. Warm it up with an
 automatic `/route` call before measuring steady-state latency. Classifier calls
 are serialized within each server process; provider calls can overlap. Each
 additional Uvicorn worker loads its own classifier. This is a simple JSON API,
@@ -184,11 +184,25 @@ not an OpenAI chat-completions endpoint.
 
 ## Complexity scoring
 
-The complexity scorer uses [Laya](https://pypi.org/project/laya/) to produce a
-`ComplexityResult`: a topic probability distribution over `coding`,
-`math_reasoning`, `creative_writing`, and `general_knowledge_extraction`, plus a
-complexity score in [0, 1]: Laya's probability that the task is hard, from a
-yes/no question. Both come from one Laya call. Laya is loaded on first use.
+The complexity scorer produces a `ComplexityResult`: a topic probability
+distribution over `coding`, `math_reasoning`, `creative_writing`, and
+`general_knowledge_extraction`, plus a complexity score in [0, 1]. Both come
+from one local inference of NVIDIA's
+[prompt task and complexity classifier](https://huggingface.co/nvidia/prompt-task-and-complexity-classifier)
+(DeBERTa-v3-base, about 0.7 GB, NVIDIA Open Model License), loaded on first use.
+No API calls are made.
+
+- **Topic:** NVIDIA's task type is mapped onto the four topics: Code Generation
+  is `coding`; Text Generation, Rewrite, Brainstorming and Chatbot are
+  `creative_writing`; every other task (questions, summaries, extraction) is
+  split by NVIDIA's reasoning score into `math_reasoning` and
+  `general_knowledge_extraction`. Topic definitions are in
+  `docs/labeling_guide.md`.
+- **Complexity:** a weighted sum of NVIDIA's reasoning, constraint, domain
+  knowledge, context and few-shot scores. NVIDIA's creativity score is left
+  out because it does not track difficulty. Higher means harder; on the pilot
+  prompts most scores fall between 0.1 and 0.5. Treat it as a ranking, not as a
+  probability that a model fails.
 
 ```python
 from lonn.complexity import ComplexityScorer
@@ -197,10 +211,10 @@ result = ComplexityScorer().score_prompt(prompt)
 print(result.complexity, result.topic_scores)
 ```
 
-Two scripts in `examples/` let you try the scorer with the real Laya model:
+Two scripts in `examples/` let you try the scorer with the real model:
 
-- `scorer_demo.py` loads Laya once, then scores each prompt you type and shows
-  how long it took (add `--debug` to see Laya's raw output):
+- `scorer_demo.py` loads the classifier once, then scores each prompt you type
+  and shows how long it took (add `--debug` to log the full classifier profile):
 
   ```bash
   python3 examples/scorer_demo.py
@@ -212,42 +226,20 @@ Two scripts in `examples/` let you try the scorer with the real Laya model:
   python3 examples/scorer_benchmark.py
   ```
 
-Prompts longer than Laya's window (about 370 tokens for English, after the
-questions) are shortened to their beginning and end, where the actual request
-usually is.
-
-### Fine-tuned Laya checkpoint
-
-The team's fine-tuned model is `LonnAI/laya-lonn` (private). See
-[docs/fine_tuned_laya.md](docs/fine_tuned_laya.md) for access, setup, what it
-changes, and its results.
-
-To use a fine-tuned checkpoint for English prompts, set `LONN_LAYA_MODEL` in
-`.env` to its Hugging Face repo id (or a local directory). For a private repo,
-run `hf auth login` once with an account that has access. Unset, the stock
-`convaiinnovations/laya` checkpoint is used. Non-English prompts always go to
-Laya's multilingual checkpoint.
-
-To train one from labelled prompts (format and rules in
+To measure it against labelled prompts (format and rules in
 `docs/labeling_guide.md`):
 
 ```bash
-python3 scripts/finetune_laya.py --data data/labels/pilot.jsonl --out models/laya-lonn
+python3 scripts/evaluate_classifier.py
 ```
 
-Only the decision head is trained; the encoder stays frozen. A stratified 20%
-of prompts is held out, and the script prints base versus fine-tuned topic
-accuracy and how well complexity ranks the labelled levels (Spearman and AUC,
-next to prompt length alone as a baseline). The output directory (gitignored) also
-holds `metrics.json` and a model card. Upload it to a private repo with:
-
-```bash
-hf auth login
-python3 scripts/push_laya.py --repo <hf-user>/laya-lonn
-```
-
-The checkpoint is trained for the exact question wording in
-`src/lonn/complexity.py`; retrain after changing it.
+On the 228 pilot prompts: topic accuracy 71% (Laya 65%), complexity Spearman
+0.53 and AUC 0.86 for labels 3-5 (Laya 0.34 and 0.79), about 15-40 ms per
+prompt on an Apple-silicon Mac. Known weak spots: story requests phrased as
+"what if" questions, pasted code or error messages, and maths written in LaTeX
+are often taken for general knowledge. Prompts longer than 512 tokens keep
+their beginning and end, but a short request after long pasted context is
+diluted and classified less reliably.
 
 ## Execution
 
@@ -328,5 +320,5 @@ python3 -m unittest discover -s tests -v
 ```
 
 Executor and app tests mock provider calls and require no credentials or network access.
-Complexity tests use a fake Laya; the one live Laya test is skipped when `laya`
-is not installed.
+Complexity tests use a fake classifier; the live classifier tests are skipped
+until the model has been downloaded once (for example by `examples/scorer_demo.py`).

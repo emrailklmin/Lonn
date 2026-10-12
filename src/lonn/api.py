@@ -84,7 +84,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def health():
-        """Local service health; does not probe Laya or NVIDIA."""
+        """Local service health; does not probe the classifier or any provider."""
         return {"status": "ok"}
 
     @app.get("/models", response_model=list[Model])

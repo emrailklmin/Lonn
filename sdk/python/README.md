@@ -62,7 +62,7 @@ with LonnRouter() as router:
 ```
 
 Both `route` and `generate` accept `signal` as a `Signal` or matching dictionary.
-Omit it for automatic Laya analysis. The server validates request parameters;
+Omit it for automatic analysis by the server's classifier. The server validates request parameters;
 invalid requests raise `LonnAPIError` with `status_code == 422`.
 
 ## Async apps
@@ -104,7 +104,7 @@ with LonnRouter(request_timeout=300) as router:
 `request_timeout` is the HTTPX network-operation timeout (default 300 seconds),
 not a total wall-clock deadline. `provider_timeout` is sent to the server's
 model executor (default 120 seconds, maximum 600). Allow extra client time for
-classification, particularly Laya's first-use loading. The first automatic
+classification, particularly the classifier's first-use loading. The first automatic
 `route` call can be used to warm the classifier before a benchmark.
 
 - `LonnAPIError`: non-success HTTP response; inspect `status_code` (422 invalid

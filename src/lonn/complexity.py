@@ -1,29 +1,22 @@
-"""Score a prompt's topic distribution and complexity with Laya; no routing.
+"""Score a prompt's topic distribution and complexity; no routing.
 
-Both outputs are produced in a single Laya inference:
+Both outputs come from one local inference of NVIDIA's prompt task and
+complexity classifier (see `nvidia_classifier.py`):
 
 - Topic classification:
-    probability distribution across TopicCategory values.
+    NVIDIA's task-type distribution mapped onto TopicCategory values.
 
 - Complexity:
-    Laya's probability that the task is hard, in [0, 1].
+    weighted sum of NVIDIA's reasoning, constraint, domain-knowledge,
+    context and few-shot dimensions, in [0, 1].
 
-Prompts longer than Laya's window keep their start and end; the middle is
-dropped, because requests often follow long pasted context.
-
-The Laya router is loaded lazily and reused across requests. Set
-LONN_LAYA_MODEL (environment or repository .env) to a Hugging Face repo id or
-local directory to replace the English checkpoint with a fine-tuned one; see
-scripts/finetune_laya.py.
+The classifier is loaded lazily and reused across requests.
 """
 
-import json
 import logging
-import os
-import warnings
 from math import fsum, isfinite
-from pathlib import Path
 
+from .nvidia_classifier import OVERALL_WEIGHTS, NvidiaPromptClassifier, PromptProfile
 from .schemas import ComplexityResult, TopicCategory
 
 
@@ -34,251 +27,104 @@ logger = logging.getLogger(__name__)
 # Topic definitions
 # ---------------------------------------------------------------------------
 
-TOPIC_CRITERIA = {
-    TopicCategory.CODING: (
-        "writing, debugging, explaining or reviewing source code, scripts, "
-        "SQL, regex, APIs, or software engineering questions"
-    ),
-    TopicCategory.MATH_REASONING: (
-        "mathematics, logic puzzles, quantitative or multi-step analytical "
-        "reasoning, proofs, calculations, statistics"
-    ),
-    TopicCategory.CREATIVE_WRITING: (
-        "stories, poetry, marketing copy, tone-sensitive emails, rewriting "
-        "or editing prose where style and nuance matter"
-    ),
-    TopicCategory.GENERAL_KNOWLEDGE_EXTRACTION: (
-        "factual questions, summarizing, explaining concepts, extracting "
-        "or looking up information from text or general knowledge"
-    ),
+# Topics follow NVIDIA's view of the task (docs/labeling_guide.md):
+#
+# - coding: the user wants code written, completed or fixed.
+# - creative_writing: text generation, rewriting, brainstorming, conversation.
+# - math_reasoning: a question whose answer must be worked out step by step.
+# - general_knowledge_extraction: every other question or text-processing task
+#   (open or closed QA, summarizing, extraction, classification), including
+#   explaining how code or a library works.
+TASK_TOPICS = {
+    "Code Generation": TopicCategory.CODING,
+    "Text Generation": TopicCategory.CREATIVE_WRITING,
+    "Rewrite": TopicCategory.CREATIVE_WRITING,
+    "Brainstorming": TopicCategory.CREATIVE_WRITING,
+    "Chatbot": TopicCategory.CREATIVE_WRITING,
 }
+
+# NVIDIA has no maths task type, but its reasoning dimension separates the
+# pilot maths prompts from all others almost perfectly (AUC 0.96). Probability
+# on any other task type is therefore split by it: reasoning goes to
+# math_reasoning, the rest to general_knowledge_extraction.
 
 
 # ---------------------------------------------------------------------------
 # Complexity definitions
 # ---------------------------------------------------------------------------
 
-# A yes/no question rather than a 0-4 difficulty scale: Laya's expected level
-# stayed between levels 1 and 2 for almost every prompt, while this wording's
-# probability spreads out and ranks the pilot labels better (Spearman 0.37 vs
-# 0.27; AUC 0.81 vs 0.72 for labels 3-5). Negative wordings ("can a small
-# model do it?", "is it simple?") came out inverted, so keep it positive.
-COMPLEXITY_CRITERIA = {
-    "true": (
-        "hard: needs expert knowledge, careful multi-step reasoning, "
-        "or many constraints"
-    ),
-    "false": "easy: a simple, common request any assistant handles",
+# On the 228 pilot prompts this ranks the labelled difficulty better than Laya
+# did (Spearman 0.53 vs 0.34; AUC 0.86 vs 0.79 for labels 3-5).
+#
+# NVIDIA's own overall score gives creativity 35% weight, but creativity does
+# not track difficulty (AUC 0.51), so a short poem outranked a proof. These are
+# NVIDIA's remaining weights, rescaled to sum to 1.
+_NVIDIA_WEIGHTS = {
+    name: weight
+    for name, weight in OVERALL_WEIGHTS.items()
+    if name != "creativity"
+}
+
+COMPLEXITY_WEIGHTS = {
+    name: weight / fsum(_NVIDIA_WEIGHTS.values())
+    for name, weight in _NVIDIA_WEIGHTS.items()
 }
 
 
 # ---------------------------------------------------------------------------
-# Laya questions
+# Classifier output parsing
 # ---------------------------------------------------------------------------
 
-CATEGORY_QUESTION = {
-    "category": {
-        "type": "choice",
-        "instructions": (
-            "Which kind of task is the user asking an AI assistant to do? "
-            "Pick the single best fit."
-        ),
-        "criteria": {
-            topic.value: description
-            for topic, description in TOPIC_CRITERIA.items()
-        },
-    }
-}
+def _topic_scores(profile: PromptProfile) -> dict[TopicCategory, float]:
+    """Map NVIDIA's task-type distribution onto normalized topic probabilities."""
 
+    reasoning = min(max(float(profile.reasoning), 0.0), 1.0)
+    scores = dict.fromkeys(TopicCategory, 0.0)
 
-COMPLEXITY_QUESTION = {
-    "complexity": {
-        "type": "noul",
-        "instructions": (
-            "Is this task hard for an AI assistant to do well?"
-        ),
-        "criteria": COMPLEXITY_CRITERIA,
-    }
-}
+    for task, probability in profile.task_probabilities.items():
+        probability = float(probability)
 
+        if not isfinite(probability) or probability < 0:
+            raise ValueError(
+                f"NVIDIA classifier returned an invalid probability for {task!r}: {probability!r}"
+            )
 
-# IMPORTANT:
-# Laya can answer several questions in a single forward pass.
-# Sending both questions together avoids running the model twice.
-QUESTIONS = {
-    **CATEGORY_QUESTION,
-    **COMPLEXITY_QUESTION,
-}
+        topic = TASK_TOPICS.get(task)
 
+        if topic is not None:
+            scores[topic] += probability
+        else:
+            scores[TopicCategory.MATH_REASONING] += probability * reasoning
+            scores[TopicCategory.GENERAL_KNOWLEDGE_EXTRACTION] += probability * (1 - reasoning)
 
-TOPIC_NAMES = [topic.value for topic in TopicCategory]
+    total = fsum(scores.values())
 
-
-# Share of the token budget kept from the start of an over-long prompt; the
-# rest comes from its end. The margin covers the " ... " joint and tokenizer
-# boundary effects when the two parts are re-encoded.
-HEAD_SHARE = 0.35
-HEAD_TAIL_MARGIN = 8
-
-
-# ---------------------------------------------------------------------------
-# Laya output parsing
-# ---------------------------------------------------------------------------
-
-def _find_distribution(answer: dict) -> dict[str, float] | None:
-    """Find per-category probabilities inside Laya's choice answer."""
-
-    for value in answer.values():
-
-        # Format:
-        # {
-        #     "coding": 0.7,
-        #     "math_reasoning": 0.1,
-        #     ...
-        # }
-        if isinstance(value, dict) and set(TOPIC_NAMES) <= set(value):
-            return {
-                name: float(value[name])
-                for name in TOPIC_NAMES
-            }
-
-        # Format:
-        # [0.7, 0.1, 0.1, 0.1]
-        if (
-            isinstance(value, (list, tuple))
-            and len(value) == len(TOPIC_NAMES)
-        ):
-            if all(isinstance(v, (int, float)) for v in value):
-                return dict(
-                    zip(
-                        TOPIC_NAMES,
-                        map(float, value),
-                    )
-                )
-
-            # Format:
-            # [
-            #     {"label": "coding", "probability": 0.7},
-            #     ...
-            # ]
-            if all(isinstance(v, dict) for v in value):
-                distribution = {}
-
-                for item in value:
-                    label = (
-                        item.get("label")
-                        or item.get("option")
-                        or item.get("name")
-                    )
-
-                    probability = item.get(
-                        "probability",
-                        item.get(
-                            "prob",
-                            item.get("p"),
-                        ),
-                    )
-
-                    if (
-                        label in TOPIC_NAMES
-                        and isinstance(probability, (int, float))
-                    ):
-                        distribution[label] = float(probability)
-
-                if set(distribution) == set(TOPIC_NAMES):
-                    return distribution
-
-    return None
-
-
-def _parse_topic_scores(
-    answer: dict,
-) -> dict[TopicCategory, float]:
-    """Convert Laya's category answer into normalized topic probabilities."""
-
-    distribution = _find_distribution(answer)
-
-    # Reject invalid distributions.
-    if distribution is not None:
-        valid = all(
-            isfinite(probability) and probability >= 0
-            for probability in distribution.values()
-        )
-
-        if not valid:
-            distribution = None
-
-    # Fall back to Laya's top choice if probabilities are unavailable.
-    if distribution is None or fsum(distribution.values()) == 0:
-
-        warnings.warn(
-            "Laya returned no usable category distribution; "
-            "using its top choice only."
-        )
-
-        choice = answer["choice"]
-
-        return {
-            topic: 1.0 if topic.value == choice else 0.0
-            for topic in TopicCategory
-        }
-
-    # Normalize distribution to sum to 1.
-    total = fsum(distribution.values())
+    if total <= 0:
+        raise ValueError("NVIDIA classifier returned no task-type probability")
 
     return {
-        TopicCategory(name): probability / total
-        for name, probability in distribution.items()
+        topic: score / total
+        for topic, score in scores.items()
     }
 
 
-def _parse_complexity(answer: dict) -> float:
-    """Return Laya's probability that the task is hard, clamped to [0, 1]."""
+def _complexity(profile: PromptProfile) -> float:
+    """Combine NVIDIA's complexity dimensions into one score in [0, 1]."""
 
-    probability = float(answer["noul"])
-
-    if not isfinite(probability):
-        raise ValueError(
-            f"Laya returned a non-finite complexity probability: {probability!r}"
-        )
-
-    return min(
-        max(probability, 0.0),
-        1.0,
+    score = fsum(
+        weight * float(getattr(profile, name))
+        for name, weight in COMPLEXITY_WEIGHTS.items()
     )
 
+    if not isfinite(score):
+        raise ValueError(
+            f"NVIDIA classifier returned a non-finite complexity: {score!r}"
+        )
 
-# ---------------------------------------------------------------------------
-# Laya router
-# ---------------------------------------------------------------------------
-
-def _load_laya_router():
-    """Create the shared Laya router.
-
-    The router itself handles device selection automatically.
-
-    max_loaded=2 allows both the English and multilingual checkpoints to
-    remain resident instead of constantly evicting/reloading each other.
-
-    LONN_LAYA_MODEL replaces only the English checkpoint; non-English
-    prompts still use Laya's multilingual one.
-    """
-
-    # Must be set before importing Laya / transformers.
-    # Avoids a known TensorFlow import hang.
-    os.environ.setdefault("USE_TF", "0")
-
-    from dotenv import load_dotenv
-    from laya import Router
-
-    load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
-    english = os.environ.get("LONN_LAYA_MODEL", "").strip()
-
-    return Router(
-        models={"english": english} if english else None,
-        preload=False,
-        default="english",
-        max_loaded=2,
+    # Few-shot count runs 0-5, so a prompt full of examples could exceed 1.
+    return min(
+        max(score, 0.0),
+        1.0,
     )
 
 
@@ -287,150 +133,60 @@ def _load_laya_router():
 # ---------------------------------------------------------------------------
 
 class ComplexityScorer:
-    """Score prompt complexity and topic using one Laya inference.
+    """Score prompt topic and complexity with one classifier inference.
 
-    Laya is loaded lazily on first use.
+    The classifier is loaded lazily on first use.
 
-    Pass ``laya_router`` manually to:
-    - reuse an existing router
-    - inject a fake router for tests
-    - control preloading/device behaviour externally
+    Pass ``classifier`` manually to:
+    - reuse an existing instance
+    - inject a fake classifier for tests
+    - control the device externally
     """
 
-    def __init__(self, laya_router=None):
-        self._laya = laya_router
-        self._budgets: dict[tuple[str, tuple[str, ...]], int] = {}
+    def __init__(self, classifier=None):
+        self._classifier = classifier
 
     @property
-    def laya(self):
-        """Return the shared Laya router, loading it if necessary."""
+    def classifier(self):
+        """Return the shared NVIDIA classifier, creating it if necessary."""
 
-        if self._laya is None:
-            self._laya = _load_laya_router()
+        if self._classifier is None:
+            self._classifier = NvidiaPromptClassifier()
 
-        return self._laya
+        return self._classifier
 
-    def _budget(self, model: str, questions: dict) -> int:
-        """Prompt tokens that fit beside every question in one `model` window.
+    def profile(self, prompt: str) -> PromptProfile:
+        """Return the classifier's full view of the prompt."""
 
-        Each question is its own row sharing the prompt, so the question with
-        the longest instructions and options sets the budget.
-        """
-
-        key = (model, tuple(questions))
-
-        if key not in self._budgets:
-            max_len = self.laya.load(model).cfg.get("max_len", 512)
-            question_tokens = 0
-
-            for qid, question in questions.items():
-                usage = self.laya.predict("Hi", {qid: question}, model=model)["usage"]
-                question_tokens = max(
-                    question_tokens,
-                    usage["input_tokens"] - usage["state_tokens"],
-                )
-
-            self._budgets[key] = max_len - question_tokens - HEAD_TAIL_MARGIN
-
-        return self._budgets[key]
-
-    def _fit(self, prompt: str, model: str, questions: dict) -> str:
-        """Shorten a prompt that would be truncated, keeping its start and end.
-
-        Laya only reads the first window of a prompt, but requests often come
-        after long pasted context, so the middle is dropped instead of the end.
-        """
-
-        tok = self.laya.load(model).tok
-        ids = tok(prompt, add_special_tokens=False)["input_ids"]
-        budget = self._budget(model, questions)
-
-        if len(ids) <= budget:
-            return prompt
-
-        head = int(budget * HEAD_SHARE)
-        tail = budget - head
-
-        logger.info(
-            "prompt of %d tokens shortened to its first %d and last %d tokens",
-            len(ids), head, tail,
-        )
-
-        decode = lambda part: tok.decode(part, clean_up_tokenization_spaces=False)
-
-        return f"{decode(ids[:head])} ... {decode(ids[-tail:])}"
-
-    def _predict(self, prompt: str, questions: dict) -> dict:
-        """Route the prompt, fit it to the chosen checkpoint, and ask Laya."""
-
-        model = self.laya.route(prompt, questions).model
-
-        return self.laya.predict(
-            self._fit(prompt, model, questions),
-            questions,
-            model=model,
-        )
-
-    def score_prompt(self, prompt: str) -> ComplexityResult:
-        """Score topic distribution and complexity in one forward pass."""
-
-        result = self._predict(
-            prompt,
-            QUESTIONS,
-        )
+        profile = self.classifier.classify(prompt)
 
         logger.debug(
-            "Laya raw result: %s",
-            json.dumps(
-                result,
-                indent=2,
-                default=str,
-            ),
+            "NVIDIA classifier profile: %s",
+            profile,
         )
 
-        answers = result["answers"]
+        return profile
 
-        topic_scores = _parse_topic_scores(
-            answers["category"]
-        )
+    def score_prompt(self, prompt: str) -> ComplexityResult:
+        """Score topic distribution and complexity in one inference."""
 
-        complexity = _parse_complexity(
-            answers["complexity"]
-        )
+        profile = self.profile(prompt)
 
         return ComplexityResult(
-            complexity,
-            topic_scores,
+            _complexity(profile),
+            _topic_scores(profile),
         )
 
     def topic_scores(
         self,
         prompt: str,
     ) -> dict[TopicCategory, float]:
-        """Score only topic distribution.
+        """Score only the topic distribution.
 
-        Prefer ``score_prompt`` when both topic and complexity are needed,
-        because calling this and ``complexity`` separately requires two
-        Laya inference calls.
+        Prefer ``score_prompt`` when both are needed; each call runs the model.
         """
 
-        result = self._predict(
-            prompt,
-            CATEGORY_QUESTION,
-        )
-
-        logger.debug(
-            "Laya category raw result: %s",
-            json.dumps(
-                result,
-                indent=2,
-                default=str,
-            ),
-        )
-
-        return _parse_topic_scores(
-            result["answers"]["category"]
-        )
+        return _topic_scores(self.profile(prompt))
 
     def complexity(
         self,
@@ -438,26 +194,10 @@ class ComplexityScorer:
     ) -> float:
         """Score only complexity.
 
-        Prefer ``score_prompt`` when both topic and complexity are needed.
+        Prefer ``score_prompt`` when both are needed; each call runs the model.
         """
 
-        result = self._predict(
-            prompt,
-            COMPLEXITY_QUESTION,
-        )
-
-        logger.debug(
-            "Laya complexity raw result: %s",
-            json.dumps(
-                result,
-                indent=2,
-                default=str,
-            ),
-        )
-
-        return _parse_complexity(
-            result["answers"]["complexity"]
-        )
+        return _complexity(self.profile(prompt))
 
 
 # ---------------------------------------------------------------------------

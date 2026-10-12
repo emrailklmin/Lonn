@@ -1,7 +1,11 @@
 litellm>=1,<2
 python-dotenv>=1,<2
 PyYAML>=6,<7
-laya>=0.3.21,<0.4
+# NVIDIA prompt task and complexity classifier (src/lonn/nvidia_classifier.py)
+torch>=2.2,<3
+transformers>=4.45,<6
+huggingface_hub>=0.25,<2
+safetensors>=0.4,<1
 streamlit>=1.50,<2
 torchvision>=0.15,<1
 fastapi>=0.115,<1

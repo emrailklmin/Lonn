@@ -16,12 +16,17 @@ Each prompt gets two labels:
 Label the **task the user wants done**, not the subject the prompt mentions.
 "Write a poem about Python" is creative writing, not coding.
 
+Topics follow how the scorer's classifier (NVIDIA's prompt task and complexity
+classifier) sees tasks: `coding` means code is to be written, and conversation
+counts as `creative_writing`. The pilot labels in `data/labels/pilot.jsonl`
+predate this and still use the earlier rules for explaining code and small talk.
+
 | Topic | The user wants... | Includes |
 |---|---|---|
-| `coding` | code written, fixed, explained, reviewed or designed | programs, scripts, SQL, regex, shell commands, config files, APIs, error messages and stack traces, software architecture, explaining how an algorithm or library works |
+| `coding` | code written, fixed, completed, reviewed or designed | programs, scripts, SQL, regex, shell commands, config files, APIs, error messages and stack traces, software architecture |
 | `math_reasoning` | an answer that must be worked out step by step | calculations, equations, proofs, statistics, word problems, logic puzzles, estimates, probability, multi-step planning with a correct answer |
 | `creative_writing` | text where style, tone or voice is the point | stories, poems, jokes, song ideas, marketing copy, emails and letters where tone matters, rewriting, paraphrasing, editing, translating, role-play, naming and slogan brainstorming |
-| `general_knowledge_extraction` | information: facts, explanations, advice or content pulled from given text | factual questions, explaining concepts, how-to (non-code), advice, recommendations, comparisons, summarizing, extracting or classifying information from provided text, casual chat |
+| `general_knowledge_extraction` | information: facts, explanations, advice or content pulled from given text | factual questions, explaining concepts (including how code, an algorithm or a library works), how-to (non-code), advice, recommendations, comparisons, summarizing, extracting or classifying information from provided text |
 
 ### Borderline rules
 
@@ -29,13 +34,13 @@ Label the **task the user wants done**, not the subject the prompt mentions.
 |---|---|
 | Maths needed to write code ("function that computes compound interest") | `coding` |
 | Code needed to do maths ("solve this integral with SymPy") | `coding` 0.6, `math_reasoning` 0.4 |
-| Explaining a software concept without writing code ("how does a hash map work?") | `coding` |
+| Explaining a software concept without writing code ("how does a hash map work?") | `general_knowledge_extraction` |
 | Explaining a non-software concept ("how do vaccines work?") | `general_knowledge_extraction` |
 | Informative article or blog post ("write a blog post explaining inflation") | `general_knowledge_extraction` 0.6, `creative_writing` 0.4 |
 | Professional email or cover letter | `creative_writing` |
 | Summarizing, or answering questions about, pasted text | `general_knowledge_extraction` |
 | Rewriting or improving pasted text | `creative_writing` |
-| Greeting or small talk ("hi", "how are you?") | `general_knowledge_extraction` |
+| Greeting, small talk or open conversation ("hi", "how are you?") | `creative_writing` |
 | Mechanical text changes with one right answer (remove vowels, change case, strip punctuation) | `general_knowledge_extraction` |
 | Fixing grammar or spelling in a sentence or email | `creative_writing` |
 | Translation | `creative_writing` |

@@ -8,7 +8,7 @@ Lonn AI is a prototype LLM router: it scores a prompt (topic distribution + comp
 
 ## Commands
 
-Python 3.10+. Use the repo virtualenv (`.venv`) and install `requirements.txt` (litellm, python-dotenv, PyYAML, laya, streamlit).
+Python 3.10+. Use the repo virtualenv (`.venv`) and install `requirements.txt` (litellm, python-dotenv, PyYAML, torch, transformers, streamlit, FastAPI).
 
 ```bash
 source .venv/bin/activate
@@ -25,13 +25,12 @@ python3 tests/test_router.py
 # Streamlit prototype app (live calls need OPENROUTER_API_KEY in .env for the active pool)
 python3 -m streamlit run examples/app.py --server.address localhost
 
-# Try the complexity scorer by hand (--debug prints raw Laya output); time it
+# Try the complexity scorer by hand (--debug logs the classifier profile); time it
 python3 examples/scorer_demo.py
 python3 examples/scorer_benchmark.py
 
-# Fine-tune Laya on labelled prompts and publish it (see docs/fine_tuned_laya.md)
-python3 scripts/finetune_laya.py
-python3 scripts/push_laya.py --repo LonnAI/laya-lonn
+# Measure the scorer against the labelled pilot prompts
+python3 scripts/evaluate_classifier.py
 
 # Offline pool maintenance (write to gitignored reports/). If urllib fails with
 # CERTIFICATE_VERIFY_FAILED (python.org macOS build), first run:
@@ -40,7 +39,7 @@ python3 scripts/discover_models.py
 python3 scripts/check_models.py --model nvidia_nim/openai/gpt-oss-20b
 ```
 
-There is no package install, build step, or linter config. Tests and examples put `src/` on `sys.path` themselves; for ad-hoc scripts use `PYTHONPATH=src`. Tests use `unittest` (not pytest), mock provider calls and inject a fake Laya, so they need no network or credentials. The one live Laya test is skipped when `laya` is not installed.
+There is no package install, build step, or linter config. Tests and examples put `src/` on `sys.path` themselves; for ad-hoc scripts use `PYTHONPATH=src`. Tests use `unittest` (not pytest), mock provider calls and inject a fake classifier, so they need no network or credentials. The live classifier tests are skipped until the model has been downloaded once.
 
 ## Architecture
 
@@ -50,7 +49,7 @@ Pipeline in `src/lonn/`, orchestrated by `examples/app.py`:
 
 - **`schemas.py`** owns all shared dataclasses and the `TopicCategory` enum (`coding`, `math_reasoning`, `creative_writing`, `general_knowledge_extraction`). Changing a topic or contract field ripples through the scorer, the router, the pool loader's validation, `config/models.yaml` and the tests.
 - **Keep modules independent**, as the architecture doc requires: the scorer knows nothing about routing, the router never calls APIs, the pool loader makes no routing decisions, and the executor does not choose models. The app is the only orchestrator.
-- **Scorer:** a single Laya `predict` call answers both the `category` (choice) and `complexity` (yes/no "is this task hard?") questions; complexity is Laya's probability of yes. Prompts longer than Laya's window keep their start and end. Laya is lazy-loaded and shared, and `USE_TF=0` is set before import to avoid a TensorFlow hang. `LONN_LAYA_MODEL` in `.env` swaps in a fine-tuned English checkpoint (the team's is `LonnAI/laya-lonn`, private); it is trained for the exact question wording in `complexity.py`, so retrain after changing it. Inject `ComplexityScorer(laya_router=fake)` in tests. `topic_scores` must be a probability distribution that sums to 1. See `docs/fine_tuned_laya.md`.
+- **Scorer:** one local inference of NVIDIA's prompt task and complexity classifier (`nvidia_classifier.py`, DeBERTa-v3-base, downloaded from Hugging Face on first use) gives both outputs. Topic: its task type mapped onto the four topics (`TASK_TOPICS` in `complexity.py`); other task types are split into `math_reasoning` and `general_knowledge_extraction` by its reasoning score. Complexity: `COMPLEXITY_WEIGHTS`, NVIDIA's dimension weights without creativity. Prompts over 512 tokens keep their start and end. Inject `ComplexityScorer(classifier=fake)` in tests. `topic_scores` must be a probability distribution that sums to 1. Check changes with `scripts/evaluate_classifier.py`.
 - **Router policy:** quality = Σ topic_prob × aptitude (a missing aptitude counts as 0). Cost = (input + output price per M), normalized by the pool's max price. The router picks the maximum of `alpha*quality - (1-alpha)*cost` (default alpha 0.5). Ties prefer lower price, then higher quality, then `(provider, id)`. Complexity is validated but does not affect selection unless the caller passes `alpha=signal.complexity`. Invalid input raises `ValueError`.
 - **Pool (`config/models.yaml`):** this is the only curated model config. Every active entry must have `provider` ∈ {nvidia_nim, openrouter} (see `PROVIDER_API_KEYS` in `schemas.py`) and an ID of the form `<provider>/<publisher>/<model>` with a matching prefix, known prices, `price_basis` ∈ {provider, estimate, free_tier}, a positive `context_window`, and all four aptitudes in [0, 1]. The loader rejects unknown values rather than defaulting them to zero, and it reports every invalid entry at once. Inactive entries may stay incomplete. Aptitudes are benchmark proxies. NIM prices are third-party estimates (`matched_provider_key`) rather than NVIDIA billing; OpenRouter prices are OpenRouter's listed prices. OpenRouter is used only for model access with credits, not for its routing. Record the source of any metadata you add.
 - **Executor:** makes a non-streaming LiteLLM call. It loads the repo `.env` without overriding existing environment variables and requires only the key for the model's provider: `NVIDIA_NIM_API_KEY` or `OPENROUTER_API_KEY`. Cost is tokens / 1e6 × the configured price. `finish_reason == "length"` signals truncation, which is common for reasoning models under the default 4096-token budget and 120 s timeout. It does no retries, rerouting, streaming or tool calls, and provider exceptions propagate to the caller.

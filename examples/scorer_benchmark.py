@@ -1,7 +1,7 @@
-"""Measure how fast the Laya complexity scorer runs on this machine.
+"""Measure how fast the complexity scorer runs on this machine.
 
-Times the model load, the first (cold) call, and repeated warm calls for each
-Laya round separately and for a full score_prompt (both rounds).
+Times the classifier load, the first (cold) call, and repeated warm
+score_prompt calls (one classifier inference gives topics and complexity).
 
 Usage:
     python examples/scorer_benchmark.py
@@ -14,7 +14,6 @@ import platform
 import statistics
 import sys
 import time
-import warnings
 from pathlib import Path
 
 # Allow direct execution from a checkout without installing the package.
@@ -52,36 +51,28 @@ def summarize(label, times_ms):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--runs", type=int, default=20, help="warm runs per prompt round")
+    ap.add_argument("--runs", type=int, default=20, help="warm runs per prompt")
     args = ap.parse_args()
 
     import torch
-    from laya import Router
+    from lonn.nvidia_classifier import NvidiaPromptClassifier
 
     print(f"Python {platform.python_version()}, torch {torch.__version__}, "
           f"{platform.machine()} {platform.system()}")
 
     start = time.perf_counter()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  # Laya's checkpoint calibration notice.
-        laya = Router(preload=True)
+    classifier = NvidiaPromptClassifier().load()
     load_ms = (time.perf_counter() - start) * 1000
-    devices = {str(a.device) for a in getattr(laya, "_agents", {}).values()
-               if hasattr(a, "device")}
-    print(f"Device: {', '.join(sorted(devices)) or 'unknown'}")
+    print(f"Device: {classifier.device}")
     print(f"Model load: {load_ms / 1000:.1f} s\n")
 
-    scorer = ComplexityScorer(laya)
+    scorer = ComplexityScorer(classifier)
     cold_ms = timed(scorer.score_prompt, PROMPTS[0])
 
-    rounds = {"round 1 (topics)": scorer.topic_scores,
-              "round 2 (complexity)": scorer.complexity,
-              "score_prompt (both)": scorer.score_prompt}
-    results = {label: [] for label in rounds}
+    results = {"score_prompt": []}
     for _ in range(args.runs):
         for prompt in PROMPTS:
-            for label, fn in rounds.items():
-                results[label].append(timed(fn, prompt))
+            results["score_prompt"].append(timed(scorer.score_prompt, prompt))
 
     print(f"First call (cold): {cold_ms:.1f} ms")
     print(f"Warm calls ({args.runs} runs x {len(PROMPTS)} prompts):")

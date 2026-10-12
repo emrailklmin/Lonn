@@ -1,12 +1,12 @@
 """Try the complexity scorer by hand, the way a running server would use it.
 
-Laya is loaded and warmed up once at startup; after that each prompt is scored
+NVIDIA's classifier is loaded and warmed up once at startup; after that each prompt is scored
 with the model already in memory, and the time per prompt is shown.
 
 Usage:
     python examples/scorer_demo.py            # interactive, Ctrl+C to quit
     python examples/scorer_demo.py "Write a Python function that sorts a list"
-    python examples/scorer_demo.py "..." --debug   # also log Laya's raw output
+    python examples/scorer_demo.py "..." --debug   # also log the classifier's full profile
 """
 
 import argparse
@@ -14,7 +14,6 @@ import logging
 import os
 import sys
 import time
-import warnings
 from pathlib import Path
 
 # Allow direct execution from a checkout without installing the package.
@@ -42,17 +41,14 @@ def timed_score(scorer, text):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("prompt", nargs="?", help="the prompt to classify")
-    ap.add_argument("--debug", action="store_true", help="log raw Laya output")
+    ap.add_argument("--debug", action="store_true", help="log the classifier's full profile")
     args = ap.parse_args()
     if args.debug:
         logging.basicConfig(level=logging.DEBUG, format="[%(name)s] %(message)s")
 
-    print("Starting up: loading Laya and warming up...")
+    print("Starting up: loading the classifier and warming up...")
     start = time.perf_counter()
     scorer = ComplexityScorer()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  # Laya's checkpoint calibration notice.
-        scorer.laya  # Load up front rather than on the first prompt.
     timed_score(scorer, "Warm-up prompt.")  # The first call is slow; pay it now.
     print(f"Ready in {time.perf_counter() - start:.1f} s")
 

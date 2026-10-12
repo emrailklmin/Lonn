@@ -20,7 +20,7 @@ with st.sidebar:
     st.header('Routing controls')
     alpha = st.slider('Quality weight (alpha)', 0.0, 1.0, 0.7, 0.05)
     st.caption('0 = cost first · 1 = quality first. Complexity is displayed separately.')
-    mode = st.radio('Prompt analysis', ['Automatic (Laya)', 'Manual topic'])
+    mode = st.radio('Prompt analysis', ['Automatic (classifier)', 'Manual topic'])
     topic = st.selectbox('Manual topic', list(TopicCategory),
                          format_func=lambda t: t.value.replace('_', ' ').title(),
                          disabled=mode != 'Manual topic')
@@ -28,7 +28,7 @@ with st.sidebar:
                            disabled=mode != 'Manual topic')
     max_tokens = st.number_input('Output token budget', 256, 32768, 4096, 256)
     timeout = st.number_input('Request timeout (seconds)', 10, 300, 120, 10)
-    st.caption('Manual mode tests routing and execution without loading Laya. Automatic mode may download classifier weights on first use.')
+    st.caption('Manual mode tests routing and execution without loading the classifier. Automatic mode downloads the NVIDIA classifier (about 0.7 GB) on first use.')
 
 try:
     models = load_model_pool()
@@ -59,7 +59,7 @@ if analyze or run:
         record = {'prompt': prompt, 'alpha': alpha, 'mode': mode}
         with st.status('Analyzing prompt…', expanded=True) as status:
             try:
-                if mode == 'Automatic (Laya)':
+                if mode == 'Automatic (classifier)':
                     if 'scorer' not in st.session_state:
                         st.session_state.scorer = ComplexityScorer()
                     signal = st.session_state.scorer.score_prompt(prompt)

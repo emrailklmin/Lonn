@@ -1,4 +1,4 @@
-"""UI integration tests; no provider requests or Laya downloads."""
+"""UI integration tests; no provider requests or classifier downloads."""
 from pathlib import Path
 import sys
 import unittest
