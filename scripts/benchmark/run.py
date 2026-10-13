@@ -56,23 +56,38 @@ class CallError(Exception):
 # OpenRouter
 
 class OpenRouterClient:
-    def __init__(self, api_key: str, timeout: float):
+    def __init__(self, api_key: str, timeout: float, deadline: float = 900.0, transport=None):
+        """timeout limits each network wait; deadline limits a whole call. OpenRouter can
+        keep a slow request alive with whitespace, so a read timeout alone never fires."""
         import httpx
-        self.http = httpx.Client(timeout=timeout, headers={
+        self.http = httpx.Client(timeout=timeout, transport=transport, headers={
             'Authorization': f'Bearer {api_key}', 'X-Title': 'Lonn benchmark'})
-        self.httpx = httpx
+        self.httpx, self.deadline = httpx, deadline
+
+    def _post(self, body: dict):
+        """(status, raw body) with the whole call bounded by self.deadline."""
+        give_up = time.monotonic() + self.deadline
+        with self.http.stream('POST', API_URL, json=body) as response:
+            chunks = []
+            for chunk in response.iter_bytes():
+                chunks.append(chunk)
+                if time.monotonic() > give_up:
+                    raise CallError(f'call took longer than {self.deadline:.0f} s', retryable=True)
+            return response.status_code, b''.join(chunks).decode(errors='replace')
 
     def complete(self, body: dict) -> dict:
         try:
-            response = self.http.post(API_URL, json=body)
+            status, text = self._post(body)
         except (self.httpx.TimeoutException, self.httpx.TransportError) as exc:
             raise CallError(f'{type(exc).__name__}: {exc}', retryable=True) from None
-        if response.status_code in FATAL_STATUS:
-            raise FatalError(f'OpenRouter {response.status_code}: {response.text[:300]}')
-        if response.status_code != 200:
-            raise CallError(f'HTTP {response.status_code}: {response.text[:300]}',
-                            response.status_code, response.status_code in RETRYABLE_STATUS)
-        data = response.json()
+        if status in FATAL_STATUS:
+            raise FatalError(f'OpenRouter {status}: {text[:300]}')
+        if status != 200:
+            raise CallError(f'HTTP {status}: {text[:300]}', status, status in RETRYABLE_STATUS)
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            raise CallError(f'unreadable response: {text[:200]!r}', retryable=True) from None
         error = data.get('error') or (data.get('choices') or [{}])[0].get('error')
         if error:
             code = error.get('code') if isinstance(error, dict) else None
@@ -431,7 +446,10 @@ def main(argv=None):
     parser.add_argument('--workers', type=int, default=8, help='parallel calls (default 8)')
     parser.add_argument('--max-tokens', type=int, default=8192)
     parser.add_argument('--temperature', type=float, default=0.0)
-    parser.add_argument('--timeout', type=float, default=300.0, help='seconds per call')
+    parser.add_argument('--timeout', type=float, default=300.0,
+                        help='seconds to wait for any network activity (default 300)')
+    parser.add_argument('--deadline', type=float, default=900.0,
+                        help='seconds for a whole call before it is retried (default 900)')
     parser.add_argument('--seed', type=int, default=SEED)
     parser.add_argument('--data-dir', type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument('--results-dir', type=Path, default=RESULTS_DIR)
@@ -476,7 +494,8 @@ def main(argv=None):
     spent = ResultBank(args.results_dir).spent()
     print(f'Budget ${args.budget:.2f}, already spent ${spent:.2f}, {args.workers} parallel calls, '
           f'max_tokens {args.max_tokens}, template {TEMPLATE_VERSION}')
-    run(jobs, OpenRouterClient(api_key, args.timeout), settings, args.results_dir, args.budget, spent)
+    run(jobs, OpenRouterClient(api_key, args.timeout, args.deadline), settings, args.results_dir,
+        args.budget, spent)
 
 
 if __name__ == '__main__':

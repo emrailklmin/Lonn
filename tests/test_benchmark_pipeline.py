@@ -330,6 +330,48 @@ def openrouter_reply(content='Answer: B', cost=0.001, tool_calls=None, finish='s
                   'completion_tokens_details': {'reasoning_tokens': 5}}}
 
 
+class OpenRouterClientTests(unittest.TestCase):
+    def client(self, handler, deadline=900.0):
+        import httpx
+        return run.OpenRouterClient('key', timeout=5, deadline=deadline,
+                                    transport=httpx.MockTransport(handler))
+
+    def test_ok_reply_with_keepalive_whitespace(self):
+        import httpx
+        body = ('\n\n' + json.dumps(openrouter_reply())).encode()
+        data = self.client(lambda request: httpx.Response(200, content=body)).complete(
+            {'messages': [], 'tools': None})
+        self.assertEqual(data['choices'][0]['message']['content'], 'Answer: B')
+
+    def test_status_codes(self):
+        import httpx
+        for status, error in ((429, run.CallError), (500, run.CallError), (402, run.FatalError)):
+            client = self.client(lambda request, s=status: httpx.Response(s, content=b'{}'))
+            with self.assertRaises(error):
+                client.complete({'messages': []})
+        bad = self.client(lambda request: httpx.Response(400, content=b'bad'))
+        with self.assertRaises(run.CallError) as caught:
+            bad.complete({'messages': []})
+        self.assertFalse(caught.exception.retryable)
+
+    def test_whole_call_deadline(self):
+        import httpx
+
+        def slow_stream(request):
+            def chunks():
+                for _ in range(3):
+                    yield b' '  # Keepalive bytes: no read timeout ever fires.
+                yield json.dumps(openrouter_reply()).encode()
+            return httpx.Response(200, content=chunks())
+
+        clock = iter(range(0, 10000, 400))  # Each check of the clock moves 400 s on.
+        with patch.object(run.time, 'monotonic', side_effect=lambda: next(clock)):
+            with self.assertRaises(run.CallError) as caught:
+                self.client(slow_stream, deadline=900).complete({'messages': []})
+        self.assertTrue(caught.exception.retryable)
+        self.assertIn('900', str(caught.exception))
+
+
 class FakeClient:
     def __init__(self, replies=None, fail=()):
         self.replies, self.fail, self.bodies = replies or {}, dict(fail), []
