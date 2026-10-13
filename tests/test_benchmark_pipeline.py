@@ -415,6 +415,28 @@ class RunnerTests(unittest.TestCase):
         row = self.rows()['mmlu_pro-001']
         self.assertEqual((row['grader'], row['correct'], row['response']), ('error', None, 'Answer: B'))
 
+    def test_broken_provider_responses_are_errors_not_answers(self):
+        body = {'messages': [], 'tools': None}
+        malformed = openrouter_reply(content=None, finish='error')
+        malformed['choices'][0]['native_finish_reason'] = 'MALFORMED_FUNCTION_CALL'
+        stray_tool = openrouter_reply(content='', tool_calls=[('f', '{}')], finish='tool_calls')
+        no_usage = openrouter_reply(content='')
+        del no_usage['usage']
+        for data in (malformed, stray_tool, no_usage):
+            self.assertIsNotNone(run.broken_response(data, body))
+        self.assertIsNone(run.broken_response(stray_tool, {'tools': [{}]}))
+        self.assertIsNone(run.broken_response(openrouter_reply(), body))
+
+    def test_saved_broken_rows_are_run_again(self):
+        path = results.result_path(self.dir, 'general_knowledge', 'mmlu_pro', MODEL.id)
+        base = {'model_id': MODEL.id, 'dataset': 'mmlu_pro', 'output_tokens': 10, 'error': None}
+        results.append_row(path, {**base, 'prompt_id': 'mmlu_pro-001', 'finish_reason': 'error'})
+        results.append_row(path, {**base, 'prompt_id': 'mmlu_pro-002', 'output_tokens': None})
+        results.append_row(path, {**base, 'prompt_id': 'mmlu_pro-003', 'tool_calls': [{'name': 'f'}]})
+        results.append_row(path, {**base, 'prompt_id': 'mmlu_pro-004', 'finish_reason': 'stop'})
+        pending = [r['prompt_id'] for r in self.jobs()[0][2]]
+        self.assertEqual(pending, ['mmlu_pro-001', 'mmlu_pro-002', 'mmlu_pro-003', 'mmlu_pro-005'])
+
     def test_errors_are_recorded_then_retried_on_the_next_run(self):
         flaky = run.CallError('HTTP 503', 503, retryable=True)
         client = FakeClient(fail={self.question(3): flaky})

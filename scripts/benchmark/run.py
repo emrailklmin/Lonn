@@ -83,7 +83,37 @@ class OpenRouterClient:
                             code is None or code in RETRYABLE_STATUS)
         if not data.get('choices'):
             raise CallError('response has no choices', retryable=True)
+        broken = broken_response(data, body)
+        if broken:
+            raise CallError(f'provider returned a broken response: {broken}', retryable=True)
         return data
+
+
+def broken_response(data: dict, body: dict):
+    """Why a 200 response is a provider failure rather than a model answer, or None.
+
+    Seen in the full run: Gemini 'MALFORMED_FUNCTION_CALL' (finish_reason 'error', no
+    tokens), a tool call when no tools were sent, and a reply with no usage at all.
+    """
+    choice = data['choices'][0]
+    message = choice.get('message') or {}
+    if choice.get('finish_reason') == 'error':
+        return f"finish_reason error ({choice.get('native_finish_reason')})"
+    if message.get('tool_calls') and not body.get('tools'):
+        return 'tool call although no tools were sent'
+    if (data.get('usage') or {}).get('completion_tokens') is None:
+        return 'no token usage reported'
+    return None
+
+
+def needs_rerun(row: dict) -> bool:
+    """Saved rows to call again: call errors, and broken provider responses saved before
+    broken_response() existed (they were graded as wrong answers)."""
+    if row.get('error'):
+        return True
+    uses_tools = FAMILY_OF[row['dataset']] == 'tool_calling'
+    return (row.get('finish_reason') == 'error' or row.get('output_tokens') is None
+            or bool(row.get('tool_calls') and not uses_tools))
 
 
 def call_with_retries(client, body, retries=len(BACKOFF)):
@@ -241,7 +271,7 @@ def plan(models, records, results_dir, limit, seed):
             chosen = select(items, limit, seed)
             saved = read_rows(result_path(results_dir, DATASETS[name].category, name, model.id))
             pending = [r for r in chosen if r['prompt_id'] not in saved
-                       or saved[r['prompt_id']].get('error')]
+                       or needs_rerun(saved[r['prompt_id']])]
             jobs.append((model, name, pending, len(chosen) - len(pending)))
     return jobs
 
