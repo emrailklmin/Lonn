@@ -336,6 +336,15 @@ class OpenRouterClientTests(unittest.TestCase):
         return run.OpenRouterClient('key', timeout=5, deadline=deadline,
                                     transport=httpx.MockTransport(handler))
 
+    def test_empty_reply_without_usage_is_not_retryable(self):
+        import httpx
+        reply = openrouter_reply(content='')
+        del reply['usage']
+        client = self.client(lambda request: httpx.Response(200, content=json.dumps(reply).encode()))
+        with self.assertRaises(run.CallError) as caught:
+            client.complete({'messages': [], 'tools': None})
+        self.assertEqual((caught.exception.retryable, caught.exception.kind), (False, 'filtered'))
+
     def test_ok_reply_with_keepalive_whitespace(self):
         import httpx
         body = ('\n\n' + json.dumps(openrouter_reply())).encode()
@@ -464,8 +473,11 @@ class RunnerTests(unittest.TestCase):
         stray_tool = openrouter_reply(content='', tool_calls=[('f', '{}')], finish='tool_calls')
         no_usage = openrouter_reply(content='')
         del no_usage['usage']
-        for data in (malformed, stray_tool, no_usage):
-            self.assertIsNotNone(run.broken_response(data, body))
+        # Provider glitches: retry. An empty reply without usage may be a safety filter:
+        # never retry it automatically (repeats got an account restricted, 2026-10-13).
+        self.assertEqual(run.broken_response(malformed, body)[1], True)
+        self.assertEqual(run.broken_response(stray_tool, body)[1], True)
+        self.assertEqual(run.broken_response(no_usage, body), ('no token usage reported', False))
         self.assertIsNone(run.broken_response(stray_tool, {'tools': [{}]}))
         self.assertIsNone(run.broken_response(openrouter_reply(), body))
 
@@ -477,7 +489,24 @@ class RunnerTests(unittest.TestCase):
         results.append_row(path, {**base, 'prompt_id': 'mmlu_pro-003', 'tool_calls': [{'name': 'f'}]})
         results.append_row(path, {**base, 'prompt_id': 'mmlu_pro-004', 'finish_reason': 'stop'})
         pending = [r['prompt_id'] for r in self.jobs()[0][2]]
-        self.assertEqual(pending, ['mmlu_pro-001', 'mmlu_pro-002', 'mmlu_pro-003', 'mmlu_pro-005'])
+        self.assertEqual(pending, ['mmlu_pro-001', 'mmlu_pro-003', 'mmlu_pro-005'])
+        forced = run.plan([MODEL], {'mmlu_pro': self.records}, self.dir, None, seed=1, retry_filtered=True)
+        self.assertIn('mmlu_pro-002', [r['prompt_id'] for r in forced[0][2]])
+
+    def test_filtered_reply_is_sent_once_and_not_rerun(self):
+        filtered = run.CallError('provider returned a broken response: no token usage reported',
+                                 retryable=False, kind='filtered')
+        client = FakeClient(fail={self.question(2): filtered})
+        run.run(self.jobs(), client, SETTINGS, self.dir, budget=10, bank_spent=0)
+        sent = [b for b in client.bodies if b['messages'][-1]['content'] == self.question(2)]
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(self.rows()['mmlu_pro-002']['error']['kind'], 'filtered')
+        self.assertEqual(self.jobs()[0][2], [])
+        # Rows saved before the 'kind' field existed are recognised by their message.
+        old = {'error': {'message': 'provider returned a broken response: no token usage reported',
+                         'status': None}, 'dataset': 'mmlu_pro'}
+        self.assertFalse(run.needs_rerun(old))
+        self.assertTrue(run.needs_rerun(old, retry_filtered=True))
 
     def test_errors_are_recorded_then_retried_on_the_next_run(self):
         flaky = run.CallError('HTTP 503', 503, retryable=True)

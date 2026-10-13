@@ -48,9 +48,9 @@ class FatalError(Exception):
 
 
 class CallError(Exception):
-    def __init__(self, message, status=None, retryable=False):
+    def __init__(self, message, status=None, retryable=False, kind=None):
         super().__init__(message)
-        self.status, self.retryable = status, retryable
+        self.status, self.retryable, self.kind = status, retryable, kind
 
 
 # OpenRouter
@@ -100,35 +100,52 @@ class OpenRouterClient:
             raise CallError('response has no choices', retryable=True)
         broken = broken_response(data, body)
         if broken:
-            raise CallError(f'provider returned a broken response: {broken}', retryable=True)
+            reason, retryable = broken
+            raise CallError(f'provider returned a broken response: {reason}', retryable=retryable,
+                            kind=None if retryable else 'filtered')
         return data
 
 
+FILTERED_HINT = 'no token usage reported'
+
+
 def broken_response(data: dict, body: dict):
-    """Why a 200 response is a provider failure rather than a model answer, or None.
+    """(reason, retryable) when a 200 response is a provider failure, not a model answer.
 
     Seen in the full run: Gemini 'MALFORMED_FUNCTION_CALL' (finish_reason 'error', no
-    tokens), a tool call when no tools were sent, and a reply with no usage at all.
+    tokens) and a tool call when no tools were sent; both are retried. A reply with no
+    usage at all came from a provider silently filtering a harmless question; retrying it
+    got the account restricted ("repeated policy violations"), so it is never retried
+    automatically.
     """
     choice = data['choices'][0]
     message = choice.get('message') or {}
     if choice.get('finish_reason') == 'error':
-        return f"finish_reason error ({choice.get('native_finish_reason')})"
+        return f"finish_reason error ({choice.get('native_finish_reason')})", True
     if message.get('tool_calls') and not body.get('tools'):
-        return 'tool call although no tools were sent'
+        return 'tool call although no tools were sent', True
     if (data.get('usage') or {}).get('completion_tokens') is None:
-        return 'no token usage reported'
+        return FILTERED_HINT, False
     return None
 
 
-def needs_rerun(row: dict) -> bool:
+def is_filtered(row: dict) -> bool:
+    """A saved row that looks like a provider safety filter (see broken_response)."""
+    error = row.get('error') or {}
+    if error:
+        return error.get('kind') == 'filtered' or FILTERED_HINT in (error.get('message') or '')
+    return row.get('output_tokens') is None
+
+
+def needs_rerun(row: dict, retry_filtered: bool = False) -> bool:
     """Saved rows to call again: call errors, and broken provider responses saved before
-    broken_response() existed (they were graded as wrong answers)."""
+    broken_response() existed. Possible safety filters only with retry_filtered."""
+    if is_filtered(row):
+        return retry_filtered
     if row.get('error'):
         return True
     uses_tools = FAMILY_OF[row['dataset']] == 'tool_calling'
-    return (row.get('finish_reason') == 'error' or row.get('output_tokens') is None
-            or bool(row.get('tool_calls') and not uses_tools))
+    return row.get('finish_reason') == 'error' or bool(row.get('tool_calls') and not uses_tools)
 
 
 def call_with_retries(client, body, retries=len(BACKOFF)):
@@ -201,7 +218,8 @@ def answer_one(client, record, model, settings) -> dict:
     try:
         data, retries = call_with_retries(client, body)
     except CallError as exc:
-        return {**row, 'error': {'message': str(exc), 'status': exc.status}, 'correct': None,
+        return {**row, 'error': {'message': str(exc), 'status': exc.status, 'kind': exc.kind},
+                'correct': None,
                 'cost_usd': 0.0, 'latency_ms': round((time.perf_counter() - started) * 1000),
                 'timestamp': _now()}
     row.update(parse_answer(data))
@@ -257,7 +275,9 @@ class Progress:
             if row.get('error'):
                 self.errors += 1
                 self.block_errors += 1
-                print(f"  ! {row['prompt_id']}: {row['error']['message'][:150]}", flush=True)
+                note = (' (possible safety filter: not retried; see --retry-filtered)'
+                        if row['error'].get('kind') == 'filtered' else '')
+                print(f"  ! {row['prompt_id']}: {row['error']['message'][:150]}{note}", flush=True)
             if row.get('correct') is not None:
                 self.graded += 1
                 self.correct += bool(row['correct'])
@@ -278,7 +298,7 @@ class Progress:
               f'{self.block_errors} errors, ${self.block_cost:.4f}, {minutes}m{seconds:02d}s', flush=True)
 
 
-def plan(models, records, results_dir, limit, seed):
+def plan(models, records, results_dir, limit, seed, retry_filtered=False):
     """[(model, dataset, pending records, saved count)] in run order."""
     jobs = []
     for model in models:
@@ -286,7 +306,7 @@ def plan(models, records, results_dir, limit, seed):
             chosen = select(items, limit, seed)
             saved = read_rows(result_path(results_dir, DATASETS[name].category, name, model.id))
             pending = [r for r in chosen if r['prompt_id'] not in saved
-                       or needs_rerun(saved[r['prompt_id']])]
+                       or needs_rerun(saved[r['prompt_id']], retry_filtered)]
             jobs.append((model, name, pending, len(chosen) - len(pending)))
     return jobs
 
@@ -453,6 +473,9 @@ def main(argv=None):
     parser.add_argument('--seed', type=int, default=SEED)
     parser.add_argument('--data-dir', type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument('--results-dir', type=Path, default=RESULTS_DIR)
+    parser.add_argument('--retry-filtered', action='store_true',
+                        help='also call again replies saved as possible safety filters '
+                             '(empty, no usage); repeats can get an account restricted')
     parser.add_argument('--include-tool-calling', action='store_true',
                         help='also run the deferred tool-calling (BFCL) datasets')
     parser.add_argument('--dry-run', action='store_true', help='show the plan and cost; no calls')
@@ -473,7 +496,8 @@ def main(argv=None):
               if not args.model or any(part in m.id for part in args.model)]
     if not models or not names:
         raise SystemExit('No models or datasets match the filters')
-    jobs = plan(models, load_records(args.data_dir, names), args.results_dir, args.limit, args.seed)
+    jobs = plan(models, load_records(args.data_dir, names), args.results_dir, args.limit, args.seed,
+                args.retry_filtered)
     print(f"{len(models)} models x {len(names)} datasets; "
           f"{sum(len(j[2]) for j in jobs)} calls to make, {sum(j[3] for j in jobs)} already saved")
     if args.dry_run:

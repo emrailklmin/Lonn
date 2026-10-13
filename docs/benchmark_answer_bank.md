@@ -31,6 +31,9 @@ python3 scripts/benchmark/check_graders.py              # graders accept each be
 - **Budget:** `--budget` (default 45 USD) caps the **total recorded spend in the results folder, earlier runs included**. The run stops sending new calls once that spend, plus the worst case for the calls in flight, would pass the cap.
 - **Retries:** rate limits, 5xx errors and timeouts are retried up to 3 times (5, 15 and 45 seconds, with jitter). If retries run out, an error row is saved, and that question is retried on the next run.
 - **Stopping:** 401, 402 (no credits) and 403 stop the run.
+- **Broken provider replies:** a `finish_reason` of `error` (e.g. Gemini `MALFORMED_FUNCTION_CALL`) or a tool call when no tools were sent is a provider failure, not an answer, and is retried.
+- **Possible safety filters are never retried automatically.** An empty reply with no token usage is saved as an error with `kind: filtered`. In the full run, Meta silently filtered a harmless virology question (`mmlu_pro-066`); repeating it got the account a 403 `user_blocked` ("repeated policy violations"). `--retry-filtered` sends such questions again, but only use it deliberately.
+- **Hung calls:** `--timeout` (300 s) limits each network wait and `--deadline` (900 s) the whole call. OpenRouter can keep a slow request alive with keepalive bytes, so the read timeout alone may never fire.
 
 ## Prompts
 
