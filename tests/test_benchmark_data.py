@@ -173,6 +173,15 @@ class NormalizerTests(unittest.TestCase):
         for name, spec in bd.DATASETS.items():
             self.assertEqual({r['category'] for r in self.build(name)}, {spec.category})
 
+    def test_short_prompt_ids_follow_natural_source_order(self):
+        for name, spec in bd.DATASETS.items():
+            records = sorted(self.build(name), key=lambda r: r['prompt_id'])
+            self.assertEqual([r['prompt_id'] for r in records],
+                             [f'{name}-{i:03d}' for i in range(1, spec.n + 1)])
+            keys = [bd.natural_key(r['source_id']) for r in records]
+            self.assertEqual(keys, sorted(keys))
+        self.assertLess(bd.natural_key('test/algebra/2.json'), bd.natural_key('test/algebra/10.json'))
+
     def test_total_is_850(self):
         self.assertEqual(sum(spec.n for spec in bd.DATASETS.values()), 850)
 
@@ -272,7 +281,8 @@ class OutputTests(unittest.TestCase):
             entry = manifest['datasets']['arc_challenge']
             self.assertEqual(entry['n'], 30)
             self.assertEqual(entry['revision'], bd.DATASETS['arc_challenge'].revision)
-            self.assertEqual(len(entry['source_ids']), 30)
+            self.assertEqual(list(entry['ids'])[:2], ['arc_challenge-001', 'arc_challenge-002'])
+            self.assertEqual(len(entry['ids']), 30)
             self.assertEqual(entry['output_sha256'], bd.sha256(out / 'prompts' / 'general_knowledge' / 'arc_challenge.jsonl'))
             self.assertEqual(set(entry['raw_files']), {'rows'})
             self.assertEqual(entry['category'], 'general_knowledge')

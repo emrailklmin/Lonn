@@ -19,6 +19,7 @@ import json
 from pathlib import Path
 import pickle
 import random
+import re
 import shutil
 import ssl
 from typing import Callable
@@ -102,7 +103,7 @@ def record(spec, source_id, *, task_family, topic, level_label, difficulty, inpu
     if difficulty not in DIFFICULTIES:
         raise ValueError(f'{spec.name}: unknown difficulty {difficulty!r}')
     return {
-        'prompt_id': f'{spec.name}:{source_id}', 'dataset': spec.name, 'category': spec.category,
+        'prompt_id': None, 'dataset': spec.name, 'category': spec.category,  # Set after sampling.
         'source_dataset': spec.source, 'source_revision': spec.revision,
         'source_id': str(source_id), 'source_split': spec.split,
         'task_family': task_family, 'topic': topic, 'level_label': level_label,
@@ -327,11 +328,21 @@ def sample_records(records: list, n: int, seed: str, strata=None, quotas=None) -
             for item in random.Random(f'{seed}:{key}').sample(groups[key], quotas[key])]
 
 
+def natural_key(text: str) -> tuple:
+    """Sort key that orders embedded numbers numerically ('2' before '10')."""
+    return tuple((0, int(part), '') if part.isdigit() else (1, 0, part)
+                 for part in re.split(r'(\d+)', str(text)) if part)
+
+
 def build_dataset(spec: Spec, rows: dict, seed: int) -> list:
     records = spec.normalize(spec, rows, seed)
-    if len({r['prompt_id'] for r in records}) != len(records):
+    if len({r['source_id'] for r in records}) != len(records):
         raise ValueError(f'{spec.name}: duplicate source IDs')
-    return sample_records(records, spec.n, f'{seed}:{spec.name}', spec.strata, spec.quotas)
+    sample = sample_records(records, spec.n, f'{seed}:{spec.name}', spec.strata, spec.quotas)
+    # Short IDs for lookups (<dataset>-001 ...), numbered in source order.
+    for number, item in enumerate(sorted(sample, key=lambda r: natural_key(r['source_id'])), 1):
+        item['prompt_id'] = f'{spec.name}-{number:03d}'
+    return sample
 
 
 # Files and manifest
@@ -420,7 +431,7 @@ def run(names, data_dir: Path, seed: int = SEED, check: bool = False) -> dict:
                                 'bytes': path.stat().st_size} for key, path in paths.items()},
             'n': spec.n, 'seed': seed,
             'strata': _strata_counts(spec, records),
-            'source_ids': sorted(r['source_id'] for r in records),
+            'ids': {r['prompt_id']: r['source_id'] for r in sorted(records, key=lambda r: r['prompt_id'])},
             'output_file': f'prompts/{spec.category}/{name}.jsonl', 'output_sha256': sha256(output),
         }
         if check:
