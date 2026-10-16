@@ -437,6 +437,8 @@ def regrade(data_dir, results_dir, names):
             changed += any(row.get(k) != v for k, v in new.items())
             row.update(new)
         rewrite_rows(path, rows)
+    from benchmark import judge  # The writing grader defers to the judge; keep its scores.
+    judge.apply_judgments(results_dir, judge.JUDGMENTS_DIR)
     print(f'Regraded saved answers; {changed} changed. No API calls were made.')
 
 

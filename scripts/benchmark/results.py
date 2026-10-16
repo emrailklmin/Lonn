@@ -90,7 +90,9 @@ class ResultBank:
         return [row for row in self.rows.values() if not row.get('error')]
 
     def spent(self) -> float:
-        return sum(row.get('cost_usd') or 0.0 for row in self.rows.values())
+        """Model calls plus LLM-judge calls recorded in the answer rows."""
+        return sum((row.get('cost_usd') or 0.0) + (row.get('judge_cost_usd') or 0.0)
+                   for row in self.rows.values())
 
     def summary(self, by=('model_id', 'dataset')) -> list:
         """Accuracy, cost and tokens grouped by row fields (e.g. model_id, category, difficulty)."""
