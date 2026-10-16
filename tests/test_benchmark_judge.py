@@ -78,6 +78,19 @@ class PromptAndParsingTests(unittest.TestCase):
             with self.assertRaises(ValueError, msg=text):
                 judge.parse_scores(text, CRITERIA)
 
+    def test_malformed_json_is_read_leniently_only_when_complete(self):
+        # Seen from Opus: the '{' before an entry was missing.
+        entries = ', '.join(f'"criterion": "C{i}", "score": {s}, "reason": "Reason {i}."}}'
+                            for i, s in enumerate([7, 8, 6, 9, 5], 1))
+        broken = '{"scores": [{' + entries + ']}'
+        with self.assertRaises(json.JSONDecodeError):
+            json.loads(broken)
+        scores = judge.parse_scores(broken, CRITERIA)
+        self.assertEqual([s['score'] for s in scores], [7, 8, 6, 9, 5])
+        self.assertEqual(scores[1]['reason'], 'Reason 2.')
+        with self.assertRaises(ValueError):
+            judge.parse_scores(broken.replace('"score": 5', '"points": 5'), CRITERIA)
+
     def test_pass_threshold(self):
         self.assertTrue(judge.verdict([7, 7, 7, 7, 7])['correct'])
         self.assertFalse(judge.verdict([7, 7, 7, 7, 6])['correct'])
@@ -137,6 +150,17 @@ class JudgeRunTests(unittest.TestCase):
         self.assertIsNone(self.rows()['writingbench_business-001']['correct'])
         saved = judge.read_judgments(self.judgments_dir)
         self.assertIn('unparseable', saved[('writingbench_business-001', MODEL_ID)]['error'])
+
+    def test_reparse_recovers_saved_replies_without_calls(self):
+        # A judgment saved as unparseable before the lenient parser existed.
+        raw = judge_reply([8] * 5)['choices'][0]['message']['content'].replace('}, {', '}, ', 1)
+        results.append_row(judge.judgment_path(self.judgments_dir, MODEL_ID), {
+            **judge._base(answer_row(1)), 'cost_usd': 0.02, 'raw': raw,
+            'error': 'unparseable judge output: bad JSON'})
+        self.assertIsNone(self.rows()['writingbench_business-001']['correct'])
+        self.assertEqual(judge.reparse_errors(self.records, self.results_dir, self.judgments_dir), 1)
+        row = self.rows()['writingbench_business-001']
+        self.assertEqual((row['correct'], row['judge_cost_usd']), (True, 0.02))
 
     def test_budget_stops_before_overspending(self):
         client = FakeClient([judge_reply([8] * 5, cost=0.02)] * 2)

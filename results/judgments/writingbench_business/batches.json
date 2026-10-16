@@ -17,9 +17,9 @@
   {
     "id": "batch-1792149055-9Ph3CcONohzDsFs4CGDA",
     "submitted_at": "2026-10-16T11:10:58+00:00",
-    "status": "validating",
+    "status": "completed",
     "estimate_usd": 13.4996,
-    "collected": false,
+    "collected": true,
     "map": {
       "j0001": [
         "writingbench_business-001",
@@ -1749,6 +1749,7 @@
         "writingbench_business-060",
         "openrouter/z-ai/glm-5.3-flash"
       ]
-    }
+    },
+    "billed_usd": 11.787202
   }
 ]

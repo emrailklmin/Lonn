@@ -89,8 +89,15 @@ def build_request(record: dict, response: str, truncated: bool) -> dict:
             'messages': [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': prompt}]}
 
 
+SCORE_ENTRY = re.compile(r'"score"\s*:\s*(\d+(?:\.0)?)\s*,\s*"reason"\s*:\s*"(.*?)"\s*[,}]', re.DOTALL)
+
+
 def parse_scores(text: str, criteria: list) -> list:
-    """[{criterion, score, reason}] in rubric order; ValueError if the output is unusable."""
+    """[{criterion, score, reason}] in rubric order; ValueError if the output is unusable.
+
+    If the JSON is malformed (seen: a missing '{' between entries), the score/reason pairs
+    are read in order instead, but only when there is exactly one per criterion.
+    """
     fenced = re.search(r'```(?:json)?\s*(\{.*\})\s*```', text or '', re.DOTALL)
     raw = fenced.group(1) if fenced else (re.search(r'\{.*\}', text or '', re.DOTALL) or [None])[0]
     if raw is None:
@@ -98,7 +105,10 @@ def parse_scores(text: str, criteria: list) -> list:
     try:
         items = json.loads(raw)['scores']
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
-        raise ValueError(f'bad JSON: {exc}') from None
+        pairs = SCORE_ENTRY.findall(raw)
+        if len(pairs) != len(criteria):
+            raise ValueError(f'bad JSON: {exc}') from None
+        items = [{'score': float(score), 'reason': reason} for score, reason in pairs]
     if not isinstance(items, list) or len(items) != len(criteria):
         raise ValueError(f'expected {len(criteria)} scores')
     scores = []
@@ -273,6 +283,27 @@ def estimate_batch_cost(bodies: list) -> float:
     """Generous estimate: ~3 characters per input token, full reasoning budget plus scores."""
     return sum((len(json.dumps(body)) / 3.0 * PRICE_PER_M[0]
                 + (REASONING_TOKENS + 400) * PRICE_PER_M[1]) / 1e6 for body in bodies) * BATCH_PRICE_FACTOR
+
+
+def reparse_errors(records, results_dir, judgments_dir) -> int:
+    """Parse saved raw replies of 'unparseable' judgments again (after a parser fix); no calls.
+    The new judgment keeps the original cost. Returns how many were recovered."""
+    by_id = {r['prompt_id']: r for r in records}
+    recovered = 0
+    for (prompt_id, model_id), item in read_judgments(judgments_dir).items():
+        if not (item.get('error') or '').startswith('unparseable') or not item.get('raw'):
+            continue
+        try:
+            scores = parse_scores(item['raw'], by_id[prompt_id]['reference']['checklist'])
+        except ValueError:
+            continue
+        fixed = {k: v for k, v in item.items() if k not in ('error', 'raw')}
+        fixed.update(scores=scores, judge_mean=verdict([s['score'] for s in scores])['judge_mean'],
+                     error=None, reparsed_at=run._now())
+        append_row(judgment_path(judgments_dir, model_id), fixed)
+        recovered += 1
+    apply_judgments(results_dir, judgments_dir)
+    return recovered
 
 
 def submit_batch(api, records, results_dir, judgments_dir, *, limit, budget, seed):
@@ -455,10 +486,15 @@ def main(argv=None):
     parser.add_argument('--batch', action='store_true', help='send pending answers as one half-price batch')
     parser.add_argument('--collect', action='store_true', help='fetch finished batches and save judgments')
     parser.add_argument('--wait', action='store_true', help='with --collect: poll every minute until done')
+    parser.add_argument('--reparse', action='store_true',
+                        help='parse saved unparseable judge replies again; no calls')
     args = parser.parse_args(argv)
     records = run.load_records(DEFAULT_DATA_DIR, [DATASET])[DATASET]
     if args.dry_run:
         return dry_run(records, args.results_dir, args.judgments_dir, args.limit, args.seed)
+    if args.reparse:
+        count = reparse_errors(records, args.results_dir, args.judgments_dir)
+        return print(f'Recovered {count} judgments from saved replies. No calls were made.')
     from dotenv import load_dotenv
     load_dotenv(ROOT / '.env', override=False)
     api_key = os.environ.get('OPENROUTER_API_KEY', '').strip()
@@ -469,10 +505,19 @@ def main(argv=None):
                             limit=args.limit, budget=args.budget, seed=args.seed)
     if args.collect:
         import time
+        import httpx
         api = BatchAPI(api_key)
-        while collect_batches(api, records, args.results_dir, args.judgments_dir) and args.wait:
+        while True:
+            try:
+                open_batches = collect_batches(api, records, args.results_dir, args.judgments_dir)
+            except (httpx.TransportError, httpx.TimeoutException) as exc:
+                if not args.wait:
+                    raise
+                print(f'Polling failed ({type(exc).__name__}); trying again in a minute.', flush=True)
+                open_batches = True
+            if not (open_batches and args.wait):
+                return
             time.sleep(60)
-        return
     run_judge(run.OpenRouterClient(api_key, timeout=300, deadline=900), records, args.results_dir,
               args.judgments_dir, limit=args.limit, budget=args.budget, workers=args.workers, seed=args.seed)
 

@@ -418,8 +418,10 @@ def print_summary(results_dir, by):
         print(f"{keys}  {row['answers']:>7}  {row['errors']:>6}  {accuracy:>8}  {row['truncated']:>9}"
               f"  {row['output_tokens']:>10}  ${row['cost_usd']:.4f}")
     bank = ResultBank(results_dir)
-    print(f'Total spent: ${bank.spent():.4f} over {len(bank.rows)} saved answers. '
-          'Accuracy counts graded answers only (WritingBench is ungraded).')
+    judge_cost = sum(row.get('judge_cost_usd') or 0.0 for row in bank.rows.values())
+    print(f'Total spent: ${bank.spent():.4f} over {len(bank.rows)} saved answers '
+          f'(cost column: model calls; LLM judge ${judge_cost:.4f} on top). '
+          'Accuracy counts graded answers only.')
 
 
 def regrade(data_dir, results_dir, names):
