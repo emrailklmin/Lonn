@@ -13,6 +13,12 @@ skips judged answers and retries errors; run.py --regrade keeps the judge scores
     python3 scripts/benchmark/judge.py --dry-run             # plan and cost, no calls
     python3 scripts/benchmark/judge.py --limit 2 --budget 30 # pilot: same 2 prompts per model
     python3 scripts/benchmark/judge.py                       # everything (resumes)
+    python3 scripts/benchmark/judge.py --batch               # everything via OpenRouter's batch API (half price)
+    python3 scripts/benchmark/judge.py --collect [--wait]    # fetch finished batches and save the judgments
+
+The batch API bills about half price and usually finishes within an hour (window 24 h),
+but a submitted batch cannot be stopped, so the budget is checked against its estimate
+before it is sent. Open batches are recorded in results/judgments/<dataset>/batches.json.
 """
 import argparse
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
@@ -35,8 +41,14 @@ DATASET = 'writingbench_business'
 JUDGE_MODEL = 'anthropic/claude-opus-5.5'
 JUDGE_VERSION = 'judge-v1'
 PRICE_PER_M = (4.0, 20.0)  # Opus 5.5 input/output USD per M tokens, OpenRouter 2026-10-16.
-MAX_TOKENS = 1500
+# Opus 5.5 on OpenRouter refuses requests with reasoning disabled (HTTP 400, 2026-10-16),
+# so reasoning is capped at Anthropic's minimum budget instead. It is billed as output.
+REASONING_TOKENS = 1024
+MAX_TOKENS = REASONING_TOKENS + 1500
 PASS_MEAN = 7.0  # WritingBench's "above average" band starts at 7.
+BATCH_URL = 'https://openrouter.ai/api/v1/batches'
+BATCH_PRICE_FACTOR = 0.5  # Measured 2026-10-16: one batch judgment cost half the per-call price.
+TERMINAL = {'completed', 'failed', 'expired', 'cancelled'}
 
 SYSTEM = 'You are an expert evaluator with extensive experience in evaluating response of given query.'
 # Scoring rules and warnings follow WritingBench's evaluate_prompt (X-PLUG/WritingBench prompt.py).
@@ -73,7 +85,7 @@ def build_request(record: dict, response: str, truncated: bool) -> dict:
               f"({names}), and do not use \" inside reason:\n"
               '{"scores": [{"criterion": "<name>", "score": <integer 1-10>, "reason": "<one sentence>"}]}')
     return {'model': JUDGE_MODEL, 'max_tokens': MAX_TOKENS, 'temperature': 0.0,
-            'reasoning': {'enabled': False}, 'usage': {'include': True},
+            'reasoning': {'max_tokens': REASONING_TOKENS}, 'usage': {'include': True},
             'messages': [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': prompt}]}
 
 
@@ -155,24 +167,23 @@ def reserve(workers: int) -> float:
     return workers * (12000 * PRICE_PER_M[0] + MAX_TOKENS * PRICE_PER_M[1]) / 1e6
 
 
-def judge_one(client, record: dict, row: dict) -> dict:
-    """One judgment (worker thread). Errors are saved; a paid but unparseable reply keeps its cost."""
-    base = {'prompt_id': row['prompt_id'], 'model_id': row['model_id'], 'judge_model': JUDGE_MODEL,
+def _base(row: dict) -> dict:
+    return {'prompt_id': row['prompt_id'], 'model_id': row['model_id'], 'judge_model': JUDGE_MODEL,
             'judge_version': JUDGE_VERSION, 'answer_truncated': row.get('finish_reason') == 'length',
             'timestamp': run._now()}
-    body = build_request(record, row['response'], base['answer_truncated'])
-    try:
-        data, _ = run.call_with_retries(client, body)
-    except run.CallError as exc:
-        return {**base, 'error': f'call failed: {exc}', 'cost_usd': 0.0}
+
+
+def token_cost(usage: dict, factor: float = 1.0) -> float:
+    return ((usage.get('prompt_tokens') or 0) * PRICE_PER_M[0]
+            + (usage.get('completion_tokens') or 0) * PRICE_PER_M[1]) / 1e6 * factor
+
+
+def judgment_from_reply(record: dict, row: dict, data: dict, cost: float) -> dict:
+    """A judgment from a judge reply; a paid but unparseable reply is an error that keeps its cost."""
     usage = data.get('usage') or {}
-    cost = usage.get('cost')
-    if cost is None:
-        cost = ((usage.get('prompt_tokens') or 0) * PRICE_PER_M[0]
-                + (usage.get('completion_tokens') or 0) * PRICE_PER_M[1]) / 1e6
-    base.update(cost_usd=cost, input_tokens=usage.get('prompt_tokens'),
-                output_tokens=usage.get('completion_tokens'), generation_id=data.get('id'))
-    text = (data['choices'][0].get('message') or {}).get('content') or ''
+    base = {**_base(row), 'cost_usd': cost, 'input_tokens': usage.get('prompt_tokens'),
+            'output_tokens': usage.get('completion_tokens'), 'generation_id': data.get('id')}
+    text = ((data.get('choices') or [{}])[0].get('message') or {}).get('content') or ''
     try:
         scores = parse_scores(text, record['reference']['checklist'])
     except ValueError as exc:
@@ -181,20 +192,185 @@ def judge_one(client, record: dict, row: dict) -> dict:
             'error': None}
 
 
+def empty_judgment(record: dict, row: dict) -> dict:
+    """Lowest score for an empty answer, without a call."""
+    return {**_base(row), 'skipped': 'empty response', 'cost_usd': 0.0, 'error': None, 'judge_mean': 1.0,
+            'scores': [{'criterion': c['name'], 'score': 1, 'reason': 'empty response'}
+                       for c in record['reference']['checklist']]}
+
+
+def pending_answers(records, results_dir, judgments_dir, limit, seed) -> list:
+    """Answer rows still to judge: not errors, in the selected subset, not judged successfully,
+    and not waiting in an open batch."""
+    chosen = {r['prompt_id'] for r in run.select(records, limit, seed)}
+    judged = read_judgments(judgments_dir)
+    queued = {tuple(key) for batch in load_batches(judgments_dir) if not batch.get('collected')
+              for key in batch['map'].values()}
+    pending = []
+    for path in sorted((Path(results_dir) / 'writing' / DATASET).glob('*.jsonl')):
+        for row in sorted(read_rows(path).values(), key=lambda r: r['prompt_id']):
+            key = (row['prompt_id'], row['model_id'])
+            done = judged.get(key)
+            if (row.get('error') or row['prompt_id'] not in chosen or key in queued
+                    or (done and not done.get('error'))):
+                continue
+            pending.append(row)
+    return pending
+
+
+def judge_one(client, record: dict, row: dict) -> dict:
+    """One judgment (worker thread). Errors are saved."""
+    body = build_request(record, row['response'], row.get('finish_reason') == 'length')
+    try:
+        data, _ = run.call_with_retries(client, body)
+    except run.CallError as exc:
+        return {**_base(row), 'error': f'call failed: {exc}', 'cost_usd': 0.0}
+    usage = data.get('usage') or {}
+    cost = usage['cost'] if usage.get('cost') is not None else token_cost(usage)
+    return judgment_from_reply(record, row, data, cost)
+
+
+# Batch API (half price, cannot be stopped once submitted)
+
+class BatchAPI:
+    def __init__(self, api_key: str, transport=None):
+        import httpx
+        self.http = httpx.Client(timeout=300, transport=transport, headers={
+            'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json',
+            'X-Title': 'Lonn judge batch'})
+
+    def _json(self, response):
+        if response.status_code >= 300:
+            raise SystemExit(f'Batch API HTTP {response.status_code}: {response.text[:400]}')
+        return response.json()
+
+    def create(self, payload: dict) -> dict:
+        # json.dumps keeps key order: 'requests' must come after endpoint/model (else HTTP 400).
+        return self._json(self.http.post(BATCH_URL, content=json.dumps(payload)))
+
+    def get(self, batch_id: str) -> dict:
+        return self._json(self.http.get(f'{BATCH_URL}/{batch_id}'))
+
+
+def batches_path(judgments_dir: Path) -> Path:
+    return Path(judgments_dir) / DATASET / 'batches.json'
+
+
+def load_batches(judgments_dir: Path) -> list:
+    path = batches_path(judgments_dir)
+    return json.loads(path.read_text()) if path.exists() else []
+
+
+def save_batches(judgments_dir: Path, batches: list) -> None:
+    path = batches_path(judgments_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix('.json.tmp')
+    temporary.write_text(json.dumps(batches, indent=2) + '\n')
+    temporary.replace(path)
+
+
+def estimate_batch_cost(bodies: list) -> float:
+    """Generous estimate: ~3 characters per input token, full reasoning budget plus scores."""
+    return sum((len(json.dumps(body)) / 3.0 * PRICE_PER_M[0]
+                + (REASONING_TOKENS + 400) * PRICE_PER_M[1]) / 1e6 for body in bodies) * BATCH_PRICE_FACTOR
+
+
+def submit_batch(api, records, results_dir, judgments_dir, *, limit, budget, seed):
+    """Send all pending answers as one batch; returns its id, or None if nothing was sent."""
+    apply_judgments(results_dir, judgments_dir)
+    by_id = {r['prompt_id']: r for r in records}
+    pending = pending_answers(records, results_dir, judgments_dir, limit, seed)
+    calls = []
+    for row in pending:
+        if (row.get('response') or '').strip():
+            calls.append(row)
+        else:
+            append_row(judgment_path(judgments_dir, row['model_id']), empty_judgment(by_id[row['prompt_id']], row))
+    apply_judgments(results_dir, judgments_dir)  # Empty answers count at once.
+    if not calls:
+        print(f'Nothing to send ({len(pending)} empty answers scored without a call).')
+        return None
+    bodies = [build_request(by_id[row['prompt_id']], row['response'], row.get('finish_reason') == 'length')
+              for row in calls]
+    estimate, spent = estimate_batch_cost(bodies), ResultBank(results_dir).spent()
+    print(f'{len(calls)} answers to judge in one batch; estimated ${estimate:.2f} '
+          f'(already spent ${spent:.2f}, budget ${budget:.2f})')
+    if spent + estimate > budget:
+        raise SystemExit(f'Not sent: ${spent:.2f} + estimated ${estimate:.2f} exceeds the ${budget:.2f} budget. '
+                         'Use --limit or a larger --budget.')
+    mapping, requests = {}, []
+    for number, (row, body) in enumerate(zip(calls, bodies), 1):
+        custom_id = f'j{number:04d}'  # The provider only allows [A-Za-z0-9_-].
+        mapping[custom_id] = [row['prompt_id'], row['model_id']]
+        requests.append({'custom_id': custom_id, 'body': {k: v for k, v in body.items() if k != 'model'}})
+    created = api.create({'endpoint': '/v1/chat/completions', 'model': JUDGE_MODEL,
+                          'completion_window': '24h', 'requests': requests})
+    batches = load_batches(judgments_dir)
+    batches.append({'id': created['id'], 'submitted_at': run._now(), 'status': created.get('status'),
+                    'estimate_usd': round(estimate, 4), 'collected': False, 'map': mapping})
+    save_batches(judgments_dir, batches)
+    print(f"Submitted batch {created['id']} ({created.get('status')}). Fetch it later with --collect.")
+    return created['id']
+
+
+def collect_batches(api, records, results_dir, judgments_dir) -> list:
+    """Fetch open batches; save the judgments of finished ones. Returns statuses of open batches."""
+    by_id = {r['prompt_id']: r for r in records}
+    answers = {}
+    for path in sorted((Path(results_dir) / 'writing' / DATASET).glob('*.jsonl')):
+        for row in read_rows(path).values():
+            answers[(row['prompt_id'], row['model_id'])] = row
+    batches, statuses = load_batches(judgments_dir), []
+    for batch in batches:
+        if batch.get('collected'):
+            continue
+        data = api.get(batch['id'])
+        batch['status'] = data.get('status')
+        counts = data.get('request_counts') or {}
+        print(f"Batch {batch['id']}: {batch['status']}, {counts.get('completed', 0)}/{counts.get('total', '?')} "
+              f"done, {counts.get('failed', 0)} failed")
+        if batch['status'] not in TERMINAL:
+            statuses.append(batch['status'])
+            continue
+        items = data.get('results') or []
+        # Items carry tokens but no cost; split the batch's billed cost in proportion to tokens.
+        estimates = [token_cost((item.get('response') or {}).get('body', {}).get('usage') or {})
+                     for item in items]
+        billed = (data.get('usage') or {}).get('cost')
+        scale = billed / sum(estimates) if billed is not None and sum(estimates) else BATCH_PRICE_FACTOR
+        for item, estimate in zip(items, estimates):
+            prompt_id, model_id = batch['map'][item['custom_id']]
+            row = answers[(prompt_id, model_id)]
+            if item.get('error') or (item.get('response') or {}).get('status_code', 200) >= 300:
+                judgment = {**_base(row), 'error': f"batch item failed: {str(item.get('error') or item['response'])[:300]}",
+                            'cost_usd': 0.0}
+            else:
+                judgment = judgment_from_reply(by_id[prompt_id], row, item['response']['body'], estimate * scale)
+            judgment['batch_id'] = batch['id']
+            append_row(judgment_path(judgments_dir, model_id), judgment)
+        missing = set(batch['map']) - {item['custom_id'] for item in items}
+        for custom_id in sorted(missing):  # Failed or expired batches: retried on the next submit.
+            prompt_id, model_id = batch['map'][custom_id]
+            append_row(judgment_path(judgments_dir, model_id),
+                       {**_base(answers[(prompt_id, model_id)]), 'batch_id': batch['id'], 'cost_usd': 0.0,
+                        'error': f"no result (batch {batch['status']})"})
+        batch['collected'] = True
+        batch['billed_usd'] = billed
+        print(f'  saved {len(items)} judgments, billed ${billed if billed is not None else 0:.4f}')
+    save_batches(judgments_dir, batches)
+    applied = apply_judgments(results_dir, judgments_dir)
+    if applied:
+        print(f'{applied} answer rows updated.')
+    return statuses
+
+
 def run_judge(client, records: list, results_dir: Path, judgments_dir: Path, *, limit, budget,
               workers, seed):
     """Judge pending answers; returns why it stopped early, or None."""
     apply_judgments(results_dir, judgments_dir)
     by_id = {r['prompt_id']: r for r in records}
-    chosen = {r['prompt_id'] for r in run.select(records, limit, seed)}
     judged = read_judgments(judgments_dir)
-    pending = []
-    for path in sorted((Path(results_dir) / 'writing' / DATASET).glob('*.jsonl')):
-        for row in sorted(read_rows(path).values(), key=lambda r: r['prompt_id']):
-            done = judged.get((row['prompt_id'], row['model_id']))
-            if row.get('error') or row['prompt_id'] not in chosen or (done and not done.get('error')):
-                continue
-            pending.append(row)
+    pending = pending_answers(records, results_dir, judgments_dir, limit, seed)
     spent = ResultBank(results_dir).spent()
     print(f'{len(pending)} answers to judge with {JUDGE_MODEL} ({len(judged)} judgments saved). '
           f'Budget ${budget:.2f}, already spent ${spent:.2f}, pass mark {PASS_MEAN}/10')
@@ -223,12 +399,7 @@ def run_judge(client, records: list, results_dir: Path, judgments_dir: Path, *, 
         if (row.get('response') or '').strip():
             calls.append(row)
         else:  # Nothing to judge: lowest score, no call.
-            criteria = by_id[row['prompt_id']]['reference']['checklist']
-            save({'prompt_id': row['prompt_id'], 'model_id': row['model_id'], 'judge_model': JUDGE_MODEL,
-                  'judge_version': JUDGE_VERSION, 'skipped': 'empty response', 'cost_usd': 0.0,
-                  'scores': [{'criterion': c['name'], 'score': 1, 'reason': 'empty response'}
-                             for c in criteria],
-                  'judge_mean': 1.0, 'error': None, 'timestamp': run._now()})
+            save(empty_judgment(by_id[row['prompt_id']], row))
     margin = reserve(workers)
     with ThreadPoolExecutor(workers) as pool:
         queue, running = list(calls), set()
@@ -263,23 +434,13 @@ def run_judge(client, records: list, results_dir: Path, judgments_dir: Path, *, 
 
 def dry_run(records, results_dir, judgments_dir, limit, seed):
     by_id = {r['prompt_id']: r for r in records}
-    chosen = {r['prompt_id'] for r in run.select(records, limit, seed)}
-    judged = read_judgments(judgments_dir)
-    calls = empty = 0
-    cost = 0.0
-    for path in sorted((Path(results_dir) / 'writing' / DATASET).glob('*.jsonl')):
-        for row in read_rows(path).values():
-            done = judged.get((row['prompt_id'], row['model_id']))
-            if row.get('error') or row['prompt_id'] not in chosen or (done and not done.get('error')):
-                continue
-            if not (row.get('response') or '').strip():
-                empty += 1
-                continue
-            body = build_request(by_id[row['prompt_id']], row['response'], row.get('finish_reason') == 'length')
-            calls += 1
-            cost += (len(json.dumps(body)) / 3.5 * PRICE_PER_M[0] + 400 * PRICE_PER_M[1]) / 1e6
-    print(f'{calls} judge calls (+{empty} empty answers scored without a call), '
-          f'estimated ${cost:.2f}. Already spent ${ResultBank(results_dir).spent():.2f}. No calls made.')
+    pending = pending_answers(records, results_dir, judgments_dir, limit, seed)
+    bodies = [build_request(by_id[row['prompt_id']], row['response'], row.get('finish_reason') == 'length')
+              for row in pending if (row.get('response') or '').strip()]
+    batch = estimate_batch_cost(bodies)
+    print(f'{len(bodies)} judge calls (+{len(pending) - len(bodies)} empty answers scored without a call): '
+          f'estimated ${batch / BATCH_PRICE_FACTOR:.2f} one call at a time, ${batch:.2f} with --batch. '
+          f'Already spent ${ResultBank(results_dir).spent():.2f}. No calls made.')
 
 
 def main(argv=None):
@@ -291,6 +452,9 @@ def main(argv=None):
     parser.add_argument('--results-dir', type=Path, default=RESULTS_DIR)
     parser.add_argument('--judgments-dir', type=Path, default=JUDGMENTS_DIR)
     parser.add_argument('--dry-run', action='store_true', help='show the plan and cost; no calls')
+    parser.add_argument('--batch', action='store_true', help='send pending answers as one half-price batch')
+    parser.add_argument('--collect', action='store_true', help='fetch finished batches and save judgments')
+    parser.add_argument('--wait', action='store_true', help='with --collect: poll every minute until done')
     args = parser.parse_args(argv)
     records = run.load_records(DEFAULT_DATA_DIR, [DATASET])[DATASET]
     if args.dry_run:
@@ -300,6 +464,15 @@ def main(argv=None):
     api_key = os.environ.get('OPENROUTER_API_KEY', '').strip()
     if not api_key:
         raise SystemExit('Set OPENROUTER_API_KEY in the environment or .env')
+    if args.batch:
+        return submit_batch(BatchAPI(api_key), records, args.results_dir, args.judgments_dir,
+                            limit=args.limit, budget=args.budget, seed=args.seed)
+    if args.collect:
+        import time
+        api = BatchAPI(api_key)
+        while collect_batches(api, records, args.results_dir, args.judgments_dir) and args.wait:
+            time.sleep(60)
+        return
     run_judge(run.OpenRouterClient(api_key, timeout=300, deadline=900), records, args.results_dir,
               args.judgments_dir, limit=args.limit, budget=args.budget, workers=args.workers, seed=args.seed)
 

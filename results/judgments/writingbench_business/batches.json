@@ -1,0 +1,17 @@
+[
+  {
+    "id": "batch-1792148335-JqzPEXUF2aVD5ft508e1",
+    "submitted_at": "2026-10-16T00:00:00+00:00",
+    "status": "completed",
+    "estimate_usd": 0.03,
+    "collected": true,
+    "map": {
+      "test-0001": [
+        "writingbench_business-001",
+        "openrouter/openai/gpt-oss-120b"
+      ]
+    },
+    "note": "one-request test batch",
+    "billed_usd": 0.024106
+  }
+]
