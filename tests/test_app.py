@@ -1,4 +1,4 @@
-"""UI integration tests; no provider requests or Laya downloads."""
+"""UI integration tests; no provider requests or classifier downloads."""
 from pathlib import Path
 import sys
 import unittest
@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from streamlit.testing.v1 import AppTest
-from lonn.schemas import ComplexityResult, ModelResponse, TokenUsage, TopicCategory
+from lonn.schemas import ModelResponse, TaskSignal, TokenUsage
 
 APP = Path(__file__).resolve().parents[1] / 'examples/app.py'
 
@@ -15,7 +15,7 @@ class AppTests(unittest.TestCase):
     def test_manual_analysis_does_not_call_provider(self):
         with patch('lonn.executor.execute') as execute:
             app = AppTest.from_file(str(APP), default_timeout=30).run()
-            app.radio[0].set_value('Manual topic').run()
+            app.radio[0].set_value('Manual task type').run()
             app.text_area[0].set_value('Write a sorting function')
             app.button[0].click().run()
             self.assertFalse(app.exception)
@@ -23,10 +23,10 @@ class AppTests(unittest.TestCase):
             execute.assert_not_called()
 
     def test_automatic_flow_calls_selected_model_once(self):
-        signal = ComplexityResult(.6, {TopicCategory.CODING: 1.0})
+        signal = TaskSignal({'code_function': 0.9, 'code_algorithmic': 0.1})
         def reply(prompt, model, **kwargs):
             return ModelResponse('Test answer', model, TokenUsage(10, 20, 30, 0, 0, 0), 150, 'stop')
-        with patch('lonn.complexity.ComplexityScorer.score_prompt', return_value=signal) as score, \
+        with patch('lonn.task_classifier.TaskClassifier.classify', return_value=signal) as score, \
              patch('lonn.executor.execute', side_effect=reply) as execute:
             app = AppTest.from_file(str(APP), default_timeout=30).run()
             app.text_area[0].set_value('Write a sorting function')
@@ -36,11 +36,10 @@ class AppTests(unittest.TestCase):
             execute.assert_called_once()
             self.assertIn('Test answer', [text.value for text in app.text])
             # Changing controls rerenders the last result, without resending it.
-            app.slider[0].set_value(.9).run()
+            app.slider[0].set_value(40.0).run()
             execute.assert_called_once()
 
     def test_manual_flow_falls_back_to_next_ranked_model(self):
-        signal = ComplexityResult(.6, {TopicCategory.CODING: 1.0})
         attempts = []
         def reply(prompt, model, **kwargs):
             attempts.append(model)
@@ -50,7 +49,7 @@ class AppTests(unittest.TestCase):
                                  TokenUsage(10, 12, 22, 0, 0, 0), 150, 'stop')
         with patch('lonn.executor.execute', side_effect=reply) as execute:
             app = AppTest.from_file(str(APP), default_timeout=30).run()
-            app.radio[0].set_value('Manual topic').run()
+            app.radio[0].set_value('Manual task type').run()
             app.text_area[0].set_value('Write a sorting function')
             app.button[1].click().run()
             self.assertFalse(app.exception)
@@ -60,7 +59,7 @@ class AppTests(unittest.TestCase):
     def test_error_does_not_expose_provider_details(self):
         with patch('lonn.executor.execute', side_effect=RuntimeError('secret-key')):
             app = AppTest.from_file(str(APP), default_timeout=30).run()
-            app.radio[0].set_value('Manual topic').run()
+            app.radio[0].set_value('Manual task type').run()
             app.text_area[0].set_value('Hello')
             app.button[1].click().run()
             self.assertFalse(app.exception)

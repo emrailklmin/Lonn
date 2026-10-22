@@ -43,6 +43,19 @@ Per-type scores and the main confusions are in `results/classifier_bakeoff/<cand
 - **Long prompts are not a problem** for the 512-token embedders (86–90% on prompts over 370 tokens, as good as or better than short ones). Laya's 312-token room is a weakness here (44%).
 - **Weak spots are the fuzzy Dolly categories:** summarization vs. information extraction, knowledge questions vs. conversation, and creative writing. These are mostly unmeasured types that route the same way today, so they cost little now. They matter once those types get measurements.
 
+## Spot check on everyday prompts
+
+The bake-off scores benchmark-style prompts, like the training data. Nine hand-written everyday prompts sent through the running API with the shipped classifier (2026-10-22) show where it breaks:
+
+| Prompt | Classified as | Should be |
+|---|---|---|
+| "What is 17 * 23?" | instruction_following (0.90) | math_problem |
+| "Given an array of n integers (n up to 2·10^5), count pairs … Read from stdin." | code_function (0.93) | code_algorithmic |
+| "Write a business proposal for a coffee subscription startup …" | creative_writing (0.55) | business_writing |
+| "Summarize this paragraph in two sentences: …" | instruction_following (0.68) | summarization |
+
+Five of the nine were right (a quartic equation, a short Python function, a translation, a history question as conversation, a haiku). Short and casual prompts look little like the benchmark items the classifier was trained on, so **the 84% router result is optimistic for real traffic.** The next data step is realistic prompts, such as WildChat (ODC-BY) or hand-labelled examples, plus a held-out set of everyday prompts to measure this.
+
 ## Recommendation
 
 **Use `bge-small-linear` as the classifier for now.**

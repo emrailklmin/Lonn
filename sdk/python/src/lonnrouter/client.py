@@ -21,10 +21,13 @@ def _base_url(value: str | None) -> str:
     return str(url).rstrip("/")
 
 
-def _payload(prompt: str, alpha: float, signal: Signal | dict | None) -> dict:
-    payload = {"prompt": prompt, "alpha": alpha}
+DEFAULT_LAMBDA = 20.0  # Accuracy points one USD per request is worth; higher picks cheaper models.
+
+
+def _payload(prompt: str, lam: float, signal: Signal | dict | None) -> dict:
+    payload = {"prompt": prompt, "lam": lam}
     if signal is not None:
-        payload["signal"] = signal.model_dump() if isinstance(signal, Signal) else signal
+        payload["signal"] = signal.model_dump(exclude_none=True) if isinstance(signal, Signal) else signal
     return payload
 
 
@@ -61,14 +64,14 @@ class LonnRouter:
             raise LonnConnectionError("Could not reach Lonn; check base_url and server connectivity") from None
         return _parse(response, result_type)
 
-    def route(self, prompt: str, *, alpha: float = 0.5,
+    def route(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
               signal: Signal | dict | None = None) -> RouteResult:
-        return self._request("POST", "route", RouteResult, json=_payload(prompt, alpha, signal))
+        return self._request("POST", "route", RouteResult, json=_payload(prompt, lam, signal))
 
-    def generate(self, prompt: str, *, alpha: float = 0.5,
+    def generate(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
                  signal: Signal | dict | None = None, max_tokens: int = 4096,
                  provider_timeout: float = 120) -> GenerateResult:
-        payload = _payload(prompt, alpha, signal)
+        payload = _payload(prompt, lam, signal)
         payload.update(max_tokens=max_tokens, timeout=provider_timeout)
         return self._request("POST", "generate", GenerateResult, json=payload)
 
@@ -109,14 +112,14 @@ class AsyncLonnRouter:
             raise LonnConnectionError("Could not reach Lonn; check base_url and server connectivity") from None
         return _parse(response, result_type)
 
-    async def route(self, prompt: str, *, alpha: float = 0.5,
+    async def route(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
                     signal: Signal | dict | None = None) -> RouteResult:
-        return await self._request("POST", "route", RouteResult, json=_payload(prompt, alpha, signal))
+        return await self._request("POST", "route", RouteResult, json=_payload(prompt, lam, signal))
 
-    async def generate(self, prompt: str, *, alpha: float = 0.5,
+    async def generate(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
                        signal: Signal | dict | None = None, max_tokens: int = 4096,
                        provider_timeout: float = 120) -> GenerateResult:
-        payload = _payload(prompt, alpha, signal)
+        payload = _payload(prompt, lam, signal)
         payload.update(max_tokens=max_tokens, timeout=provider_timeout)
         return await self._request("POST", "generate", GenerateResult, json=payload)
 

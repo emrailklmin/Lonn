@@ -10,7 +10,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fastapi.testclient import TestClient
 from lonn.api import create_app
-from lonn.schemas import ComplexityResult, Model, ModelResponse, TokenUsage, TopicCategory
+from lonn.routing_table import build_table
+from lonn.schemas import Model, ModelResponse, TaskSignal, TokenUsage, TopicCategory
+
+
+def rows(model_id, passes, n, cost):
+    return [{"task": "code_function", "difficulty": None, "model_id": model_id,
+             "correct": i < passes, "cost_usd": cost} for i in range(n)]
 
 
 class ApiTests(unittest.TestCase):
@@ -21,9 +27,12 @@ class ApiTests(unittest.TestCase):
                            {TopicCategory.CODING: 0.9})
         self.cheap = Model("nvidia_nim/test/cheap", "nvidia_nim", 0, 0, 8192,
                            {TopicCategory.CODING: 0.3})
-        self.signal = ComplexityResult(0.7, {TopicCategory.CODING: 1.0})
+        # Strong: 90% at 0.01 USD per request; cheap: 30% at 0.0001 USD.
+        table = build_table(rows(self.model.id, 9, 10, 0.01) + rows(self.cheap.id, 3, 10, 0.0001))
+        self.signal = TaskSignal({"code_function": 1.0})
         self.stack.enter_context(patch("lonn.api.load_model_pool", return_value=[self.model, self.cheap]))
-        self.score = self.stack.enter_context(patch("lonn.api.ComplexityScorer.score_prompt", return_value=self.signal))
+        self.stack.enter_context(patch("lonn.api.RoutingTable.load", return_value=table))
+        self.classify = self.stack.enter_context(patch("lonn.api.TaskClassifier.classify", return_value=self.signal))
         self.execute = self.stack.enter_context(patch("lonn.api.execute", return_value=ModelResponse(
             "Answer", self.model, TokenUsage(10, 20, 30, .00001, .00004, .00005), 15, "stop")))
         self.client = self.stack.enter_context(TestClient(create_app()))
@@ -32,32 +41,41 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/health").json(), {"status": "ok"})
         self.assertEqual(len(self.client.get("/models").json()), 2)
         self.assertIn("/generate", self.client.get("/openapi.json").json()["paths"])
-        self.score.assert_not_called()
+        self.classify.assert_not_called()
         self.execute.assert_not_called()
 
-    def test_automatic_route_and_alpha(self):
-        for alpha, model in [(0, self.cheap), (1, self.model)]:
-            response = self.client.post("/route", json={"prompt": "  Write code  ", "alpha": alpha})
+    def test_automatic_route_and_lambda(self):
+        for lam, model in [(0, self.model), (1000, self.cheap)]:
+            response = self.client.post("/route", json={"prompt": "  Write code  ", "lam": lam})
             self.assertEqual(response.status_code, 200, response.text)
             result = response.json()
             self.assertEqual(result["models"][0]["id"], model.id)
             self.assertEqual(len(result["models"]), 2)
-            self.assertEqual(result["analysis_source"], "laya")
+            self.assertEqual(result["analysis_source"], "classifier")
+            self.assertEqual(result["signal"], {"task_scores": {"code_function": 1.0}, "complexity": None})
             self.assertGreaterEqual(result["routing_latency_ms"], 0)
-        self.score.assert_called_with("  Write code  ")
+        self.classify.assert_called_with("  Write code  ")
         self.execute.assert_not_called()
+
+    def test_route_reports_estimates_in_ranking_order(self):
+        result = self.client.post("/route", json={"prompt": "code"}).json()
+        self.assertEqual(result["lam"], 20.0)
+        self.assertEqual([e["model_id"] for e in result["estimates"]], [m["id"] for m in result["models"]])
+        strong = result["estimates"][0]
+        self.assertEqual((strong["expected_accuracy"], strong["expected_cost_usd"]), (0.9, 0.01))
+        self.assertAlmostEqual(strong["score"], 0.9 - 20 * 0.01)
 
     def test_supplied_signal_skips_classifier(self):
         response = self.client.post("/route", json={"prompt": "code", "signal": {
-            "complexity": .7, "topic_scores": {"coding": 1}}})
+            "task_scores": {"code_function": 0.5, "summarization": 0.5}}})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["analysis_source"], "provided")
-        self.score.assert_not_called()
+        self.classify.assert_not_called()
         self.execute.assert_not_called()
 
     def test_generate_returns_benchmark_metadata_and_forwards_controls(self):
         self.execute.return_value.finish_reason = "length"
-        response = self.client.post("/generate", json={"prompt": "code", "alpha": 1,
+        response = self.client.post("/generate", json={"prompt": "code", "lam": 0,
                                                       "max_tokens": 100, "timeout": 30})
         self.assertEqual(response.status_code, 200, response.text)
         self.execute.assert_called_once_with("code", self.model, timeout=30, max_tokens=100)
@@ -67,6 +85,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result["response"]["usage"]["total_cost"], .00005)
         self.assertEqual(result["response"]["finish_reason"], "length")
         self.assertEqual(result["response"]["latency_ms"], 15)
+        self.assertEqual(len(result["estimates"]), 2)
         self.assertGreaterEqual(result["total_latency_ms"], result["routing_latency_ms"])
 
     def test_generate_falls_back_to_next_ranked_model(self):
@@ -74,7 +93,7 @@ class ApiTests(unittest.TestCase):
             "Fallback answer", self.cheap,
             TokenUsage(10, 12, 22, 0, 0, 0), 18, "stop")
         self.execute.side_effect = [RuntimeError("provider unavailable"), fallback_response]
-        response = self.client.post("/generate", json={"prompt": "code", "alpha": 1})
+        response = self.client.post("/generate", json={"prompt": "code", "lam": 0})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["model"]["id"], self.cheap.id)
         self.assertEqual(response.json()["response"]["content"], "Fallback answer")
@@ -82,15 +101,17 @@ class ApiTests(unittest.TestCase):
                          [self.model, self.cheap])
 
     def test_invalid_inputs_rejected_before_work(self):
-        for update in [{"prompt": " "}, {"alpha": -1}, {"alpha": "NaN"}, {"alpha": True},
+        for update in [{"prompt": " "}, {"lam": -1}, {"lam": "NaN"}, {"lam": True}, {"alpha": 0.5},
                        {"max_tokens": 0}, {"max_tokens": 1.5}, {"max_tokens": True},
                        {"timeout": 0}, {"timeout": "Infinity"}, {"unknown": 1},
-                       {"signal": {"complexity": .5, "topic_scores": {"coding": .2}}},
-                       {"signal": {"complexity": .5, "topic_scores": {"unknown": 1}}}]:
+                       {"signal": {"task_scores": {"code_function": .2}}},
+                       {"signal": {"task_scores": {"unknown": 1}}},
+                       {"signal": {"task_scores": {"code_function": 1}, "complexity": 2}},
+                       {"signal": {"complexity": .5, "topic_scores": {"coding": 1}}}]:
             with self.subTest(update=update):
                 response = self.client.post("/generate", json={"prompt": "code", **update})
                 self.assertEqual(response.status_code, 422, response.text)
-        self.score.assert_not_called()
+        self.classify.assert_not_called()
         self.execute.assert_not_called()
 
     def test_context_budget_rejected_before_provider_call(self):
@@ -112,15 +133,19 @@ class ApiTests(unittest.TestCase):
                 self.assertEqual(self.execute.call_count, 2)
 
     def test_analysis_failure_does_not_execute(self):
-        self.score.side_effect = RuntimeError("private prompt")
+        self.classify.side_effect = RuntimeError("private prompt")
         response = self.client.post("/generate", json={"prompt": "code"})
         self.assertEqual(response.status_code, 503)
         self.assertNotIn("private prompt", response.text)
         self.execute.assert_not_called()
 
-    def test_invalid_pool_fails_startup(self):
+    def test_invalid_configuration_fails_startup(self):
         with patch("lonn.api.load_model_pool", side_effect=ValueError("Invalid pool")):
             with self.assertRaisesRegex(ValueError, "Invalid pool"):
+                with TestClient(create_app()):
+                    pass
+        with patch("lonn.api.RoutingTable.load", side_effect=FileNotFoundError("routing_table.json")):
+            with self.assertRaises(FileNotFoundError):
                 with TestClient(create_app()):
                     pass
 

@@ -6,11 +6,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
 import streamlit as st
 
-from lonn.complexity import ComplexityScorer
 from lonn.executor import execute
 from lonn.model_pool import load_model_pool
-from lonn.router import rank_models
-from lonn.schemas import PROVIDER_API_KEYS, ComplexityResult, TopicCategory
+from lonn.routing_table import RoutingTable
+from lonn.schemas import PROVIDER_API_KEYS, TaskSignal
+from lonn.task_classifier import TaskClassifier
+from lonn.task_router import DEFAULT_LAMBDA, estimate, rank_models
+from lonn.task_types import load_task_types
 
 st.set_page_config(page_title='Lonn · Routing lab', page_icon='🍁', layout='wide')
 st.title('Lonn · Routing lab')
@@ -18,20 +20,21 @@ st.caption('Explore the tradeoff between model quality and cost, then try a live
 
 with st.sidebar:
     st.header('Routing controls')
-    alpha = st.slider('Quality weight (alpha)', 0.0, 1.0, 0.7, 0.05)
-    st.caption('0 = cost first · 1 = quality first. Complexity is displayed separately.')
-    mode = st.radio('Prompt analysis', ['Automatic (Laya)', 'Manual topic'])
-    topic = st.selectbox('Manual topic', list(TopicCategory),
-                         format_func=lambda t: t.value.replace('_', ' ').title(),
-                         disabled=mode != 'Manual topic')
-    complexity = st.slider('Manual complexity', 0.0, 1.0, 0.5, 0.05,
-                           disabled=mode != 'Manual topic')
+    lam = st.slider('Cost weight (lambda)', 0.0, 160.0, DEFAULT_LAMBDA, 5.0)
+    st.caption('How many accuracy points one USD per request is worth: 0 = best expected accuracy, '
+               'higher = cheaper models. The default (20) matches the benchmarked setting.')
+    mode = st.radio('Prompt analysis', ['Automatic (classifier)', 'Manual task type'])
+    task_types = load_task_types()
+    task = st.selectbox('Manual task type', [t.id for t in task_types],
+                        format_func=lambda t: t.replace('_', ' ').capitalize(),
+                        disabled=mode != 'Manual task type')
     max_tokens = st.number_input('Output token budget', 256, 32768, 4096, 256)
     timeout = st.number_input('Request timeout (seconds)', 10, 300, 120, 10)
-    st.caption('Manual mode tests routing and execution without loading Laya. Automatic mode may download classifier weights on first use.')
+    st.caption('Manual mode tests routing and execution without the classifier. Automatic mode downloads the embedding model (about 130 MB) on first use.')
 
 try:
     models = load_model_pool()
+    table = RoutingTable.load()
 except (OSError, ValueError) as exc:
     st.error(f'Model configuration could not be loaded: {exc}')
     st.stop()
@@ -39,9 +42,10 @@ except (OSError, ValueError) as exc:
 with st.expander('Available models and estimated prices'):
     st.dataframe([{'Model': m.id, 'Context tokens': m.context_window,
                    'Input $/M': m.cost_per_m_input, 'Output $/M': m.cost_per_m_output,
-                   **{t.value: v for t, v in m.topic_aptitudes.items()}}
+                   'In routing table': m.id in table.global_row}
                   for m in models], hide_index=True, width='stretch')
-st.caption('Aptitudes are benchmark proxies. Prices come from config/models.yaml (see price_basis).')
+st.caption('Routing uses accuracy and billed cost measured per task type on the benchmark '
+           '(config/routing_table.json); models without measurements are not ranked.')
 
 with st.form('request', enter_to_submit=False):
     prompt = st.text_area('Your prompt', height=160,
@@ -56,19 +60,21 @@ if analyze or run:
     if not prompt.strip():
         st.warning('Enter a prompt first.')
     else:
-        record = {'prompt': prompt, 'alpha': alpha, 'mode': mode}
+        record = {'prompt': prompt, 'lam': lam, 'mode': mode}
         with st.status('Analyzing prompt…', expanded=True) as status:
             try:
-                if mode == 'Automatic (Laya)':
-                    if 'scorer' not in st.session_state:
-                        st.session_state.scorer = ComplexityScorer()
-                    signal = st.session_state.scorer.score_prompt(prompt)
+                if mode == 'Automatic (classifier)':
+                    if 'classifier' not in st.session_state:
+                        st.session_state.classifier = TaskClassifier()
+                    signal = st.session_state.classifier.classify(prompt)
                 else:
-                    signal = ComplexityResult(complexity, {t: float(t == topic) for t in TopicCategory})
+                    signal = TaskSignal({task: 1.0})
                 record['signal'] = signal
                 st.write('Analysis complete. Selecting a model…')
-                candidates = rank_models(signal, models, alpha=alpha, limit=5)
+                candidates = rank_models(signal, table, models, lam=lam)
                 record['candidates'] = candidates
+                by_id = {e.model.id: e for e in estimate(signal, table, models, lam)}
+                record['estimates'] = [by_id[m.id] for m in candidates]
                 st.write('Ranked fallback candidates: ' + ', '.join(m.id for m in candidates))
                 if run:
                     eligible = [m for m in candidates if max_tokens < m.context_window]
@@ -107,7 +113,7 @@ if analyze or run:
                 elif code in (408, 504) or 'timeout' in type(exc).__name__.lower():
                     message = 'The request timed out. Increase the timeout or try again later.'
                 else:
-                    message = f'{type(exc).__name__}: check dependencies, model configuration, and {key_name}. If automatic analysis failed, try Manual topic.'
+                    message = f'{type(exc).__name__}: check dependencies, model configuration, and {key_name}. If automatic analysis failed, try Manual task type.'
                 record['error'] = message
                 status.update(label='Request failed', state='error', expanded=False)
         st.session_state.last_run = record
@@ -116,12 +122,15 @@ if 'last_run' in st.session_state:
     record = st.session_state.last_run
     st.subheader('Last submitted request')
     st.text(record['prompt'])
-    st.caption(f"Analysis: {record['mode']} · alpha: {record['alpha']:.2f}")
+    st.caption(f"Analysis: {record['mode']} · lambda: {record['lam']:g}")
     if 'signal' in record:
-        signal = record['signal']
-        st.metric('Complexity', f'{signal.complexity:.2f}')
-        st.dataframe([{'Topic': t.value, 'Probability': p} for t, p in signal.topic_scores.items()],
+        top = sorted(record['signal'].task_scores.items(), key=lambda item: -item[1])[:5]
+        st.dataframe([{'Task type': t, 'Probability': round(p, 3)} for t, p in top],
                      hide_index=True, width='stretch')
+    if 'estimates' in record:
+        st.dataframe([{'Rank': i + 1, 'Model': e.model.id, 'Expected accuracy': round(e.accuracy, 3),
+                       'Expected cost per request (USD)': round(e.cost_usd, 5), 'Score': round(e.score, 3)}
+                      for i, e in enumerate(record['estimates'])], hide_index=True, width='stretch')
     if 'selected' in record:
         st.success(f"Selected model: {record['selected'].id}")
     if 'error' in record:

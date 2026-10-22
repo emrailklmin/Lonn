@@ -9,6 +9,34 @@ The Lonn prototype consists of four core responsibilities:
 
 ---
 
+## Changes on `prototype3.0` (issue #19)
+
+The app and the API route with the **task-type pipeline**. The sections further down describe the original pipeline (Laya topics, complexity and alpha), which remains in the code (`complexity.py`, `router.py`) but is no longer orchestrated.
+
+```text
+prompt → task_classifier.py (TaskSignal) → task_router.py (+ routing table, pool) → ranked models → executor.py
+```
+
+| Area | Original pipeline | `prototype3.0` |
+| --- | --- | --- |
+| Prompt analysis | Laya: 4 topics plus a complexity score | `TaskClassifier`: a frozen `BAAI/bge-small-en-v1.5` embedder plus a trained linear layer (`config/task_classifier.json`) gives a probability over 15 task types (`config/task_types.yaml`). Complexity is optional and off by default |
+| Shared contract | `ComplexityResult(complexity, topic_scores)` | `TaskSignal(task_scores, complexity=None)` in `schemas.py` |
+| Model quality | Static per-topic aptitudes in `models.yaml` | Accuracy measured per task type on the benchmark (`config/routing_table.json`, `routing_table.py`) |
+| Model cost | List price, normalized by the pool maximum | Mean billed cost per request, including reasoning tokens |
+| Selection | Maximum of `alpha·complexity·quality − (1−alpha)·cost` | Maximum of `accuracy − lam·cost_usd`, mixing task-type rows by probability (`task_router.py`, default `lam` 20) |
+| HTTP request | `alpha`, optional `signal {complexity, topic_scores}` | `lam`, optional `signal {task_scores, complexity?}` |
+| HTTP response | `models`, `signal`, `alpha`, `analysis_source: laya/provided` | adds `estimates` (expected accuracy and cost per candidate); `lam`; `analysis_source: classifier/provided` |
+| SDK | `lonnrouter` 0.1.0 | `lonnrouter` 0.2.0: `lam` instead of `alpha`, new `Signal`, `CandidateEstimate` |
+
+Module boundaries are unchanged:
+- the classifier knows nothing about routing;
+- the router and the routing table make no API calls;
+- only the app and the API orchestrate.
+
+Design, evaluation and limits are in `docs/task_types.md`, `docs/task_router.md`, `docs/task_data.md` and `docs/classifier_bakeoff.md`.
+
+---
+
 ## Changes on `12-fastapi-layer`
 
 The **NEW** labels and blue nodes below highlight the FastAPI work in this

@@ -13,7 +13,8 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "sdk/python/src")]
 import httpx
 from fastapi.testclient import TestClient
 from lonn.api import create_app
-from lonn.schemas import ComplexityResult, Model, ModelResponse, TokenUsage, TopicCategory
+from lonn.routing_table import build_table
+from lonn.schemas import Model, ModelResponse, TaskSignal, TokenUsage, TopicCategory
 from lonnrouter import (AsyncLonnRouter, LonnAPIError, LonnConnectionError,
                         LonnResponseError, LonnRouter, LonnTimeoutError, Signal)
 
@@ -21,9 +22,12 @@ from lonnrouter import (AsyncLonnRouter, LonnAPIError, LonnConnectionError,
 def fake_inference(stack):
     model = Model("nvidia_nim/test/model", "nvidia_nim", 1, 2, 8192,
                   {TopicCategory.CODING: 1.0})
+    table = build_table([{"task": "code_function", "difficulty": None, "model_id": model.id,
+                          "correct": True, "cost_usd": 0.001}])
     stack.enter_context(patch("lonn.api.load_model_pool", return_value=[model]))
-    score = stack.enter_context(patch("lonn.api.ComplexityScorer.score_prompt",
-                                     return_value=ComplexityResult(.5, {TopicCategory.CODING: 1.0})))
+    stack.enter_context(patch("lonn.api.RoutingTable.load", return_value=table))
+    score = stack.enter_context(patch("lonn.api.TaskClassifier.classify",
+                                     return_value=TaskSignal({"code_function": 1.0})))
     execute = stack.enter_context(patch("lonn.api.execute", return_value=ModelResponse(
         "Hello from Lonn", model, TokenUsage(10, 20, 30, .00001, .00004, .00005), 12, "length")))
     return model, score, execute
@@ -38,20 +42,25 @@ class SDKTests(unittest.TestCase):
         self.client = self.stack.enter_context(LonnRouter("http://testserver/", http_client=self.http))
 
     def test_generate_round_trip(self):
-        result = self.client.generate("  Hello  ", alpha=.7, max_tokens=256, provider_timeout=45)
+        result = self.client.generate("  Hello  ", lam=5, max_tokens=256, provider_timeout=45)
         self.assertEqual(result.content, "Hello from Lonn")
         self.assertEqual(result.model.id, self.model.id)
         self.assertEqual(result.usage.total_tokens, 30)
         self.assertEqual(result.usage.total_cost, .00005)
         self.assertEqual(result.finish_reason, "length")
+        self.assertEqual(result.lam, 5)
+        self.assertEqual(result.signal.task_scores, {"code_function": 1.0})
+        self.assertEqual(result.estimates[0].model_id, self.model.id)
+        self.assertEqual(result.estimates[0].expected_accuracy, 1.0)
         self.assertEqual(result.model_dump()["response"]["content"], result.content)
         self.assertGreaterEqual(result.total_latency_ms, result.routing_latency_ms)
         self.score.assert_called_once_with("  Hello  ")
         self.execute.assert_called_once_with("  Hello  ", self.model, timeout=45, max_tokens=256)
 
     def test_route_signal_and_inspection(self):
-        for signal in [Signal(complexity=.5, topic_scores={"coding": 1}),
-                       {"complexity": .5, "topic_scores": {"coding": 1}}]:
+        for signal in [Signal(task_scores={"code_function": 1}),
+                       Signal(task_scores={"code_function": .5, "other": .5}, complexity=.5),
+                       {"task_scores": {"code_function": 1}}]:
             result = self.client.route("code", signal=signal)
             self.assertEqual(result.analysis_source, "provided")
         self.assertEqual(self.client.health().status, "ok")
@@ -61,7 +70,7 @@ class SDKTests(unittest.TestCase):
 
     def test_server_validation_is_typed_error(self):
         with self.assertRaises(LonnAPIError) as caught:
-            self.client.generate("private prompt", alpha=2)
+            self.client.generate("private prompt", lam=-1)
         self.assertEqual(caught.exception.status_code, 422)
         self.assertNotIn("private prompt", str(caught.exception))
         self.execute.assert_not_called()
@@ -128,7 +137,7 @@ class AsyncSDKTests(unittest.IsolatedAsyncioTestCase):
                         result = await router.generate("code", max_tokens=256, provider_timeout=30)
                         self.assertEqual(result.content, "Hello from Lonn")
                         execute.assert_called_once_with("code", model, timeout=30, max_tokens=256)
-                        selection = await router.route("code", signal=Signal(complexity=.5, topic_scores={"coding": 1}))
+                        selection = await router.route("code", signal=Signal(task_scores={"code_function": 1}))
                         self.assertEqual(selection.analysis_source, "provided")
                         score.assert_called_once()
                         self.assertEqual((await router.health()).status, "ok")

@@ -1,6 +1,6 @@
 # Task-type router
 
-Issue #19, branch `prototype3.0`. A new router that decides from **task type**, **complexity** and **measured cost** instead of four topics, static aptitudes and list prices. It sits next to the old router (`src/lonn/router.py`) until a classifier exists and the API is switched over.
+Issue #19, branch `prototype3.0`. A router that decides from **task type**, **complexity** and **measured cost** instead of four topics, static aptitudes and list prices. The app and the API use it, with the task classifier from `docs/classifier_bakeoff.md`. The old router (`src/lonn/router.py`) remains in the code but is no longer used.
 
 ## How it decides
 

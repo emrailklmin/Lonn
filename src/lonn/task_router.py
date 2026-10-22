@@ -33,6 +33,7 @@ from .schemas import Model, TaskSignal
 LEVEL_POSITION = {'easy': 0.0, 'medium': 0.5, 'hard': 1.0}
 DEFAULT_LAMBDA = 20.0
 DEFAULT_USE_COMPLEXITY = False
+FALLBACK_LIMIT = 5  # Candidates returned, so callers can fall back when a provider call fails.
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,7 @@ def estimate(signal: TaskSignal, table: RoutingTable, models: list[Model], lam: 
 
 
 def rank_models(signal: TaskSignal, table: RoutingTable, models: list[Model], lam: float = DEFAULT_LAMBDA,
-                limit: int = 5, mode: str = 'utility', tau: float | None = None,
+                limit: int = FALLBACK_LIMIT, mode: str = 'utility', tau: float | None = None,
                 use_complexity: bool = DEFAULT_USE_COMPLEXITY) -> list[Model]:
     """Best candidates first, for execution and fallback on provider errors."""
     if type(limit) is not int or limit <= 0:

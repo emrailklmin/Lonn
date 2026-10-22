@@ -6,8 +6,19 @@ from pydantic import BaseModel
 
 
 class Signal(BaseModel):
-    complexity: float
-    topic_scores: dict[str, float]
+    """Task-type probabilities (summing to 1) and an optional complexity in [0, 1]."""
+
+    task_scores: dict[str, float]
+    complexity: float | None = None
+
+
+class CandidateEstimate(BaseModel):
+    """The router's expectation for one ranked model, from the measured routing table."""
+
+    model_id: str
+    expected_accuracy: float
+    expected_cost_usd: float
+    score: float
 
 
 class Model(BaseModel):
@@ -38,9 +49,10 @@ class ModelResponse(BaseModel):
 
 class RouteResult(BaseModel):
     models: list[Model]
+    estimates: list[CandidateEstimate]
     signal: Signal
-    alpha: float
-    analysis_source: Literal["laya", "provided"]
+    lam: float
+    analysis_source: Literal["classifier", "provided"]
     routing_latency_ms: float
 
     @property
@@ -51,9 +63,10 @@ class RouteResult(BaseModel):
 
 class GenerateResult(BaseModel):
     model: Model
+    estimates: list[CandidateEstimate]
     signal: Signal
-    alpha: float
-    analysis_source: Literal["laya", "provided"]
+    lam: float
+    analysis_source: Literal["classifier", "provided"]
     routing_latency_ms: float
     response: ModelResponse
     total_latency_ms: float

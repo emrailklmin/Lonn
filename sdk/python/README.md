@@ -23,7 +23,7 @@ for this implementation. You can also distribute a wheel built with
 from lonnrouter import LonnRouter
 
 with LonnRouter(base_url="http://192.168.1.42:8000") as router:
-    result = router.generate("Explain binary search", alpha=0.7)
+    result = router.generate("Explain binary search", lam=20)
     print(result.content)
     print(result.model.id)
     print(result.usage.total_tokens, result.usage.total_cost)
@@ -37,7 +37,10 @@ The server needs the key for the selected model's provider:
 `OPENROUTER_API_KEY` for `openrouter/...` models or `NVIDIA_NIM_API_KEY` for
 `nvidia_nim/...` models. The SDK does not start or deploy the server.
 
-`alpha` defaults to 0.5; 0 prioritizes cost, 1 prioritizes quality. The returned
+`lam` (lambda) defaults to 20: how many accuracy points one USD per request is
+worth. 0 picks the model with the best expected accuracy; higher values pick
+cheaper models. `result.estimates` lists the expected accuracy and cost per
+request of each ranked candidate, from the server's measured routing table. The returned
 `model` contains the selected model's metadata. `usage` reports tokens and
 estimated costs. `finish_reason == "length"` signals a truncated response and
 may accompany empty content. The complete wire response is available through
@@ -49,20 +52,22 @@ may accompany empty content. The complete wire response is available through
 from lonnrouter import LonnRouter, Signal
 
 with LonnRouter() as router:
-    selection = router.route("Write a sorting function", alpha=0.7)
+    selection = router.route("Write a sorting function", lam=40)
     print(selection.model.id, selection.routing_latency_ms)
 
     # Isolate the router from classifier inference for repeatable benchmarks.
     selection = router.route(
         "Write a sorting function",
-        signal=Signal(complexity=0.5, topic_scores={"coding": 1.0}),
+        signal=Signal(task_scores={"code_function": 1.0}),
     )
     print(router.health().status)
     print([model.id for model in router.models()])
 ```
 
 Both `route` and `generate` accept `signal` as a `Signal` or matching dictionary.
-Omit it for automatic Laya analysis. The server validates request parameters;
+A signal holds task-type probabilities (`task_scores`, summing to 1, with IDs
+from the server's `config/task_types.yaml`) and an optional `complexity`. Omit it
+for automatic classification. The server validates request parameters;
 invalid requests raise `LonnAPIError` with `status_code == 422`.
 
 ## Async apps
@@ -73,7 +78,7 @@ from lonnrouter import AsyncLonnRouter
 
 async def main():
     async with AsyncLonnRouter(base_url="http://192.168.1.42:8000") as router:
-        result = await router.generate("Explain binary search", alpha=0.7)
+        result = await router.generate("Explain binary search", lam=20)
         print(result.content)
 
 asyncio.run(main())
@@ -104,7 +109,7 @@ with LonnRouter(request_timeout=300) as router:
 `request_timeout` is the HTTPX network-operation timeout (default 300 seconds),
 not a total wall-clock deadline. `provider_timeout` is sent to the server's
 model executor (default 120 seconds, maximum 600). Allow extra client time for
-classification, particularly Laya's first-use loading. The first automatic
+classification, particularly the classifier's first-use loading. The first automatic
 `route` call can be used to warm the classifier before a benchmark.
 
 - `LonnAPIError`: non-success HTTP response; inspect `status_code` (422 invalid

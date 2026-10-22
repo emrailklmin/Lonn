@@ -1,5 +1,10 @@
 """HTTP interface for routing and end-to-end benchmarks.
 
+Routing uses the task-type router (issue #19, docs/task_router.md): the task
+classifier gives a probability per task type, and the router picks the model
+with the highest expected accuracy minus ``lam`` times its expected cost per
+request, from the routing table measured on the benchmark.
+
 Run: python3 -m uvicorn lonn.api:app --app-dir src --host 127.0.0.1
 """
 
@@ -8,41 +13,50 @@ import logging
 from math import fsum, isclose
 from threading import Lock
 from time import perf_counter
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .complexity import ComplexityScorer
 from .executor import execute
 from .model_pool import load_model_pool
-from .router import rank_models
-from .schemas import ComplexityResult, Model, ModelResponse, TopicCategory
+from .routing_table import RoutingTable
+from .schemas import Model, ModelResponse, TaskSignal
+from .task_classifier import TaskClassifier
+from .task_router import DEFAULT_LAMBDA, FALLBACK_LIMIT, estimate, rank_models
+from .task_types import load_task_types
 
 
 logger = logging.getLogger(__name__)
 
 
 UnitScore = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False, strict=True)]
+Lambda = Annotated[float, Field(ge=0, le=100000, allow_inf_nan=False, strict=True)]
+KNOWN_TASK_TYPES = frozenset(t.id for t in load_task_types())
 
 
 class SignalInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    complexity: UnitScore
-    topic_scores: dict[TopicCategory, UnitScore]
+    """A caller-supplied classifier result, which skips the task classifier."""
 
-    @field_validator("topic_scores")
+    model_config = ConfigDict(extra="forbid")
+    task_scores: dict[str, UnitScore]
+    complexity: UnitScore | None = None
+
+    @field_validator("task_scores")
     @classmethod
-    def probabilities_sum_to_one(cls, scores):
+    def known_types_summing_to_one(cls, scores):
+        unknown = set(scores) - KNOWN_TASK_TYPES
+        if unknown:
+            raise ValueError(f"Unknown task types: {sorted(unknown)}")
         if not isclose(fsum(scores.values()), 1, rel_tol=0, abs_tol=1e-6):
-            raise ValueError("Topic probabilities must sum to 1")
+            raise ValueError("Task probabilities must sum to 1")
         return scores
 
 
 class RouteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     prompt: str = Field(min_length=1, strict=True)
-    alpha: UnitScore = 0.5
+    lam: Lambda = DEFAULT_LAMBDA
     signal: SignalInput | None = None
 
     @field_validator("prompt")
@@ -58,19 +72,28 @@ class GenerateRequest(RouteRequest):
     timeout: float = Field(default=120, gt=0, le=600, allow_inf_nan=False, strict=True)
 
 
+class CandidateEstimate(BaseModel):
+    model_id: str
+    expected_accuracy: float
+    expected_cost_usd: float
+    score: float
+
+
 class RouteResponse(BaseModel):
     models: list[Model]
-    signal: ComplexityResult
-    alpha: float
-    analysis_source: str
+    estimates: list[CandidateEstimate]
+    signal: TaskSignal
+    lam: float
+    analysis_source: Literal["classifier", "provided"]
     routing_latency_ms: float
 
 
 class GenerateResponse(BaseModel):
     model: Model
-    signal: ComplexityResult
-    alpha: float
-    analysis_source: str
+    estimates: list[CandidateEstimate]
+    signal: TaskSignal
+    lam: float
+    analysis_source: Literal["classifier", "provided"]
     routing_latency_ms: float
     response: ModelResponse
     total_latency_ms: float
@@ -79,17 +102,18 @@ class GenerateResponse(BaseModel):
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
-        # Fail startup on invalid configuration; freeze the pool for this run.
+        # Fail startup on invalid configuration; freeze the pool and table for this run.
         app.state.models = load_model_pool()
-        app.state.scorer = ComplexityScorer()
-        app.state.scorer_lock = Lock()
+        app.state.table = RoutingTable.load()
+        app.state.classifier = TaskClassifier()  # The embedder loads on first use.
+        app.state.classifier_lock = Lock()
         yield
 
-    app = FastAPI(title="Lonn Router", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(title="Lonn Router", version="2.0.0", lifespan=lifespan)
 
     @app.get("/health")
     def health():
-        """Local service health; does not probe Laya or NVIDIA."""
+        """Local service health; does not load the classifier or call providers."""
         return {"status": "ok"}
 
     @app.get("/models", response_model=list[Model])
@@ -98,30 +122,33 @@ def create_app() -> FastAPI:
 
     def route_request(request: RouteRequest) -> RouteResponse:
         started = perf_counter()
+        source = "provided" if request.signal is not None else "classifier"
         try:
             if request.signal is not None:
-                signal = ComplexityResult(request.signal.complexity, request.signal.topic_scores)
+                signal = TaskSignal(dict(request.signal.task_scores), request.signal.complexity)
             else:
-                # Protect lazy model initialization and inference across worker threads.
-                with app.state.scorer_lock:
-                    signal = app.state.scorer.score_prompt(request.prompt)
-            models = rank_models(signal, app.state.models, alpha=request.alpha, limit=5)
+                # Protect lazy model loading and inference across worker threads.
+                with app.state.classifier_lock:
+                    signal = app.state.classifier.classify(request.prompt)
+            ranked = rank_models(signal, app.state.table, app.state.models, lam=request.lam,
+                                 limit=FALLBACK_LIMIT)
+            by_id = {e.model.id: e for e in estimate(signal, app.state.table, app.state.models, request.lam)}
         except Exception as exc:
-            logger.warning(
-                "Prompt analysis or routing failed (source=%s error=%s)",
-                "provided" if request.signal is not None else "laya",
-                type(exc).__name__,
-            )
-            raise HTTPException(503, "Prompt analysis or routing failed. Check server dependencies and model configuration.") from None
+            logger.warning("Prompt analysis or routing failed (source=%s error=%s)", source, type(exc).__name__)
+            raise HTTPException(503, "Prompt analysis or routing failed. Check server dependencies and "
+                                     "the routing configuration.") from None
         return RouteResponse(
-            models=models, signal=signal, alpha=request.alpha,
-            analysis_source="provided" if request.signal is not None else "laya",
+            models=ranked,
+            estimates=[CandidateEstimate(model_id=m.id, expected_accuracy=round(by_id[m.id].accuracy, 4),
+                                         expected_cost_usd=round(by_id[m.id].cost_usd, 8),
+                                         score=round(by_id[m.id].score, 4)) for m in ranked],
+            signal=signal, lam=request.lam, analysis_source=source,
             routing_latency_ms=(perf_counter() - started) * 1000,
         )
 
     @app.post("/route", response_model=RouteResponse)
     def route(request: RouteRequest):
-        """Analyze and select a model without calling NVIDIA."""
+        """Classify the prompt and rank models without calling a provider."""
         return route_request(request)
 
     @app.post("/generate", response_model=GenerateResponse)
@@ -163,7 +190,7 @@ def create_app() -> FastAPI:
                 raise HTTPException(502, "Provider rejected server credentials or access") from None
             raise HTTPException(502, "Model execution failed. Check server credentials, dependencies, and provider availability.") from None
         return GenerateResponse(
-            model=selected_model, signal=routed.signal, alpha=routed.alpha,
+            model=selected_model, estimates=routed.estimates, signal=routed.signal, lam=routed.lam,
             analysis_source=routed.analysis_source,
             routing_latency_ms=routed.routing_latency_ms, response=response,
             total_latency_ms=(perf_counter() - started) * 1000,
