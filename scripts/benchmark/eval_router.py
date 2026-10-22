@@ -261,7 +261,7 @@ def run_config(name, description, scorer, alpha, pool, max_tokens_equivalent, qu
         raise ValueError(f'Run name {name!r}: use letters, digits, ".", "_" and "-"')
     prices = {m.id: [m.cost_per_m_input, m.cost_per_m_output] for m in pool}
     return {'run_name': name, 'description': description, 'date': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-            'git_commit': _git('rev-parse', '--short', 'HEAD'), 'git_dirty': bool(_git('status', '--porcelain', '--untracked-files=no')),
+            'git_commit': _git('rev-parse', '--short', 'HEAD'), 'git_dirty': bool(_git('status', '--porcelain', '--untracked-files=no', '--', '.', ':!results')),  # results/ changes as runs are saved
             'scorer': scorer, 'alpha': alpha, 'models': [m.id for m in pool], 'prices': prices,
             'prices_hash': hashlib.sha256(json.dumps(prices, sort_keys=True).encode()).hexdigest()[:12],
             'max_tokens_equivalent': max_tokens_equivalent, 'questions': questions, 'excluded': excluded}
