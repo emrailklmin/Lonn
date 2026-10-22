@@ -25,6 +25,20 @@ class ComplexityResult:
 
 
 @dataclass
+class TaskSignal:
+    """Classifier output for the task-type router (issue #19).
+
+    ``task_scores`` is a probability distribution over task-type IDs from
+    ``config/task_types.yaml``. ``complexity`` is in [0, 1], where 0, 0.5 and
+    1 mean the easy, medium and hard end of the task type; ``None`` means
+    unknown, so the router uses the task type's average.
+    """
+
+    task_scores: dict[str, float]
+    complexity: float | None = None
+
+
+@dataclass
 class Model:
     id: str
     provider: str

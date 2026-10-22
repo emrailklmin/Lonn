@@ -55,7 +55,9 @@ GROUPS = ('category', 'dataset', 'difficulty')
 RUN_COLUMNS = ['run_name', 'description', 'date', 'git_commit', 'git_dirty', 'scorer', 'alpha', 'models',
                'prices_hash', 'max_tokens_equivalent', 'questions', 'excluded', 'pass_rate', 'total_cost_usd',
                'cost_per_pass_usd', 'mean_latency_ms', 'oracle_pass_rate', 'oracle_cost_usd',
-               'best_fixed_model', 'best_fixed_pass_rate', 'best_fixed_cost_usd']
+               'best_fixed_model', 'best_fixed_pass_rate', 'best_fixed_cost_usd',
+               # Task-type router runs (eval_task_router.py, #19); empty for alpha-router runs.
+               'policy', 'lambda', 'tau', 'crossfit']
 
 
 # Signals (what the scorer sees is the user message, as a client would send it)
@@ -294,8 +296,9 @@ def save_run(eval_dir, config, decisions, summary, sweep=None) -> Path:
     return folder
 
 
-def write_sweep_svg(points, fixed, path, width=640, height=420) -> None:
-    """Pass rate vs total cost: the router's alpha sweep as a line, fixed models as dots."""
+def write_sweep_svg(points, fixed, path, width=640, height=420, label_prefix='a=') -> None:
+    """Pass rate vs total cost: the router's sweep as a line (each point's 'alpha' value is
+    labelled with label_prefix), fixed models as dots."""
     xs = [p['cost_usd'] for p in points] + [f['cost_usd'] for f in fixed.values()]
     ys = [p['pass_rate'] for p in points] + [f['pass_rate'] for f in fixed.values()]
     x0, x1 = 0.0, max(xs) * 1.05 or 1.0
@@ -323,7 +326,7 @@ def write_sweep_svg(points, fixed, path, width=640, height=420) -> None:
     for p in points:
         x, y = px(p['cost_usd'], p['pass_rate'])
         parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="#1f77b4"/>'
-                     f'<text x="{x + 5:.1f}" y="{y - 5:.1f}" fill="#1f77b4">a={p["alpha"]}</text>')
+                     f'<text x="{x + 5:.1f}" y="{y - 5:.1f}" fill="#1f77b4">{label_prefix}{p["alpha"]:g}</text>')
     for name, f in fixed.items():
         x, y = px(f['cost_usd'], f['pass_rate'])
         parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="#d62728"/>'
