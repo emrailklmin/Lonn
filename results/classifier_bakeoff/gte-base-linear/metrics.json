@@ -1,0 +1,187 @@
+{
+ "candidate": "gte-base-linear",
+ "train_rows": 32774,
+ "validation_rows": 3624,
+ "task_types": [
+  "math_problem",
+  "code_function",
+  "code_algorithmic",
+  "science_expert",
+  "knowledge_quantitative",
+  "knowledge_recall",
+  "instruction_following",
+  "business_writing",
+  "summarization",
+  "translation",
+  "information_extraction",
+  "creative_writing",
+  "conversation",
+  "tool_calling",
+  "other"
+ ],
+ "date": "2026-10-22",
+ "model": "Alibaba-NLP/gte-modernbert-base",
+ "trained": "linear",
+ "accuracy": 0.8474,
+ "macro_f1": 0.8294,
+ "by_variant": {
+  "as_benchmark": {
+   "n": 2906,
+   "accuracy": 0.8517
+  },
+  "plain": {
+   "n": 718,
+   "accuracy": 0.8301
+  }
+ },
+ "long_prompts": {
+  "n": 369,
+  "accuracy": 0.9024
+ },
+ "per_type": {
+  "math_problem": {
+   "n": 315,
+   "recall": 0.9365,
+   "precision": 0.8702,
+   "f1": 0.9021
+  },
+  "code_function": {
+   "n": 172,
+   "recall": 0.9826,
+   "precision": 0.9941,
+   "f1": 0.9883
+  },
+  "code_algorithmic": {
+   "n": 178,
+   "recall": 1.0,
+   "precision": 0.9889,
+   "f1": 0.9944
+  },
+  "science_expert": {
+   "n": 104,
+   "recall": 0.8365,
+   "precision": 0.7373,
+   "f1": 0.7838
+  },
+  "knowledge_quantitative": {
+   "n": 578,
+   "recall": 0.8374,
+   "precision": 0.8848,
+   "f1": 0.8604
+  },
+  "knowledge_recall": {
+   "n": 502,
+   "recall": 0.7331,
+   "precision": 0.827,
+   "f1": 0.7772
+  },
+  "instruction_following": {
+   "n": 337,
+   "recall": 0.9199,
+   "precision": 0.9394,
+   "f1": 0.9295
+  },
+  "business_writing": {
+   "n": 43,
+   "recall": 0.9767,
+   "precision": 0.9545,
+   "f1": 0.9655
+  },
+  "summarization": {
+   "n": 120,
+   "recall": 0.325,
+   "precision": 0.5652,
+   "f1": 0.4127
+  },
+  "translation": {
+   "n": 316,
+   "recall": 0.9873,
+   "precision": 0.9842,
+   "f1": 0.9858
+  },
+  "information_extraction": {
+   "n": 297,
+   "recall": 0.8754,
+   "precision": 0.7303,
+   "f1": 0.7963
+  },
+  "creative_writing": {
+   "n": 75,
+   "recall": 0.5333,
+   "precision": 0.396,
+   "f1": 0.4545
+  },
+  "conversation": {
+   "n": 298,
+   "recall": 0.7282,
+   "precision": 0.6955,
+   "f1": 0.7115
+  },
+  "tool_calling": {
+   "n": 78,
+   "recall": 0.9615,
+   "precision": 0.9868,
+   "f1": 0.974
+  },
+  "other": {
+   "n": 211,
+   "recall": 0.9242,
+   "precision": 0.8864,
+   "f1": 0.9049
+  }
+ },
+ "top_confusions": [
+  {
+   "gold": "summarization",
+   "predicted": "information_extraction",
+   "n": 74
+  },
+  {
+   "gold": "knowledge_recall",
+   "predicted": "conversation",
+   "n": 56
+  },
+  {
+   "gold": "knowledge_quantitative",
+   "predicted": "math_problem",
+   "n": 36
+  },
+  {
+   "gold": "conversation",
+   "predicted": "creative_writing",
+   "n": 32
+  },
+  {
+   "gold": "knowledge_recall",
+   "predicted": "knowledge_quantitative",
+   "n": 30
+  },
+  {
+   "gold": "conversation",
+   "predicted": "knowledge_recall",
+   "n": 29
+  },
+  {
+   "gold": "knowledge_quantitative",
+   "predicted": "knowledge_recall",
+   "n": 29
+  },
+  {
+   "gold": "information_extraction",
+   "predicted": "summarization",
+   "n": 27
+  },
+  {
+   "gold": "creative_writing",
+   "predicted": "conversation",
+   "n": 23
+  },
+  {
+   "gold": "knowledge_quantitative",
+   "predicted": "science_expert",
+   "n": 16
+  }
+ ],
+ "latency_ms_per_prompt": 1454.6,
+ "latency_device": "CPU, batch 1"
+}
