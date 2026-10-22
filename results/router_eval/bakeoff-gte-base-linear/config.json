@@ -1,9 +1,9 @@
 {
   "run_name": "bakeoff-gte-base-linear",
   "description": "Task router (#19) with gte-base-linear task-type signal, lambda 20, complexity off, cross-fitted 5x10",
-  "date": "2026-10-22T15:24:53+00:00",
-  "git_commit": "b901112",
-  "git_dirty": true,
+  "date": "2026-10-22T15:25:35+00:00",
+  "git_commit": "136b2a4",
+  "git_dirty": false,
   "scorer": "results/classifier_bakeoff/gte-base-linear/benchmark_signals.jsonl",
   "alpha": null,
   "models": [

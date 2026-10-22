@@ -1,9 +1,9 @@
 {
   "run_name": "bakeoff-laya-zeroshot",
   "description": "Task router (#19) with laya-zeroshot task-type signal, lambda 20, complexity off, cross-fitted 5x10",
-  "date": "2026-10-22T15:25:05+00:00",
-  "git_commit": "b901112",
-  "git_dirty": true,
+  "date": "2026-10-22T15:25:47+00:00",
+  "git_commit": "136b2a4",
+  "git_dirty": false,
   "scorer": "results/classifier_bakeoff/laya-zeroshot/benchmark_signals.jsonl",
   "alpha": null,
   "models": [
