@@ -13,6 +13,7 @@ test the routing logic before training a classifier.
 
     python3 scripts/benchmark/eval_task_router.py --name task-true
     python3 scripts/benchmark/eval_task_router.py --name task-true-tau --mode threshold --taus 0.8 0.9 0.95
+    python3 scripts/benchmark/eval_task_router.py --name task-gte-linear --signals results/classifier_bakeoff/gte-base-linear/benchmark_signals.jsonl
 
 Results go to results/router_eval/<name>/ and a row of results/router_eval/runs.csv,
 like eval_router.py. No API calls are made.
@@ -35,6 +36,7 @@ from lonn.schemas import TaskSignal  # noqa: E402
 from lonn.task_router import DEFAULT_LAMBDA, LEVEL_POSITION, rank_models  # noqa: E402
 from lonn.task_types import difficulty_for_record, load_task_types, task_for_record  # noqa: E402
 
+ROOT = Path(__file__).resolve().parents[2]
 SCORER = 'true-task'
 DEFAULT_LAMBDAS = [0, 2, 5, 10, 15, 20, 30, 40, 60, 80, 120, 160]
 
@@ -78,9 +80,24 @@ def folds_for(questions, folds, seed) -> list:
     return [assigned[i] for i in range(len(questions))]
 
 
-def signal_for(q) -> TaskSignal:
-    """The truth as classifier output: the task type, and complexity from the difficulty label."""
+def signal_for(q, signals=None) -> TaskSignal:
+    """A classifier's saved signal for this question, or by default the truth: the task type,
+    and complexity from the difficulty label."""
+    if signals is not None:
+        saved = signals[q['prompt_id']]
+        return TaskSignal(dict(saved['task_scores']), saved.get('complexity'))
     return TaskSignal({q['task']: 1.0}, LEVEL_POSITION[q['level']] if q['level'] else None)
+
+
+def load_signals(path) -> dict:
+    """prompt_id -> {task_scores, complexity} from a classifier's JSON Lines file."""
+    signals = {}
+    for line in Path(path).read_text().splitlines():
+        item = json.loads(line)
+        total = sum(item['task_scores'].values())
+        signals[item['prompt_id']] = {'task_scores': {t: p / total for t, p in item['task_scores'].items()},
+                                      'complexity': item.get('complexity')}
+    return signals
 
 
 def decide(q, ranking, bank) -> dict:
@@ -94,7 +111,7 @@ def decide(q, ranking, bank) -> dict:
     return {'chosen': None, 'fallbacks': len(ranking), 'correct': False, 'cost_usd': 0.0, 'latency_ms': 0}
 
 
-def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0, seed=0) -> dict:
+def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0, seed=0, signals=None) -> dict:
     """settings: list of (key, rank_models kwargs). Returns per key the averaged metrics,
     the choice shares and, from the first repeat, the per-question decisions."""
     out = {key: {'items': [], 'choices': Counter(), 'decisions': []} for key, _ in settings}
@@ -106,7 +123,7 @@ def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0
             table = build_table(table_rows(train, pool, bank), smoothing=smoothing)
             for key, kwargs in settings:
                 for q in test:
-                    signal = signal_for(q)
+                    signal = signal_for(q, signals)
                     ranking = rank_models(signal, table, pool, limit=ev.FALLBACK_LIMIT, **kwargs)
                     d = decide(q, ranking, bank)
                     out[key]['items'].append({k: q[k] for k in ev.GROUPS} | {'task': q['task']} | d)
@@ -183,6 +200,8 @@ def main(argv=None):
     parser.add_argument('--use-complexity', action='store_true',
                         help='headline run with complexity (default: the router default, off); '
                              'the sweep always covers both')
+    parser.add_argument('--signals', type=Path,
+                        help='a classifier\'s benchmark_signals.jsonl instead of the true task type')
     parser.add_argument('--folds', type=int, default=5)
     parser.add_argument('--repeats', type=int, default=10)
     parser.add_argument('--smoothing', type=float, default=5.0)
@@ -200,6 +219,9 @@ def main(argv=None):
     if not questions:
         raise SystemExit('No questions with saved answers; build the prompt files (build_data.py) first.')
     questions = annotate(questions, load_task_types())
+    signals = load_signals(args.signals) if args.signals else None
+    if signals is not None and (missing := [q['prompt_id'] for q in questions if q['prompt_id'] not in signals]):
+        raise SystemExit(f'{len(missing)} questions have no signal in {args.signals}, e.g. {missing[0]}')
 
     if args.mode == 'utility':
         points = [('lam', lam) for lam in sorted(set(args.lambdas) | {args.lam})]
@@ -215,7 +237,7 @@ def main(argv=None):
             settings.append(((use_complexity, value), kwargs))
     print(f'Cross-fitting {len(questions)} questions: {args.folds} folds x {args.repeats} repeats, '
           f'{len(settings)} settings...', flush=True)
-    results = crossfit(questions, pool, bank, settings, args.folds, args.repeats, args.smoothing)
+    results = crossfit(questions, pool, bank, settings, args.folds, args.repeats, args.smoothing, signals=signals)
     base = baselines(questions, pool, bank)
     reference = reference_run(args.eval_dir, args.reference_run)
 
@@ -242,7 +264,11 @@ def main(argv=None):
                'headline_other_complexity_setting': results[(not args.use_complexity, headline)]['metrics'],
                'fallbacks_used': sum(d['fallbacks'] > 0 for d in head['decisions']),
                'unanswered': sum(d['chosen'] is None for d in head['decisions'])}
-    config = ev.run_config(args.name, args.description, SCORER, None, pool, 8192, len(questions), excluded)
+    scorer = SCORER
+    if args.signals:
+        path = args.signals.resolve()
+        scorer = str(path.relative_to(ROOT) if path.is_relative_to(ROOT) else path)
+    config = ev.run_config(args.name, args.description, scorer, None, pool, 8192, len(questions), excluded)
     config.update(policy=f'task-{args.mode}', **{'lambda': headline if args.mode == 'utility' else None},
                   tau=headline if args.mode == 'threshold' else None,
                   crossfit=f'{args.folds}x{args.repeats}', smoothing=args.smoothing,

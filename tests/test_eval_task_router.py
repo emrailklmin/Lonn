@@ -72,6 +72,19 @@ class EvalTaskRouterTests(unittest.TestCase):
         for d in decisions:
             self.assertNotIn(d['prompt_id'], seen[d['fold']])
 
+    def test_saved_classifier_signals_replace_the_truth(self):
+        signals = {q['prompt_id']: {'task_scores': {'summarization': 1.0}, 'complexity': None} for q in self.questions}
+        summary = et.crossfit(self.questions, POOL, self.bank, [('k', {'lam': 20})], folds=5, repeats=1,
+                              signals=signals)
+        self.assertTrue(all(d['signal']['task_scores'] == {'summarization': 1.0}
+                            for d in summary['k']['decisions']))
+
+    def test_load_signals_normalizes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 's.jsonl'
+            path.write_text('{"prompt_id": "a", "task_scores": {"x": 2, "y": 2}, "complexity": null}\n')
+            self.assertEqual(et.load_signals(path)['a']['task_scores'], {'x': 0.5, 'y': 0.5})
+
     def test_complexity_routes_hard_math_to_the_strong_model(self):
         # No smoothing: the fixture's cells hold only 4 questions per level.
         summary = et.crossfit(self.questions, POOL, self.bank, [('k', {'lam': 20, 'use_complexity': True})],
