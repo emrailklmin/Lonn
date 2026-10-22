@@ -1,0 +1,219 @@
+{
+ "version": 1,
+ "seed": 20261022,
+ "cap_per_type": 3000,
+ "validation_share": 0.1,
+ "built_from_commit": "f6a4715",
+ "sources": {
+  "math": {
+   "repo": "EleutherAI/hendrycks_math",
+   "revision": "21a5633",
+   "license": "MIT"
+  },
+  "mbpp": {
+   "repo": "google-research-datasets/mbpp",
+   "revision": "4bb6404",
+   "license": "CC-BY-4.0"
+  },
+  "arc": {
+   "repo": "allenai/ai2_arc",
+   "revision": "210d026",
+   "license": "CC-BY-SA-4.0"
+  },
+  "lcb": {
+   "repo": "livecodebench/code_generation_lite",
+   "revision": "0fe84c3",
+   "license": "CC (unspecified; internal use only)"
+  },
+  "rlvr_ifeval": {
+   "repo": "allenai/RLVR-IFeval",
+   "revision": "47c03c7",
+   "license": "ODC-BY"
+  },
+  "dolly": {
+   "repo": "databricks/databricks-dolly-15k",
+   "revision": "bdd27f4",
+   "license": "CC-BY-SA-3.0"
+  },
+  "gpqa": {
+   "repo": "Idavidrein/gpqa",
+   "revision": "83022ce",
+   "license": "CC-BY-4.0 (gated; do not publish in plain text)"
+  }
+ },
+ "benchmark_sources_on_disk": {
+  "bfcl_simple": {
+   "repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+   "revision": "61fc060",
+   "license": "Apache-2.0"
+  },
+  "bfcl_multiple": {
+   "repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+   "revision": "61fc060",
+   "license": "Apache-2.0"
+  },
+  "bfcl_parallel": {
+   "repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+   "revision": "61fc060",
+   "license": "Apache-2.0"
+  },
+  "bfcl_irrelevance": {
+   "repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+   "revision": "61fc060",
+   "license": "Apache-2.0"
+  },
+  "humaneval_plus": {
+   "repo": "evalplus/humanevalplus",
+   "revision": "d32357c",
+   "license": "Apache-2.0"
+  },
+  "mbpp_plus": {
+   "repo": "evalplus/mbppplus",
+   "revision": "b2d74c9",
+   "license": "Apache-2.0"
+  },
+  "livecodebench": {
+   "repo": "livecodebench/code_generation_lite",
+   "revision": "0fe84c3",
+   "license": "CC (unspecified)"
+  },
+  "mmlu_pro": {
+   "repo": "TIGER-Lab/MMLU-Pro",
+   "revision": "b189ec7",
+   "license": "MIT"
+  },
+  "gpqa_diamond": {
+   "repo": "Idavidrein/gpqa",
+   "revision": "83022ce",
+   "license": "CC-BY-4.0"
+  },
+  "arc_challenge": {
+   "repo": "allenai/ai2_arc",
+   "revision": "210d026",
+   "license": "CC-BY-SA-4.0"
+  },
+  "math500": {
+   "repo": "HuggingFaceH4/MATH-500",
+   "revision": "6e4ed1a",
+   "license": "MIT (upstream MATH; card has none)"
+  },
+  "ifeval": {
+   "repo": "google/IFEval",
+   "revision": "966cd89",
+   "license": "Apache-2.0"
+  },
+  "writingbench_business": {
+   "repo": "X-PLUG/WritingBench",
+   "revision": "ae2d517",
+   "license": "Apache-2.0"
+  }
+ },
+ "exclusions": {
+  "excluded_benchmark": 811,
+  "excluded_duplicate": 733,
+  "capped_business_writing": 0,
+  "capped_code_algorithmic": 0,
+  "capped_code_function": 0,
+  "capped_conversation": 851,
+  "capped_creative_writing": 0,
+  "capped_information_extraction": 260,
+  "capped_instruction_following": 12431,
+  "capped_knowledge_quantitative": 3706,
+  "capped_knowledge_recall": 8046,
+  "capped_math_problem": 9218,
+  "capped_other": 0,
+  "capped_summarization": 0,
+  "capped_tool_calling": 0,
+  "capped_translation": 692
+ },
+ "counts": {
+  "business_writing": {
+   "train_as_benchmark": 356,
+   "validation_as_benchmark": 43
+  },
+  "code_algorithmic": {
+   "train_as_benchmark": 846,
+   "train_plain": 846,
+   "validation_as_benchmark": 89,
+   "validation_plain": 89
+  },
+  "code_function": {
+   "train_as_benchmark": 968,
+   "train_plain": 968,
+   "validation_as_benchmark": 86,
+   "validation_plain": 86
+  },
+  "conversation": {
+   "train_as_benchmark": 2702,
+   "validation_as_benchmark": 298
+  },
+  "creative_writing": {
+   "train_as_benchmark": 716,
+   "validation_as_benchmark": 75
+  },
+  "information_extraction": {
+   "train_as_benchmark": 2703,
+   "validation_as_benchmark": 297
+  },
+  "instruction_following": {
+   "train_as_benchmark": 2663,
+   "validation_as_benchmark": 337
+  },
+  "knowledge_quantitative": {
+   "train_as_benchmark": 2711,
+   "train_plain": 2711,
+   "validation_as_benchmark": 289,
+   "validation_plain": 289
+  },
+  "knowledge_recall": {
+   "train_as_benchmark": 2700,
+   "train_plain": 1838,
+   "validation_as_benchmark": 300,
+   "validation_plain": 202
+  },
+  "math_problem": {
+   "train_as_benchmark": 2685,
+   "validation_as_benchmark": 315
+  },
+  "other": {
+   "train_as_benchmark": 1921,
+   "validation_as_benchmark": 211
+  },
+  "summarization": {
+   "train_as_benchmark": 1066,
+   "validation_as_benchmark": 120
+  },
+  "tool_calling": {
+   "train_as_benchmark": 802,
+   "validation_as_benchmark": 78
+  },
+  "translation": {
+   "train_as_benchmark": 2684,
+   "validation_as_benchmark": 316
+  }
+ },
+ "files": {
+  "train.parquet": {
+   "rows": 31886,
+   "sha256": "417b0ee38cf5199cf9a5464e2ce2ab08fa26b27944cd38dc3fe129cf4ad68e40"
+  },
+  "validation.parquet": {
+   "rows": 3520,
+   "sha256": "55ad66c3e62401c654a68480e2bb8d0f27417511a60a16f1f49e950ba94f3ed1"
+  }
+ },
+ "restricted": {
+  "gpqa.parquet": {
+   "rows": 992,
+   "counts": {
+    "science_expert": {
+     "train_as_benchmark": 444,
+     "train_plain": 444,
+     "validation_as_benchmark": 52,
+     "validation_plain": 52
+    }
+   },
+   "sha256": "42921704d72939e6a4cd203e40dfab39e8fa37d821554bdab85a466c94b5d18a"
+  }
+ }
+}
