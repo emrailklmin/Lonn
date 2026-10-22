@@ -12,10 +12,12 @@
 # anchors:  benchmark datasets (keys in data/benchmark/manifest.json) whose
 #           answer-bank results form the routing table. `subjects` limits an
 #           anchor to those `subject` values.
-# training: where classifier training prompts come from. Rows sampled into the
-#           benchmark (the 690 questions) are always excluded by source ID.
-#           status: available = already downloaded by build_data.py;
-#                   to_download = new source, revision and licence still to pin.
+# training: where classifier training prompts come from (built by
+#           scripts/build_task_data.py, see docs/task_data.md). Benchmark-sampled
+#           questions are always excluded, by source ID and by normalized text.
+#           status: available = already on disk from build_data.py;
+#                   streamed = read from Hugging Face into memory (pinned in the
+#                   builder's HF table), nothing kept on disk.
 # difficulty: how a training row's difficulty label is derived, if at all.
 
 version: 1
@@ -32,8 +34,8 @@ task_types:
       - source: HuggingFaceH4/MATH-500
         status: available
         note: 350 rows not sampled into the benchmark.
-      - source: MATH (Hendrycks) train and test splits
-        status: to_download
+      - source: EleutherAI/hendrycks_math train and test splits
+        status: streamed
         note: >-
           About 7,500 train and 5,000 test problems. MATH-500 is a subset of
           the test split, so exclude its 150 sampled problems by source ID.
@@ -56,8 +58,8 @@ task_types:
       - source: evalplus/mbppplus
         status: available
         note: 338 rows not sampled.
-      - source: MBPP (full)
-        status: to_download
+      - source: google-research-datasets/mbpp (full)
+        status: streamed
         note: >-
           About 974 problems. MBPP+ is built from MBPP, so exclude the sampled
           MBPP+ task IDs.
@@ -74,7 +76,7 @@ task_types:
         status: available
         note: Only 55 rows not sampled.
       - source: livecodebench/code_generation_lite test.jsonl to test5.jsonl
-        status: to_download
+        status: streamed
         note: >-
           Releases v1 to v5, about 880 problems from older contests (2023-05
           to 2024-12). Licence on the card is unspecified; internal use only.
@@ -94,10 +96,11 @@ task_types:
         status: available
         note: 148 rows not sampled.
       - source: Idavidrein/gpqa gpqa_extended.csv
-        status: to_download
+        status: streamed
         note: >-
-          Extended (546) contains main and diamond; keep only rows not in
-          diamond (about 348). Gated: never commit or publish the text.
+          Extended (546) contains diamond; the sampled 50 are excluded. Gated:
+          built only with --include-gpqa into data/task_data/restricted/, never
+          committed or uploaded.
 
   - id: knowledge_quantitative
     measured: true
@@ -131,8 +134,11 @@ task_types:
         status: available
         note: 1,142 rows not sampled.
       - source: allenai/ai2_arc ARC-Challenge train and validation
-        status: to_download
+        status: streamed
         note: About 1,418 rows.
+      - source: databricks/databricks-dolly-15k (open_qa)
+        status: streamed
+        note: Plain human-written questions without options; no difficulty label.
     difficulty:
       by_dataset: {arc_challenge: easy, mmlu_pro: medium}
 
@@ -147,6 +153,9 @@ task_types:
       - source: google/IFEval
         status: available
         note: 461 rows not sampled.
+      - source: allenai/RLVR-IFeval
+        status: streamed
+        note: About 15,000 prompts with IFEval-style constraints (ODC-BY).
 
   - id: business_writing
     measured: true
@@ -159,8 +168,9 @@ task_types:
       - source: X-PLUG/WritingBench
         status: available
         note: >-
-          129 English business and marketing rows not sampled. Other English
-          WritingBench domains can be added once they are mapped to a type.
+          129 English business and marketing rows not sampled, plus the other
+          English non-fiction domains (academic, law, education), which ask for
+          the same kind of long professional document.
 
   # Not measured yet: the router uses its fallback default for these.
   - id: summarization
@@ -168,32 +178,47 @@ task_types:
     description: >-
       Summarize, condense or explain the main points of a text the user
       provides.
-    training: []
+    training:
+      - source: databricks/databricks-dolly-15k (summarization)
+        status: streamed
 
   - id: translation
     measured: false
     description: Translate text from one language to another.
-    training: []
+    training:
+      - source: databricks/databricks-dolly-15k (open_qa and general_qa answers)
+        status: streamed
+        note: >-
+          Synthetic: an English Dolly answer wrapped in one of several
+          translation requests to a randomly chosen language.
 
   - id: information_extraction
     measured: false
     description: >-
       Pull specific facts, fields or structured data out of a text the user
       provides, or reformat it into a table, list or JSON.
-    training: []
+    training:
+      - source: databricks/databricks-dolly-15k (information_extraction, closed_qa)
+        status: streamed
 
   - id: creative_writing
     measured: false
     description: >-
       Write fiction, poetry, lyrics, jokes or other creative text.
-    training: []
+    training:
+      - source: databricks/databricks-dolly-15k (creative_writing)
+        status: streamed
+      - source: X-PLUG/WritingBench (Literature & Arts, English)
+        status: available
 
   - id: conversation
     measured: false
     description: >-
       Chat, give advice or an opinion, brainstorm, or answer a casual question
       that has no single correct answer.
-    training: []
+    training:
+      - source: databricks/databricks-dolly-15k (brainstorming, general_qa)
+        status: streamed
 
   - id: tool_calling
     measured: false
@@ -212,7 +237,9 @@ task_types:
   - id: other
     measured: false
     description: Anything that does not fit one of the other task types.
-    training: []
+    training:
+      - source: databricks/databricks-dolly-15k (classification)
+        status: streamed
 
 # Rules for building classifier training data (decision Q21, 2026-10-22).
 training_rules:

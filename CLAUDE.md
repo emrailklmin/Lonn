@@ -47,6 +47,8 @@ python3 scripts/benchmark/check_graders.py         # graders accept reference an
 # Task-type router (#19, docs/task_router.md): rebuild the routing table, then a cross-fitted replay (no calls)
 python3 scripts/benchmark/build_routing_table.py   # writes config/routing_table.json (generated, don't hand-edit)
 python3 scripts/benchmark/eval_task_router.py --name task-true-utility
+# Classifier training data (docs/task_data.md): streamed from HF, ~9 MB local, shared as private LonnAI/lonn-task-data
+python3 scripts/build_task_data.py --include-gpqa   # --push LonnAI/lonn-task-data to upload; --clean to delete local copy
 
 # Offline pool maintenance (write to gitignored reports/). If urllib fails with
 # CERTIFICATE_VERIFY_FAILED (python.org macOS build), first run:

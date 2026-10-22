@@ -33,3 +33,8 @@ htmlcov/
 # only data/benchmark/manifest.json is committed)
 /data/benchmark/raw/
 /data/benchmark/prompts/
+
+# Task-type classifier data (build with scripts/build_task_data.py, shared on a
+# private HF dataset; only data/task_data/manifest.json is committed)
+/data/task_data/*
+!/data/task_data/manifest.json

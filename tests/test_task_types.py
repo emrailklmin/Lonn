@@ -70,7 +70,7 @@ class TaskTypeConfigTests(unittest.TestCase):
     def test_training_sources_have_a_known_status(self):
         for t in TYPES:
             for source in t.get('training', []):
-                self.assertIn(source['status'], {'available', 'to_download'}, t['id'])
+                self.assertIn(source['status'], {'available', 'streamed'}, t['id'])
 
     def test_benchmark_sample_is_excluded(self):
         self.assertIs(CONFIG['training_rules']['exclude_benchmark_sample'], True)
