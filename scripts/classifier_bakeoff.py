@@ -37,17 +37,18 @@ import torch  # noqa: E402
 
 from benchmark.build_data import DATASETS, DEFAULT_DATA_DIR  # noqa: E402
 from benchmark.templates import user_message  # noqa: E402
+from lonn.task_classifier import Embedder  # noqa: E402
 from lonn.task_types import load_task_types  # noqa: E402
 
 TASK_DATA = ROOT / 'data' / 'task_data'
 OUT_DIR = ROOT / 'results' / 'classifier_bakeoff'
 TEMP = Path(tempfile.gettempdir()) / 'lonn-bakeoff'
+LOGIT_SCALE = 20.0
 LONG_TOKENS = 370  # Laya's old prompt budget; prompts above it are reported separately.
 EMBEDDERS = {'gte-base': ('Alibaba-NLP/gte-modernbert-base', 512),
              'bge-small': ('BAAI/bge-small-en-v1.5', 512)}
 CANDIDATES = ('laya-zeroshot', 'gte-base-linear', 'gte-base-knn', 'bge-small-linear')
 LAYA_INSTRUCTIONS = 'Which kind of task is the user asking an AI assistant to do? Pick the single best fit.'
-HEAD_SHARE = 0.35
 
 
 # Data
@@ -77,48 +78,7 @@ def load_benchmark(data_dir) -> list:
     return out
 
 
-# Embedding candidates
-
-def head_tail(ids, budget):
-    if len(ids) <= budget:
-        return ids
-    head = int(budget * HEAD_SHARE)
-    return ids[:head] + ids[-(budget - head):]
-
-
-class Embedder:
-    def __init__(self, repo, max_len, cache_dir, device):
-        from transformers import AutoModel, AutoTokenizer
-        self.tok = AutoTokenizer.from_pretrained(repo, cache_dir=cache_dir)
-        self.model = AutoModel.from_pretrained(repo, cache_dir=cache_dir).to(device).eval()
-        self.max_len, self.device = max_len, device
-
-    def encode_ids(self, texts):
-        budget = self.max_len - 2
-        return [head_tail(self.tok(t, add_special_tokens=False)['input_ids'], budget) for t in texts]
-
-    @torch.no_grad()
-    def embed(self, texts, batch_size=32, progress=''):
-        ids = self.encode_ids(texts)
-        order = np.argsort([len(i) for i in ids])
-        out = np.zeros((len(texts), self.model.config.hidden_size), dtype=np.float32)
-        cls, sep, pad = self.tok.cls_token_id, self.tok.sep_token_id, self.tok.pad_token_id
-        for start in range(0, len(order), batch_size):
-            batch = [ids[i] for i in order[start:start + batch_size]]
-            width = max(len(b) for b in batch) + 2
-            input_ids = torch.full((len(batch), width), pad)
-            mask = torch.zeros((len(batch), width), dtype=torch.long)
-            for row, b in enumerate(batch):
-                seq = [cls] + b + [sep]
-                input_ids[row, :len(seq)] = torch.tensor(seq)
-                mask[row, :len(seq)] = 1
-            hidden = self.model(input_ids=input_ids.to(self.device), attention_mask=mask.to(self.device)).last_hidden_state
-            vectors = torch.nn.functional.normalize(hidden[:, 0].float(), dim=-1).cpu().numpy()  # CLS pooling
-            out[order[start:start + batch_size]] = vectors
-            if progress and start % (batch_size * 100) == 0:
-                print(f'    {progress}: {start}/{len(texts)}', flush=True)
-        return out
-
+# Embedding candidates (the embedder is shared with production: lonn.task_classifier)
 
 def cached_embeddings(name, embedder, texts, label):
     key = hashlib.sha256(('\x00'.join(texts) + name).encode()).hexdigest()[:16]
@@ -131,8 +91,9 @@ def cached_embeddings(name, embedder, texts, label):
     return vectors
 
 
-def train_linear(x, y, n_classes, epochs=300, weight_decay=1e-4, lr=0.05, seed=0):
-    """Multinomial logistic regression with class weights (thin task types count more)."""
+def fit_linear(x, y, n_classes, epochs=300, weight_decay=1e-4, lr=0.05, seed=0, scale=LOGIT_SCALE):
+    """Multinomial logistic regression with class weights (thin task types count more).
+    Returns (weight, bias) as arrays; probabilities are softmax((x @ weight.T + bias) * scale)."""
     torch.manual_seed(seed)
     x, y = torch.tensor(x), torch.tensor(y)
     counts = torch.bincount(y, minlength=n_classes).float().clamp(min=1)
@@ -142,11 +103,21 @@ def train_linear(x, y, n_classes, epochs=300, weight_decay=1e-4, lr=0.05, seed=0
     loss_fn = torch.nn.CrossEntropyLoss(weight=weights)
     for _ in range(epochs):
         optimizer.zero_grad()
-        loss = loss_fn(layer(x) * 20.0, y)  # Inputs are unit vectors: scale logits up.
+        loss = loss_fn(layer(x) * scale, y)  # Inputs are unit vectors: scale logits up.
         loss.backward()
         optimizer.step()
-    layer.eval()
-    return lambda v: torch.softmax(layer(torch.tensor(v)) * 20.0, dim=-1).detach().numpy()
+    return layer.weight.detach().numpy(), layer.bias.detach().numpy()
+
+
+def train_linear(x, y, n_classes, **kwargs):
+    weight, bias = fit_linear(x, y, n_classes, **kwargs)
+
+    def predict(v):
+        logits = (np.asarray(v) @ weight.T + bias) * LOGIT_SCALE
+        logits -= logits.max(axis=1, keepdims=True)
+        probs = np.exp(logits)
+        return probs / probs.sum(axis=1, keepdims=True)
+    return predict
 
 
 def knn_predictor(x_train, y_train, n_classes, k=15, temperature=0.05):
@@ -272,7 +243,7 @@ def main(argv=None):
             embedder_name, method = name.rsplit('-', 1)
             repo, max_len = EMBEDDERS[embedder_name]
             if embedder_name not in embedded:
-                embedder = Embedder(repo, max_len, args.model_cache, device)
+                embedder = Embedder(repo, max_len, cache_dir=args.model_cache, device=device)
                 embedded[embedder_name] = (embedder, cached_embeddings(embedder_name, embedder, [r['text'] for r in train], 'train'),
                                            cached_embeddings(embedder_name, embedder, [r['text'] for r in val], 'validation'),
                                            cached_embeddings(embedder_name, embedder, [b['text'] for b in bench], 'benchmark'))
@@ -280,7 +251,7 @@ def main(argv=None):
             classify = (train_linear(x_train, y_train, len(task_ids)) if method == 'linear'
                         else knn_predictor(x_train, y_train, len(task_ids)))
             val_probs, bench_probs = classify(x_val), classify(x_bench)
-            cpu = Embedder(repo, max_len, args.model_cache, 'cpu')
+            cpu = Embedder(repo, max_len, cache_dir=args.model_cache, device='cpu')
             metrics = {**common, 'model': repo, 'trained': method,
                        **evaluate(val_probs, val, task_ids, val_lengths),
                        'latency_ms_per_prompt': latency_ms(lambda t: classify(cpu.embed([t])), [r['text'] for r in val]),
