@@ -23,7 +23,7 @@ python3 scripts/build_task_data.py --clean                           # delete ev
 
 ## What is in it (2026-10-22)
 
-38,375 rows: 34,552 train and 3,823 validation (10% by prompt), plus `everyday_eval.parquet` (265 prompts). Each task type is capped at 3,000 prompts, sampled deterministically.
+38,375 rows: 34,552 train and 3,823 validation (10% by prompt), plus `everyday_eval.parquet` (300 prompts). Each task type is capped at 3,000 prompts, sampled deterministically.
 
 | Task type | Prompts | Sources |
 |---|---:|---|
@@ -67,8 +67,8 @@ At most 3 prompts are taken per user, and the evaluation and training sets come 
 
 | Set | Prompts | Labels | Cost |
 |---|---:|---|---:|
-| `everyday_eval.parquet` (held out, never trained on) | 265 of 300 | **gold**: Claude Sonnet 5.5 and Gemini 3.8 Flash agree (265 of 300). The other 35 are in the local `everyday/review.csv` for a human to decide | 1.40 USD |
-| training rows, `source` `wildchat` | 2,971 | deepseek-v4.1-flash with low reasoning effort, which agrees with the gold labels on 90.2% of the evaluation set (that check cost 0.07 USD) | 0.79 USD |
+| `everyday_eval.parquet` (held out, never trained on) | 300 | **gold**: Claude Sonnet 5.5 and Gemini 3.8 Flash agree (265). The other 35 were decided by hand in the local `everyday/review.csv`, following the labelling rules in `scripts/everyday_prompts.py` | 1.40 USD |
+| training rows, `source` `wildchat` | 2,971 | deepseek-v4.1-flash with low reasoning effort, which agrees with the gold labels on 90.2% of the 265 agreed prompts and 84.7% of all 300 (that check cost 0.07 USD) | 0.79 USD |
 
 WildChat training rows are never dropped by the per-type cap. The text stays out of git: everything is under the gitignored `data/task_data/everyday/` and in the private HF dataset.
 

@@ -3,7 +3,7 @@
  "seed": 20261022,
  "cap_per_type": 3000,
  "validation_share": 0.1,
- "built_from_commit": "8bd391e",
+ "built_from_commit": "ea667e6",
  "sources": {
   "math": {
    "repo": "EleutherAI/hendrycks_math",
@@ -211,23 +211,24 @@
   "train_labeller": "deepseek/deepseek-v4.1-flash",
   "train_prompts": 2971,
   "eval_gold": "claude-sonnet-5.5 and gemini-3.8-flash agree, or a human decided (review.csv)",
-  "eval_prompts": 265,
+  "eval_prompts": 300,
   "eval_counts": {
-   "code_function": 65,
-   "knowledge_recall": 53,
-   "conversation": 49,
-   "creative_writing": 31,
-   "business_writing": 28,
-   "other": 13,
+   "code_function": 66,
+   "conversation": 57,
+   "knowledge_recall": 56,
+   "business_writing": 35,
+   "creative_writing": 33,
+   "other": 23,
    "instruction_following": 11,
+   "knowledge_quantitative": 5,
    "math_problem": 5,
-   "knowledge_quantitative": 4,
-   "summarization": 3,
+   "summarization": 4,
+   "information_extraction": 2,
    "code_algorithmic": 1,
    "translation": 1,
    "science_expert": 1
   },
-  "sha256": "f312e2fbe357c3c15de6747c8bf60950cc97709f9433b1748466cb65755a958b"
+  "sha256": "163dbf7ae3ffc25774e355afe51acc93cb89aea93e7754c2460612e33c5f3c8f"
  },
  "restricted": {
   "gpqa.parquet": {
