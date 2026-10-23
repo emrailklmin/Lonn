@@ -52,6 +52,16 @@ def main(argv=None):
     probs /= probs.sum(axis=1, keepdims=True)
     metrics = bo.evaluate(probs, val, task_ids, lengths)
 
+    # Real everyday prompts (docs/task_data.md), never trained on.
+    everyday = None
+    everyday_path = ROOT / 'data' / 'task_data' / 'everyday_eval.parquet'
+    if everyday_path.exists():
+        import pyarrow.parquet as pq
+        rows = [{**r, 'variant': 'as_benchmark'} for r in pq.read_table(everyday_path).to_pylist()]
+        x_everyday = bo.cached_embeddings(name, embedder, [r['text'] for r in rows], 'everyday')
+        logits_e = (x_everyday @ weight.T + bias) * bo.LOGIT_SCALE
+        everyday = bo.evaluate(np.exp(logits_e - logits_e.max(axis=1, keepdims=True)), rows, task_ids, [0] * len(rows))
+
     manifest = ROOT / 'data' / 'task_data' / 'manifest.json'
     config = {
         'version': 1,
@@ -63,6 +73,8 @@ def main(argv=None):
                           if manifest.exists() else None,
                           'train_rows': len(train), 'validation_rows': len(val)},
         'validation': {'accuracy': metrics['accuracy'], 'macro_f1': metrics['macro_f1']},
+        'everyday_eval': ({'prompts': len(rows), 'accuracy': everyday['accuracy'], 'macro_f1': everyday['macro_f1']}
+                          if everyday else None),
         'embedder': EMBEDDER,
         'task_types': task_ids,
         'logit_scale': bo.LOGIT_SCALE,
@@ -75,6 +87,9 @@ def main(argv=None):
     sample = val[:AGREEMENT_SAMPLE]
     shipped = TaskClassifier(args.output).probabilities([r['text'] for r in sample])
     agree = np.mean([max(p, key=p.get) == task_ids[int(row.argmax())] for p, row in zip(shipped, probs[:len(sample)])])
+    if everyday:
+        print(f"Everyday prompts: accuracy {everyday['accuracy']:.1%} of {len(rows)}; main confusions "
+              + ', '.join(f"{c['gold']}->{c['predicted']} {c['n']}" for c in everyday['top_confusions'][:5]))
     print(f"Wrote {args.output}: validation accuracy {metrics['accuracy']:.1%}, macro-F1 {metrics['macro_f1']:.3f}; "
           f"shipped classifier agrees with training on {agree:.1%} of {len(sample)} validation prompts.")
     if agree < 0.98:

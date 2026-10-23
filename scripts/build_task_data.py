@@ -73,6 +73,9 @@ TRANSLATE_TEMPLATES = ('Translate the following text into {lang}:\n\n{text}',
                        'Please give me a {lang} translation of this paragraph: {text}',
                        'How would you say this in {lang}? "{text}"')
 WRITINGBENCH_CREATIVE = 'Literature & Arts'
+# Everyday prompts (scripts/everyday_prompts.py): WildChat first turns labelled by this model.
+WILDCHAT_LABELLER = 'deepseek/deepseek-v4.1-flash'
+UNCAPPED_SOURCES = {'wildchat'}  # the only real-traffic prompts: never dropped by the cap
 
 
 def normalize(text: str) -> str:
@@ -243,6 +246,22 @@ def collect(data_dir, fs, cache_dir, include_gpqa) -> tuple[list, list]:
     return items, restricted
 
 
+def everyday_items() -> tuple[list, list]:
+    """(labelled WildChat training items, gold everyday evaluation rows), if
+    scripts/everyday_prompts.py has produced them; otherwise empty."""
+    import everyday_prompts as ep
+    if not (ep.OUT / 'train_prompts.jsonl').exists():
+        return [], []
+    labels = ep.read_labels('train', WILDCHAT_LABELLER)
+    train = [item('wildchat', p['id'], labels[p['id']]['task_type'], None, {'as_benchmark': p['text']})
+             for p in ep.load_prompts('train') if labels.get(p['id'], {}).get('task_type')]
+    gold, _ = ep.gold_labels()
+    evaluation = [{'id': p['id'], 'text': p['text'], 'task_type': gold[p['id']], 'source': 'wildchat'}
+                  for p in ep.load_prompts('eval') if p['id'] in gold]
+    held_out = {r['id'] for r in evaluation}
+    return [it for it in train if it['source_id'] not in held_out], evaluation
+
+
 # Exclusion, sampling, splitting
 
 def benchmark_exclusions(data_dir) -> tuple[set, set]:
@@ -271,7 +290,7 @@ def benchmark_exclusions(data_dir) -> tuple[set, set]:
     return sampled_ids, texts
 
 
-def finalize(items, sampled_ids, sampled_texts, cap, seed) -> tuple[list, dict]:
+def finalize(items, sampled_ids, sampled_texts, cap, seed, uncapped=frozenset()) -> tuple[list, dict]:
     stats = Counter()
     seen_ids, seen_texts, kept = set(), set(), []
     for it in items:
@@ -286,9 +305,10 @@ def finalize(items, sampled_ids, sampled_texts, cap, seed) -> tuple[list, dict]:
         seen_texts |= prints
         kept.append(it)
     by_type = defaultdict(list)
+    sampled = [it for it in kept if it['source'] in uncapped]
     for it in kept:
-        by_type[it['task_type']].append(it)
-    sampled = []
+        if it['source'] not in uncapped:
+            by_type[it['task_type']].append(it)
     for task, group in sorted(by_type.items()):
         group.sort(key=lambda it: hashlib.sha256(f"{seed}:{it['id']}".encode()).hexdigest())
         sampled += group[:cap]
@@ -335,6 +355,11 @@ Columns: `text` (the prompt), `task_type` (from `config/task_types.yaml`), `diff
 the same prompt without multiple-choice options or answer-format lines), `source`,
 `source_id`, `id`, `group` (rows sharing a group are in the same split).
 
+`everyday_eval.parquet`: real first user turns from WildChat (ODC-BY) with gold task
+types (two strong labellers agree, or a human decided). Held out: never train on it.
+Training rows with `source` `wildchat` come from other WildChat users, labelled by one
+model.
+
 Not included: GPQA (`science_expert`), whose authors ask that examples are not put
 online. Add it locally with `--include-gpqa`.
 
@@ -349,7 +374,7 @@ def push(repo_id, out_dir: Path, manifest: dict):
     api.create_repo(repo_id, repo_type='dataset', private=True, exist_ok=True)
     (out_dir / 'README.md').write_text(DATASET_CARD)
     commit = api.upload_folder(repo_id=repo_id, repo_type='dataset', folder_path=out_dir,
-                               allow_patterns=['train.parquet', 'validation.parquet', 'manifest.json', 'README.md'],
+                               allow_patterns=['train.parquet', 'validation.parquet', 'everyday_eval.parquet', 'manifest.json', 'README.md'],
                                commit_message=f"Task-type data {manifest['built_from_commit']}")
     print(f'Pushed to https://huggingface.co/datasets/{repo_id} ({commit.oid[:7]}); GPQA was not uploaded.')
 
@@ -377,7 +402,9 @@ def main(argv=None):
     print('Collecting sources...', flush=True)
     items, restricted = collect(args.data_dir, fs, out / 'cache', args.include_gpqa)
     sampled_ids, sampled_texts = benchmark_exclusions(args.data_dir)
-    rows, stats = finalize(items, sampled_ids, sampled_texts, args.cap, SEED)
+    everyday_train, everyday_eval = everyday_items()
+    items += everyday_train
+    rows, stats = finalize(items, sampled_ids, sampled_texts, args.cap, SEED, UNCAPPED_SOURCES)
     manifest = {'version': 1, 'seed': SEED, 'cap_per_type': args.cap, 'validation_share': VALIDATION_SHARE,
                 'built_from_commit': commit,
                 'sources': {k: {'repo': v[0], 'revision': v[1], 'license': v[2]} for k, v in HF.items()},
@@ -387,6 +414,13 @@ def main(argv=None):
     for split in ('train', 'validation'):
         part = [r for r in rows if r['split'] == split]
         manifest['files'][f'{split}.parquet'] = {'rows': len(part), 'sha256': write_parquet(part, out / f'{split}.parquet')}
+    if everyday_eval:
+        manifest['everyday'] = {'source': 'allenai/WildChat-1M@7d6490e (ODC-BY), first user turns',
+                                'train_labeller': WILDCHAT_LABELLER, 'train_prompts': len(everyday_train),
+                                'eval_gold': 'claude-sonnet-5.5 and gemini-3.8-flash agree, or a human decided (review.csv)',
+                                'eval_prompts': len(everyday_eval),
+                                'eval_counts': dict(Counter(r['task_type'] for r in everyday_eval).most_common()),
+                                'sha256': write_parquet(everyday_eval, out / 'everyday_eval.parquet')}
     if restricted:
         gpqa_rows, _ = finalize(restricted, sampled_ids, sampled_texts, args.cap, SEED)
         manifest['restricted'] = {'gpqa.parquet': {'rows': len(gpqa_rows), 'counts': counts(gpqa_rows),

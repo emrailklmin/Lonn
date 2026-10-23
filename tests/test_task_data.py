@@ -1,4 +1,5 @@
 """Task-type training data builder (#19): exclusion, dedup, caps and splits. No network."""
+from collections import Counter
 import importlib.util
 from pathlib import Path
 import unittest
@@ -41,6 +42,13 @@ class TaskDataTests(unittest.TestCase):
         self.assertEqual(stats['capped_math_problem'], 15)
         again, _ = td.finalize(items, set(), set(), cap=5, seed=7)
         self.assertEqual(rows, again)
+
+    def test_uncapped_sources_keep_every_prompt(self):
+        items = [it(n) for n in range(20)]
+        items += [td.item('wildchat', n, 'math_problem', None, {'as_benchmark': f'real prompt {n}'}) for n in range(8)]
+        rows, _ = td.finalize(items, set(), set(), cap=5, seed=0, uncapped={'wildchat'})
+        sources = Counter(r['source'] for r in rows)
+        self.assertEqual(sources, {'src': 5, 'wildchat': 8})
 
     def test_variants_and_groups_share_a_split(self):
         items = [it(n, as_benchmark=f'Question {n}\n\nOptions: A) x', plain=f'Question {n}') for n in range(200)]

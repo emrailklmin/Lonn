@@ -56,6 +56,21 @@ The bake-off scores benchmark-style prompts, like the training data. Nine hand-w
 
 Five of the nine were right (a quartic equation, a short Python function, a translation, a history question as conversation, a haiku). Short and casual prompts look little like the benchmark items the classifier was trained on, so **the 84% router result is optimistic for real traffic.** The next data step is realistic prompts, such as WildChat (ODC-BY) or hand-labelled examples, plus a held-out set of everyday prompts to measure this.
 
+## Retrained with everyday prompts (2026-10-23)
+
+The classifier was retrained with 2,971 labelled WildChat prompts (`docs/task_data.md`). It was scored on 265 held-out everyday prompts with gold labels, and **routing regret** compares the model the router picks against its pick with the gold task type:
+
+| Classifier | Task type right | Same model as with gold | Expected accuracy lost | Extra cost per request |
+|---|---:|---:|---:|---:|
+| bge-small + linear, benchmark data only | 32.5% | 54.7% | 2.7 pts | +0.35 mUSD |
+| **bge-small + linear, + WildChat** (shipped) | **53.2%** | **69.4%** | **1.6 pts** | −0.12 mUSD |
+
+On the benchmark the router is unchanged: 83.7% at 0.91 USD, against 84.0% at 0.92 USD (`results/classifier_bakeoff/bge-small-linear-wildchat`). Validation accuracy fell from 80.0% to 77.4%, because the validation split now also holds the harder WildChat rows.
+
+Up-weighting the WildChat rows (×3 to ×30) raised everyday task-type accuracy to at most 58.5%, but did not change model choice (69–70%) and lowered validation accuracy, so it is not used.
+
+The main remaining confusions are among the open-ended types: knowledge questions, conversation, creative writing and business writing. Even the two gold labellers disagreed on 12% of prompts. These types partly route alike, which is why model choice agrees more often than the task type does.
+
 ## Recommendation
 
 **Use `bge-small-linear` as the classifier for now.**

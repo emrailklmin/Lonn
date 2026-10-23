@@ -23,7 +23,7 @@ python3 scripts/build_task_data.py --clean                           # delete ev
 
 ## What is in it (2026-10-22)
 
-35,406 rows: 31,886 train and 3,520 validation (10% by prompt). Each task type is capped at 3,000 prompts, sampled deterministically.
+38,375 rows: 34,552 train and 3,823 validation (10% by prompt), plus `everyday_eval.parquet` (265 prompts). Each task type is capped at 3,000 prompts, sampled deterministically.
 
 | Task type | Prompts | Sources |
 |---|---:|---|
@@ -50,6 +50,34 @@ python3 scripts/build_task_data.py --clean                           # delete ev
 Other sources have a single `as_benchmark` row.
 
 **No benchmark question is used.** Every question sampled into the benchmark (850, including BFCL) is excluded by source ID and by normalized text, 811 matches in total. A check that searched for every benchmark text inside every training row found none. A further 733 duplicates across sources were dropped.
+
+## Everyday prompts (WildChat)
+
+The first version held only benchmark-style prompts, and the classifier misread casual ones. `scripts/everyday_prompts.py` adds real first user turns from [allenai/WildChat-1M](https://huggingface.co/datasets/allenai/WildChat-1M) (ODC-BY).
+
+**Sampling (free).** About 70 random row groups are read into memory, keeping only prompts that are:
+- English, with at least 90% Latin letters;
+- not toxic, not redacted and not flagged by moderation, so no provider flags the account;
+- 15–6,000 characters long;
+- not a near-duplicate of templated mass prompts (by their first 80 characters).
+
+At most 3 prompts are taken per user, and the evaluation and training sets come from **different users**.
+
+**Labelling (paid OpenRouter calls, 2.26 USD in total).**
+
+| Set | Prompts | Labels | Cost |
+|---|---:|---|---:|
+| `everyday_eval.parquet` (held out, never trained on) | 265 of 300 | **gold**: Claude Sonnet 5.5 and Gemini 3.8 Flash agree (265 of 300). The other 35 are in the local `everyday/review.csv` for a human to decide | 1.40 USD |
+| training rows, `source` `wildchat` | 2,971 | deepseek-v4.1-flash with low reasoning effort, which agrees with the gold labels on 90.2% of the evaluation set (that check cost 0.07 USD) | 0.79 USD |
+
+WildChat training rows are never dropped by the per-type cap. The text stays out of git: everything is under the gitignored `data/task_data/everyday/` and in the private HF dataset.
+
+```bash
+python3 scripts/everyday_prompts.py sample                     # free
+python3 scripts/everyday_prompts.py label --set eval --model anthropic/claude-sonnet-5.5 --dry-run
+python3 scripts/everyday_prompts.py label --set train --model deepseek/deepseek-v4.1-flash --reasoning low --budget 1.2
+python3 scripts/everyday_prompts.py status                     # agreement, spend, writes review.csv
+```
 
 ## Licences and limits
 

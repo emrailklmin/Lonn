@@ -51,6 +51,8 @@ python3 scripts/benchmark/eval_task_router.py --name task-true-utility
 python3 scripts/build_task_data.py --include-gpqa   # --push LonnAI/lonn-task-data to upload; --clean to delete local copy
 python3 scripts/classifier_bakeoff.py              # compare classifiers (docs/classifier_bakeoff.md), ~45 min
 python3 scripts/train_task_classifier.py           # writes config/task_classifier.json (generated, don't hand-edit)
+# Everyday prompts from WildChat (docs/task_data.md): sample is free; label makes paid calls (--dry-run, ask first)
+python3 scripts/everyday_prompts.py sample          # then: label --set eval|train --model ... --dry-run; status
 
 # Offline pool maintenance (write to gitignored reports/). If urllib fails with
 # CERTIFICATE_VERIFY_FAILED (python.org macOS build), first run:
