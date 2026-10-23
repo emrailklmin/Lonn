@@ -3,7 +3,7 @@
  "seed": 20261022,
  "cap_per_type": 3000,
  "validation_share": 0.1,
- "built_from_commit": "f6a4715",
+ "built_from_commit": "8bd391e",
  "sources": {
   "math": {
    "repo": "EleutherAI/hendrycks_math",
@@ -110,7 +110,7 @@
  },
  "exclusions": {
   "excluded_benchmark": 811,
-  "excluded_duplicate": 733,
+  "excluded_duplicate": 735,
   "capped_business_writing": 0,
   "capped_code_algorithmic": 0,
   "capped_code_function": 0,
@@ -128,79 +128,106 @@
  },
  "counts": {
   "business_writing": {
-   "train_as_benchmark": 356,
-   "validation_as_benchmark": 43
+   "train_as_benchmark": 655,
+   "validation_as_benchmark": 73
   },
   "code_algorithmic": {
-   "train_as_benchmark": 846,
+   "train_as_benchmark": 858,
    "train_plain": 846,
-   "validation_as_benchmark": 89,
+   "validation_as_benchmark": 90,
    "validation_plain": 89
   },
   "code_function": {
-   "train_as_benchmark": 968,
+   "train_as_benchmark": 1423,
    "train_plain": 968,
-   "validation_as_benchmark": 86,
+   "validation_as_benchmark": 150,
    "validation_plain": 86
   },
   "conversation": {
-   "train_as_benchmark": 2702,
-   "validation_as_benchmark": 298
+   "train_as_benchmark": 3079,
+   "validation_as_benchmark": 347
   },
   "creative_writing": {
-   "train_as_benchmark": 716,
-   "validation_as_benchmark": 75
+   "train_as_benchmark": 1108,
+   "validation_as_benchmark": 119
   },
   "information_extraction": {
-   "train_as_benchmark": 2703,
-   "validation_as_benchmark": 297
+   "train_as_benchmark": 2713,
+   "validation_as_benchmark": 300
   },
   "instruction_following": {
-   "train_as_benchmark": 2663,
-   "validation_as_benchmark": 337
+   "train_as_benchmark": 2853,
+   "validation_as_benchmark": 358
   },
   "knowledge_quantitative": {
-   "train_as_benchmark": 2711,
+   "train_as_benchmark": 2773,
    "train_plain": 2711,
-   "validation_as_benchmark": 289,
+   "validation_as_benchmark": 293,
    "validation_plain": 289
   },
   "knowledge_recall": {
-   "train_as_benchmark": 2700,
+   "train_as_benchmark": 3219,
    "train_plain": 1838,
-   "validation_as_benchmark": 300,
+   "validation_as_benchmark": 353,
    "validation_plain": 202
   },
   "math_problem": {
-   "train_as_benchmark": 2685,
-   "validation_as_benchmark": 315
+   "train_as_benchmark": 2723,
+   "validation_as_benchmark": 322
   },
   "other": {
-   "train_as_benchmark": 1921,
-   "validation_as_benchmark": 211
+   "train_as_benchmark": 2101,
+   "validation_as_benchmark": 231
+  },
+  "science_expert": {
+   "train_as_benchmark": 14,
+   "validation_as_benchmark": 1
   },
   "summarization": {
-   "train_as_benchmark": 1066,
-   "validation_as_benchmark": 120
+   "train_as_benchmark": 1133,
+   "validation_as_benchmark": 123
   },
   "tool_calling": {
-   "train_as_benchmark": 802,
+   "train_as_benchmark": 803,
    "validation_as_benchmark": 78
   },
   "translation": {
-   "train_as_benchmark": 2684,
-   "validation_as_benchmark": 316
+   "train_as_benchmark": 2734,
+   "validation_as_benchmark": 319
   }
  },
  "files": {
   "train.parquet": {
-   "rows": 31886,
-   "sha256": "417b0ee38cf5199cf9a5464e2ce2ab08fa26b27944cd38dc3fe129cf4ad68e40"
+   "rows": 34552,
+   "sha256": "9f8bef69ae93381d90484aaf065975ee33ff6cfb2b3e11004281bb3bb0d644f2"
   },
   "validation.parquet": {
-   "rows": 3520,
-   "sha256": "55ad66c3e62401c654a68480e2bb8d0f27417511a60a16f1f49e950ba94f3ed1"
+   "rows": 3823,
+   "sha256": "0c35d7a2644305df5afa10cf25819569d10dad22c1b2c2145224d3c00e9f38b6"
   }
+ },
+ "everyday": {
+  "source": "allenai/WildChat-1M@7d6490e (ODC-BY), first user turns",
+  "train_labeller": "deepseek/deepseek-v4.1-flash",
+  "train_prompts": 2971,
+  "eval_gold": "claude-sonnet-5.5 and gemini-3.8-flash agree, or a human decided (review.csv)",
+  "eval_prompts": 265,
+  "eval_counts": {
+   "code_function": 65,
+   "knowledge_recall": 53,
+   "conversation": 49,
+   "creative_writing": 31,
+   "business_writing": 28,
+   "other": 13,
+   "instruction_following": 11,
+   "math_problem": 5,
+   "knowledge_quantitative": 4,
+   "summarization": 3,
+   "code_algorithmic": 1,
+   "translation": 1,
+   "science_expert": 1
+  },
+  "sha256": "f312e2fbe357c3c15de6747c8bf60950cc97709f9433b1748466cb65755a958b"
  },
  "restricted": {
   "gpqa.parquet": {

@@ -1,0 +1,14 @@
+{
+ "candidate": "bge-small-linear-wildchat",
+ "model": "BAAI/bge-small-en-v1.5",
+ "note": "shipped classifier (config/task_classifier.json); see docs/classifier_bakeoff.md",
+ "validation": {
+  "accuracy": 0.7741,
+  "macro_f1": 0.7593
+ },
+ "everyday_eval": {
+  "prompts": 265,
+  "accuracy": 0.5321,
+  "macro_f1": 0.3813
+ }
+}
