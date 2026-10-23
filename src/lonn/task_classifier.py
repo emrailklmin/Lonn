@@ -5,8 +5,13 @@ trained on the task data (scripts/train_task_classifier.py). The layer lives in
 config/task_classifier.json, which pins the embedder revision. The embedder is
 loaded lazily on first use and runs on CPU.
 
-The classifier knows nothing about routing: it returns a TaskSignal with a
-probability per task type and no complexity.
+With a complexity head (``complexity_path``, from scripts/train_complexity.py), a
+second linear layer on the same embedding predicts easy / medium / hard, and the
+signal's complexity is its expected position (easy 0, medium 0.5, hard 1).
+Otherwise complexity is None. Production loads no head: predicted complexity did
+not improve routing (docs/oracle_gap.md).
+
+The classifier knows nothing about routing: it returns a TaskSignal.
 """
 
 import json
@@ -16,6 +21,7 @@ from pathlib import Path
 from .schemas import TaskSignal
 
 DEFAULT_TASK_CLASSIFIER = Path(__file__).resolve().parents[2] / 'config' / 'task_classifier.json'
+LEVEL_POSITION = {'easy': 0.0, 'medium': 0.5, 'hard': 1.0}
 HEAD_SHARE = 0.35  # Over-long prompts keep this share of the window from their start, the rest from the end.
 
 
@@ -70,7 +76,8 @@ class Embedder:
 class TaskClassifier:
     """Prompt -> TaskSignal. Pass ``embed`` (texts -> unit vectors) to skip the embedder in tests."""
 
-    def __init__(self, path: str | Path = DEFAULT_TASK_CLASSIFIER, embed=None):
+    def __init__(self, path: str | Path = DEFAULT_TASK_CLASSIFIER, embed=None,
+                 complexity_path: str | Path | None = None):
         config = json.loads(Path(path).read_text())
         self.config = config
         self.task_types: list[str] = config['task_types']
@@ -79,6 +86,14 @@ class TaskClassifier:
         self.scale = float(config['logit_scale'])
         if len(self.weight) != len(self.task_types) or len(self.bias) != len(self.task_types):
             raise ValueError('Task classifier weights do not match its task types')
+        self.complexity = None
+        if complexity_path is not None:
+            head = json.loads(Path(complexity_path).read_text())
+            if head['embedder'] != config['embedder']:
+                raise ValueError('The complexity head was trained on a different embedder')
+            if len(head['weight']) != len(head['levels']) or not set(head['levels']) <= set(LEVEL_POSITION):
+                raise ValueError('Complexity head weights do not match its levels')
+            self.complexity = head
         self._embed = embed
 
     def _embedder(self):
@@ -87,16 +102,36 @@ class TaskClassifier:
             self._embed = Embedder(e['repo'], e['max_len'], e['revision']).embed
         return self._embed
 
-    def probabilities(self, prompts: list[str]) -> list[dict[str, float]]:
+    @staticmethod
+    def _softmax(vectors, weight, bias, scale):
         import numpy as np
-        vectors = np.asarray(self._embedder()(prompts), dtype=np.float64)
-        logits = (vectors @ np.asarray(self.weight, dtype=np.float64).T + np.asarray(self.bias)) * self.scale
+        logits = (vectors @ np.asarray(weight, dtype=np.float64).T + np.asarray(bias)) * scale
         logits -= logits.max(axis=1, keepdims=True)
         probs = np.exp(logits)
-        probs /= probs.sum(axis=1, keepdims=True)
+        return probs / probs.sum(axis=1, keepdims=True)
+
+    def _vectors(self, prompts):
+        import numpy as np
+        return np.asarray(self._embedder()(prompts), dtype=np.float64)
+
+    def probabilities(self, prompts: list[str]) -> list[dict[str, float]]:
+        probs = self._softmax(self._vectors(prompts), self.weight, self.bias, self.scale)
         return [dict(zip(self.task_types, map(float, row))) for row in probs]
+
+    def signals(self, prompts: list[str]) -> list[TaskSignal]:
+        """Task-type probabilities and, with a complexity head, complexity, from one embedding."""
+        vectors = self._vectors(prompts)
+        tasks = self._softmax(vectors, self.weight, self.bias, self.scale)
+        levels = None
+        if self.complexity:
+            head = self.complexity
+            probs = self._softmax(vectors, head['weight'], head['bias'], float(head['logit_scale']))
+            positions = [LEVEL_POSITION[level] for level in head['levels']]
+            levels = [float(min(1.0, max(0.0, sum(p * x for p, x in zip(row, positions))))) for row in probs]
+        return [TaskSignal(dict(zip(self.task_types, map(float, row))), None if levels is None else levels[i])
+                for i, row in enumerate(tasks)]
 
     def classify(self, prompt: str) -> TaskSignal:
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError('Prompt must be a non-empty string')
-        return TaskSignal(self.probabilities([prompt])[0], None)
+        return self.signals([prompt])[0]

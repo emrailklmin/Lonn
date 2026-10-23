@@ -43,6 +43,19 @@ class TaskClassifierTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             TaskClassifier(self.path, embed=fake_embed)
 
+    def test_complexity_head_gives_expected_level(self):
+        head_path = self.path.with_name('complexity.json')
+        head = {'levels': ['easy', 'medium', 'hard'], 'logit_scale': 20.0, 'embedder': CONFIG['embedder'],
+                'weight': [[0.0, 1.0], [0.0, 0.0], [1.0, 0.0]], 'bias': [0.0, 0.0, 0.0]}
+        head_path.write_text(json.dumps(head))
+        hard, easy = TaskClassifier(self.path, embed=fake_embed, complexity_path=head_path).signals(
+            ['an integral', 'reverse a string'])
+        self.assertGreater(hard.complexity, 0.99)
+        self.assertLess(easy.complexity, 0.01)
+        head_path.write_text(json.dumps({**head, 'embedder': {**CONFIG['embedder'], 'revision': 'other'}}))
+        with self.assertRaises(ValueError):
+            TaskClassifier(self.path, embed=fake_embed, complexity_path=head_path)
+
     def test_head_tail_keeps_start_and_end(self):
         self.assertEqual(head_tail(list(range(5)), 10), list(range(5)))
         kept = head_tail(list(range(100)), 20)

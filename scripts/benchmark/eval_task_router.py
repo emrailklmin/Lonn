@@ -224,6 +224,8 @@ def main(argv=None):
                         help='check each answer (results/benchmark_checks, answer_checks.py) and escalate once on failure')
     parser.add_argument('--escalation-factor', type=float, default=ESCALATION_FACTOR,
                         help='with --cascade: escalation ranks at lambda times this')
+    parser.add_argument('--levels-from-signals', action='store_true',
+                        help="bin each question's predicted complexity (from --signals) into the table's levels")
     parser.add_argument('--use-complexity', action='store_true',
                         help='headline run with complexity (default: the router default, off); '
                              'the sweep always covers both')
@@ -247,6 +249,13 @@ def main(argv=None):
         raise SystemExit('No questions with saved answers; build the prompt files (build_data.py) first.')
     questions = annotate(questions, load_task_types())
     signals = load_signals(args.signals) if args.signals else None
+    if args.levels_from_signals:
+        # The table's difficulty cells use the same scale as the router: the predicted complexity.
+        if signals is None:
+            raise SystemExit('--levels-from-signals needs --signals with complexity')
+        for q in questions:
+            c = signals[q['prompt_id']]['complexity']
+            q['level'] = None if c is None else ('easy' if c < 1 / 3 else 'medium' if c < 2 / 3 else 'hard')
     if signals is not None and (missing := [q['prompt_id'] for q in questions if q['prompt_id'] not in signals]):
         raise SystemExit(f'{len(missing)} questions have no signal in {args.signals}, e.g. {missing[0]}')
 

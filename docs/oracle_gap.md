@@ -66,3 +66,40 @@ Pareto frontier, 5 folds × 5 repeats:
 ## Built: check and escalate
 
 The self-check cascade is now part of the router and the API (`docs/task_router.md`). It uses only checks that production can run on any prompt: cut off, empty, and code that fails the prompt's own worked examples. It dropped the benchmark-only "no `Answer:` line" check. Escalation follows a value rule: a second call is made only when it is worth its expected cost at the request's λ. The cascade is equal to or better than the router at every budget, by up to +1.9 points, and escalates 6–8% of requests.
+
+## Tried: a cheap judge for writing (2026-10-23)
+
+Production has no per-prompt rubric, so deepseek-v4.1-flash was asked a generic question: how well does the response fulfil the request, 1–10 (`scripts/benchmark/cheap_judge.py`, scores in `results/benchmark_checks/writing_judge.jsonl`). It judged the 381 WritingBench answers that were not cut off; 59 replies were unusable. It cost 0.55 USD.
+
+- **The signal is real but weak:** AUC 0.75 against the Opus rubric judge. Answers scored below 8 pass 7% of the time; answers scored 8 or more pass 43%.
+- **It does not help the router.** Added to the cascade with an escalation threshold of 7, 8 or 9, and with its cost (1.1 mUSD per writing answer) included, the Pareto frontier stays equal or drops by up to 0.7 points.
+- **The reason is that there is no good model to escalate to:** the best model passes only 53% of WritingBench, at high cost.
+
+So the writing gap is about model capability and output length, not routing. The untested lever is a larger output budget for writing: many answers are cut off at 8,192 tokens. Testing it means regenerating and re-judging with Opus, which needs more credit than is available now.
+
+## Tried: predicted complexity (2026-10-23)
+
+Section 1 measured the upper bound with difficulty known perfectly. This tests a difficulty signal that production could actually compute from the prompt alone.
+
+**How it was built:**
+- deepseek-v4.1-flash rated 2,114 training prompts (300 per measured task type, never the 690 benchmark questions) as easy, medium or hard (`scripts/complexity_labels.py`). It answered 1,815 of them: 1,155 easy, 462 medium, 198 hard. It cost 0.97 USD.
+- A second linear layer on the task classifier's bge-small embedding learns those labels (`scripts/train_complexity.py`).
+
+**How good the signal is:**
+- On held-out labels it matches 62.4% exactly and is within one level 95.8% of the time.
+- On the benchmark, predicted complexity correlates with how many models solve each question (Spearman −0.29), and with how many cheap models solve it (−0.32).
+
+**It does not help routing.** The router used the shipped classifier's task types, the predicted level as the table's difficulty row, and was cross-fitted. Results at λ 20, with and without complexity:
+
+| Setting | Without complexity | With complexity |
+|---|---:|---:|
+| Router | 83.7% at 0.91 USD | 83.1% at 1.08 USD |
+| Router + cascade | 85.8% at 1.58 USD | 84.9% at 1.62 USD |
+
+- Across the λ sweep, it is equal or 0.5–1 point worse at equal cost.
+- The likely reason: splitting each task type into three levels leaves fewer answers per table cell. A noisy signal does not earn that back when even perfect difficulty is worth at most +1–2 points.
+
+**Status:**
+- Complexity stays off in the router.
+- The classifier loads no complexity head by default.
+- The head and its benchmark signals are kept as an experiment in `results/classifier_bakeoff/bge-small-linear-wildchat-complexity/`, alongside the evaluation runs `complexity-predicted` and `complexity-predicted-cascade`.

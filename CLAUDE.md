@@ -48,6 +48,9 @@ python3 scripts/benchmark/check_graders.py         # graders accept reference an
 python3 scripts/benchmark/build_routing_table.py   # writes config/routing_table.json (generated, don't hand-edit)
 python3 scripts/benchmark/eval_task_router.py --name task-true-utility
 python3 scripts/benchmark/answer_checks.py         # check every saved answer once (sandbox), then eval_task_router.py --cascade
+# Experiments that did not ship (docs/oracle_gap.md); paid calls, --dry-run first
+python3 scripts/benchmark/cheap_judge.py --dry-run  # generic writing judge
+python3 scripts/complexity_labels.py --dry-run      # then train_complexity.py: predicted complexity head
 # Classifier training data (docs/task_data.md): streamed from HF, ~9 MB local, shared as private LonnAI/lonn-task-data
 python3 scripts/build_task_data.py --include-gpqa   # --push LonnAI/lonn-task-data to upload; --clean to delete local copy
 python3 scripts/classifier_bakeoff.py              # compare classifiers (docs/classifier_bakeoff.md), ~45 min
