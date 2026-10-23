@@ -1,9 +1,9 @@
 {
   "run_name": "bakeoff-bge-small-linear-wildchat",
   "description": "Task router (#19) with the shipped classifier (bge-small + linear, trained with WildChat), lambda 20, complexity off, cross-fitted 5x10",
-  "date": "2026-10-23T07:44:50+00:00",
-  "git_commit": "8bd391e",
-  "git_dirty": true,
+  "date": "2026-10-23T07:45:20+00:00",
+  "git_commit": "1d543f6",
+  "git_dirty": false,
   "scorer": "results/classifier_bakeoff/bge-small-linear-wildchat/benchmark_signals.jsonl",
   "alpha": null,
   "models": [
