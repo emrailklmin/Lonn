@@ -33,7 +33,8 @@ from benchmark.results import RESULTS_DIR, ResultBank  # noqa: E402
 from lonn.model_pool import load_model_pool  # noqa: E402
 from lonn.routing_table import build_table  # noqa: E402
 from lonn.schemas import TaskSignal  # noqa: E402
-from lonn.task_router import DEFAULT_LAMBDA, LEVEL_POSITION, rank_models  # noqa: E402
+from lonn.task_router import (DEFAULT_LAMBDA, ESCALATION_FACTOR, LEVEL_POSITION, escalation_target,  # noqa: E402
+                              rank_models)
 from lonn.task_types import difficulty_for_record, load_task_types, task_for_record  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -111,7 +112,21 @@ def decide(q, ranking, bank) -> dict:
     return {'chosen': None, 'fallbacks': len(ranking), 'correct': False, 'cost_usd': 0.0, 'latency_ms': 0}
 
 
-def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0, seed=0, signals=None) -> dict:
+def cascade(q, d, target, bank, checks) -> dict:
+    """Production's answer check: escalate once when the chosen answer fails it (both are paid)."""
+    check = checks.get((q['prompt_id'], d['chosen']))
+    if d['chosen'] is None or check is None or check['ok'] or target is None:
+        return {**d, 'escalated': False, 'check': None if check is None else check['reason']}
+    result = ev.outcome(bank.lookup(q['prompt_id'], target.id), target)
+    if result is None:  # the escalation call failed: keep the first answer
+        return {**d, 'escalated': False, 'check': check['reason']}
+    correct, cost, latency, _ = result
+    return {**d, 'chosen': target.id, 'correct': correct, 'cost_usd': d['cost_usd'] + cost,
+            'latency_ms': d['latency_ms'] + latency, 'escalated': True, 'check': check['reason']}
+
+
+def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0, seed=0, signals=None,
+             checks=None, escalation_factor=ESCALATION_FACTOR) -> dict:
     """settings: list of (key, rank_models kwargs). Returns per key the averaged metrics,
     the choice shares and, from the first repeat, the per-question decisions."""
     out = {key: {'items': [], 'choices': Counter(), 'decisions': []} for key, _ in settings}
@@ -124,8 +139,15 @@ def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0
             for key, kwargs in settings:
                 for q in test:
                     signal = signal_for(q, signals)
-                    ranking = rank_models(signal, table, pool, limit=ev.FALLBACK_LIMIT, **kwargs)
+                    rank_kwargs = {k: v for k, v in kwargs.items() if k != 'cascade'}
+                    ranking = rank_models(signal, table, pool, limit=ev.FALLBACK_LIMIT, **rank_kwargs)
                     d = decide(q, ranking, bank)
+                    if kwargs.get('cascade') and d['chosen'] is not None:
+                        first = next(m for m in pool if m.id == d['chosen'])
+                        target = escalation_target(signal, table, pool, rank_kwargs.get('lam', DEFAULT_LAMBDA), first,
+                                                   factor=escalation_factor,
+                                                   use_complexity=rank_kwargs.get('use_complexity', False))
+                        d = cascade(q, d, target, bank, checks or {})
                     out[key]['items'].append({k: q[k] for k in ev.GROUPS} | {'task': q['task']} | d)
                     out[key]['choices'][d['chosen']] += 1
                     if repeat == 0:
@@ -140,7 +162,8 @@ def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0
         m = ev.metrics(items)
         # Each repeat answers every question once: report per-pass-through totals.
         m.update(questions=len(questions), passes=round(m['passes'] / repeats, 4),
-                 cost_usd=round(m['cost_usd'] / repeats, 6))
+                 cost_usd=round(m['cost_usd'] / repeats, 6),
+                 escalated_share=round(sum(bool(i.get('escalated')) for i in items) / len(items), 4))
         by_task = {}
         for item in items:
             by_task.setdefault(item['task'], []).append(item)
@@ -197,6 +220,10 @@ def main(argv=None):
     parser.add_argument('--lambdas', type=float, nargs='+', default=DEFAULT_LAMBDAS, help='lambda sweep')
     parser.add_argument('--tau', type=float, default=0.9, help='tau for the headline run (threshold mode)')
     parser.add_argument('--taus', type=float, nargs='+', default=[0.7, 0.8, 0.85, 0.9, 0.95, 0.98])
+    parser.add_argument('--cascade', action='store_true',
+                        help='check each answer (results/benchmark_checks, answer_checks.py) and escalate once on failure')
+    parser.add_argument('--escalation-factor', type=float, default=ESCALATION_FACTOR,
+                        help='with --cascade: escalation ranks at lambda times this')
     parser.add_argument('--use-complexity', action='store_true',
                         help='headline run with complexity (default: the router default, off); '
                              'the sweep always covers both')
@@ -232,12 +259,19 @@ def main(argv=None):
     settings = []
     for use_complexity in (True, False):
         for kind, value in points:
-            kwargs = {'mode': args.mode, 'use_complexity': use_complexity,
+            kwargs = {'mode': args.mode, 'use_complexity': use_complexity, 'cascade': args.cascade,
                       **({'lam': value} if kind == 'lam' else {'tau': value})}
             settings.append(((use_complexity, value), kwargs))
     print(f'Cross-fitting {len(questions)} questions: {args.folds} folds x {args.repeats} repeats, '
           f'{len(settings)} settings...', flush=True)
-    results = crossfit(questions, pool, bank, settings, args.folds, args.repeats, args.smoothing, signals=signals)
+    checks = None
+    if args.cascade:
+        from benchmark.answer_checks import OUT as CHECKS_PATH, read_checks
+        checks = read_checks(CHECKS_PATH)
+        if not checks:
+            raise SystemExit('No answer checks: run scripts/benchmark/answer_checks.py first.')
+    results = crossfit(questions, pool, bank, settings, args.folds, args.repeats, args.smoothing, signals=signals,
+                       checks=checks, escalation_factor=args.escalation_factor)
     base = baselines(questions, pool, bank)
     reference = reference_run(args.eval_dir, args.reference_run)
 
@@ -255,7 +289,8 @@ def main(argv=None):
             sweep[label].append({'value': value, 'pass_rate': r['metrics']['pass_rate'],
                                  'cost_usd': r['metrics']['cost_usd'],
                                  'gap_closed': gap_closed(r['metrics']['pass_rate']),
-                                 'top_model_share': max(r['choice_share'].values())})
+                                 'top_model_share': max(r['choice_share'].values()),
+                                 'escalated_share': r['metrics']['escalated_share']})
     head = results[(args.use_complexity, headline)]
     router = head['metrics']
     summary = {'policies': {'router': router, **base}, 'reference': reference, 'use_complexity': args.use_complexity,
@@ -269,7 +304,7 @@ def main(argv=None):
         path = args.signals.resolve()
         scorer = str(path.relative_to(ROOT) if path.is_relative_to(ROOT) else path)
     config = ev.run_config(args.name, args.description, scorer, None, pool, 8192, len(questions), excluded)
-    config.update(policy=f'task-{args.mode}', **{'lambda': headline if args.mode == 'utility' else None},
+    config.update(policy=f"task-{args.mode}{'-cascade' if args.cascade else ''}", **{'lambda': headline if args.mode == 'utility' else None},
                   tau=headline if args.mode == 'threshold' else None,
                   crossfit=f'{args.folds}x{args.repeats}', smoothing=args.smoothing,
                   use_complexity=args.use_complexity)

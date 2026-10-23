@@ -79,6 +79,21 @@ class EvalTaskRouterTests(unittest.TestCase):
         self.assertTrue(all(d['signal']['task_scores'] == {'summarization': 1.0}
                             for d in summary['k']['decisions']))
 
+    def test_cascade_escalates_failed_answers_and_pays_for_both(self):
+        # At lambda 600 the cheap model is chosen everywhere; its hard-math answers fail a check.
+        checks = {(q['prompt_id'], CHEAP.id): {'ok': q.get('level_label') != 'Level 5', 'reason': 'truncated'}
+                  for q in self.questions}
+        summary = et.crossfit(self.questions, POOL, self.bank, [('k', {'lam': 600, 'cascade': True})], folds=5,
+                              repeats=1, smoothing=0.0, checks=checks, escalation_factor=0.1)
+        by_id = {d['prompt_id']: d for d in summary['k']['decisions']}
+        hard, easy = by_id['math500-009'], by_id['math500-000']
+        self.assertTrue(hard['escalated'])
+        self.assertEqual(hard['chosen'], STRONG.id)
+        self.assertAlmostEqual(hard['cost_usd'], 0.001 + 0.002)
+        self.assertFalse(easy['escalated'])
+        self.assertEqual(easy['chosen'], CHEAP.id)
+        self.assertEqual(summary['k']['metrics']['escalated_share'], 0.25)  # 5 hard of 20 questions
+
     def test_load_signals_normalizes(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 's.jsonl'

@@ -20,7 +20,34 @@ python3 scripts/benchmark/build_routing_table.py      # rebuild config/routing_t
 python3 scripts/benchmark/eval_task_router.py --name task-true-utility       # defaults; sweep covers both complexity settings
 python3 scripts/benchmark/eval_task_router.py --name task-true-complexity --use-complexity
 python3 scripts/benchmark/eval_task_router.py --name task-true-threshold --mode threshold
+python3 scripts/benchmark/answer_checks.py                      # once, then:
+python3 scripts/benchmark/eval_task_router.py --name task-true-cascade --cascade
 ```
+
+## Checking answers and escalating (cascade)
+
+`/generate` checks each answer before returning it (`src/lonn/answer_check.py`):
+
+| Check | Fails when | Correct when it fails (benchmark) |
+|---|---|---:|
+| `truncated` | the reply stopped at the token limit | 0.9% of 546 |
+| `empty` | no final text | – |
+| `failed_examples` | the prompt has worked examples of a programming task (AtCoder-style "Sample Input/Output", or LeetCode-style "Example: Input … Output …" with a `class Solution` starter), and the reply's last Python block does not reproduce them in the sandbox | 0.0% of 27 |
+
+Answers that pass are correct 87.7% of the time. The examples read from the prompt match LiveCodeBench's public tests exactly for all 120 questions. The code check needs the macOS sandbox (`src/lonn/code_sandbox.py`, shared with the benchmark graders); elsewhere it is skipped.
+
+**Escalation rule** (`escalation_target`): a failed answer is almost never right, so a second call is worth making when the best other model's own score, `accuracy − λ·cost`, is positive. At a high λ it often is not, and the first answer is returned as it is. There is at most one escalation. The response lists every attempt, its check result and its cost; `verify: false` turns the check off.
+
+Replayed on the answer bank (`scripts/benchmark/answer_checks.py` stores every saved answer's check result in `results/benchmark_checks/answer_checks.jsonl`; `eval_task_router.py --cascade`, cross-fitted 5×5, Pareto frontier):
+
+| Budget for 690 questions | 0.4 | 0.5 | 0.75 | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 USD |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Router | 79.1% | 79.9% | 81.6% | 83.9% | 84.6% | 85.3% | 86.3% | 87.3% |
+| **Router + check and escalate** | **80.7%** | **81.4%** | **82.3%** | 83.8% | **85.7%** | **86.9%** | **88.2%** | **89.0%** |
+
+- **Equal or better at every budget,** by up to +1.9 points.
+- **6–8% of requests are escalated,** and only those take longer (two calls).
+- At λ 20 the cascade passes 85.9% at 1.62 USD, so to keep today's cost, raise λ.
 
 ## Evaluation: cross-fitted, with the truth as classifier
 

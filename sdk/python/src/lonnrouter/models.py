@@ -47,6 +47,15 @@ class ModelResponse(BaseModel):
     finish_reason: str | None = None
 
 
+class Attempt(BaseModel):
+    """One model call the server made for a generate request."""
+
+    model_id: str
+    check: str  # "ok", "truncated", "empty", "failed_examples", "not_checked" or "error"
+    cost_usd: float
+    latency_ms: float
+
+
 class RouteResult(BaseModel):
     models: list[Model]
     estimates: list[CandidateEstimate]
@@ -69,6 +78,9 @@ class GenerateResult(BaseModel):
     analysis_source: Literal["classifier", "provided"]
     routing_latency_ms: float
     response: ModelResponse
+    attempts: list[Attempt]
+    escalated: bool
+    total_cost_usd: float
     total_latency_ms: float
 
     @property

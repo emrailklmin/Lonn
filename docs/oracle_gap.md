@@ -63,4 +63,6 @@ Pareto frontier, 5 folds × 5 repeats:
 3. **Writing is the largest single gap.** Even the best model passes only 53% of WritingBench, and many failures are answers cut off at 8,192 tokens. A larger output budget for writing, or a cheap judge before returning, could matter more there than routing; both need paid calls to test.
 4. **A better task classifier does not help on the benchmark,** where it is already at the upper bound. It does help on everyday prompts (`docs/classifier_bakeoff.md`).
 
-The simulations were run as one-off scripts; turning a cascade into router code is a separate step.
+## Built: check and escalate
+
+The self-check cascade is now part of the router and the API (`docs/task_router.md`). It uses only checks that production can run on any prompt: cut off, empty, and code that fails the prompt's own worked examples. It dropped the benchmark-only "no `Answer:` line" check. Escalation follows a value rule: a second call is made only when it is worth its expected cost at the request's λ. The cascade is equal to or better than the router at every budget, by up to +1.9 points, and escalates 6–8% of requests.

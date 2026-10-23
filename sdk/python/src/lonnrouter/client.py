@@ -70,9 +70,9 @@ class LonnRouter:
 
     def generate(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
                  signal: Signal | dict | None = None, max_tokens: int = 4096,
-                 provider_timeout: float = 120) -> GenerateResult:
+                 provider_timeout: float = 120, verify: bool = True) -> GenerateResult:
         payload = _payload(prompt, lam, signal)
-        payload.update(max_tokens=max_tokens, timeout=provider_timeout)
+        payload.update(max_tokens=max_tokens, timeout=provider_timeout, verify=verify)
         return self._request("POST", "generate", GenerateResult, json=payload)
 
     def models(self) -> list[Model]:
@@ -118,9 +118,9 @@ class AsyncLonnRouter:
 
     async def generate(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
                        signal: Signal | dict | None = None, max_tokens: int = 4096,
-                       provider_timeout: float = 120) -> GenerateResult:
+                       provider_timeout: float = 120, verify: bool = True) -> GenerateResult:
         payload = _payload(prompt, lam, signal)
-        payload.update(max_tokens=max_tokens, timeout=provider_timeout)
+        payload.update(max_tokens=max_tokens, timeout=provider_timeout, verify=verify)
         return await self._request("POST", "generate", GenerateResult, json=payload)
 
     async def models(self) -> list[Model]:

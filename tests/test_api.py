@@ -75,7 +75,7 @@ class ApiTests(unittest.TestCase):
 
     def test_generate_returns_benchmark_metadata_and_forwards_controls(self):
         self.execute.return_value.finish_reason = "length"
-        response = self.client.post("/generate", json={"prompt": "code", "lam": 0,
+        response = self.client.post("/generate", json={"prompt": "code", "lam": 0, "verify": False,
                                                       "max_tokens": 100, "timeout": 30})
         self.assertEqual(response.status_code, 200, response.text)
         self.execute.assert_called_once_with("code", self.model, timeout=30, max_tokens=100)
@@ -87,6 +87,36 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result["response"]["latency_ms"], 15)
         self.assertEqual(len(result["estimates"]), 2)
         self.assertGreaterEqual(result["total_latency_ms"], result["routing_latency_ms"])
+
+    def test_failed_check_escalates_once_and_reports_both_attempts(self):
+        cut_off = ModelResponse("Partial", self.model, TokenUsage(10, 4096, 4106, 0, .04, .04), 900, "length")
+        second = ModelResponse("Full answer", self.cheap, TokenUsage(10, 50, 60, 0, .0001, .0001), 100, "stop")
+        self.execute.side_effect = [cut_off, second]
+        result = self.client.post("/generate", json={"prompt": "code", "lam": 20}).json()
+        self.assertTrue(result["escalated"])
+        self.assertEqual(result["model"]["id"], self.cheap.id)
+        self.assertEqual(result["response"]["content"], "Full answer")
+        self.assertEqual([(a["model_id"], a["check"]) for a in result["attempts"]],
+                         [(self.model.id, "truncated"), (self.cheap.id, "not_checked")])
+        self.assertAlmostEqual(result["total_cost_usd"], .0401)
+
+    def test_passing_check_or_verify_off_does_not_escalate(self):
+        self.execute.return_value.finish_reason = "length"
+        result = self.client.post("/generate", json={"prompt": "code", "verify": False}).json()
+        self.assertFalse(result["escalated"])
+        self.assertEqual(result["attempts"][0]["check"], "not_checked")
+        self.execute.return_value.finish_reason = "stop"
+        result = self.client.post("/generate", json={"prompt": "code"}).json()
+        self.assertEqual((result["escalated"], result["attempts"][0]["check"]), (False, "ok"))
+        self.assertEqual(self.execute.call_count, 2)
+
+    def test_failed_escalation_keeps_the_first_answer(self):
+        cut_off = ModelResponse("Partial", self.model, TokenUsage(10, 4096, 4106, 0, .04, .04), 900, "length")
+        self.execute.side_effect = [cut_off, RuntimeError("down")]
+        result = self.client.post("/generate", json={"prompt": "code"}).json()
+        self.assertFalse(result["escalated"])
+        self.assertEqual(result["response"]["content"], "Partial")
+        self.assertEqual(result["attempts"][1]["check"], "error")
 
     def test_generate_falls_back_to_next_ranked_model(self):
         fallback_response = ModelResponse(
@@ -103,7 +133,7 @@ class ApiTests(unittest.TestCase):
     def test_invalid_inputs_rejected_before_work(self):
         for update in [{"prompt": " "}, {"lam": -1}, {"lam": "NaN"}, {"lam": True}, {"alpha": 0.5},
                        {"max_tokens": 0}, {"max_tokens": 1.5}, {"max_tokens": True},
-                       {"timeout": 0}, {"timeout": "Infinity"}, {"unknown": 1},
+                       {"timeout": 0}, {"timeout": "Infinity"}, {"unknown": 1}, {"verify": "yes"},
                        {"signal": {"task_scores": {"code_function": .2}}},
                        {"signal": {"task_scores": {"unknown": 1}}},
                        {"signal": {"task_scores": {"code_function": 1}, "complexity": 2}},

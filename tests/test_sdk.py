@@ -52,6 +52,10 @@ class SDKTests(unittest.TestCase):
         self.assertEqual(result.signal.task_scores, {"code_function": 1.0})
         self.assertEqual(result.estimates[0].model_id, self.model.id)
         self.assertEqual(result.estimates[0].expected_accuracy, 1.0)
+        # The fake reply is cut off, but the one-model pool has nobody to escalate to.
+        self.assertFalse(result.escalated)
+        self.assertEqual([(a.model_id, a.check) for a in result.attempts], [(self.model.id, "truncated")])
+        self.assertEqual(result.total_cost_usd, .00005)
         self.assertEqual(result.model_dump()["response"]["content"], result.content)
         self.assertGreaterEqual(result.total_latency_ms, result.routing_latency_ms)
         self.score.assert_called_once_with("  Hello  ")

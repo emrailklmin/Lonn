@@ -14,6 +14,9 @@ cost per request of this prompt from the routing table:
   the datasets' difficulty labels, it has not improved the cross-fitted
   pass-vs-cost curve yet (docs/task_router.md).
 
+When an answer fails a check (lonn.answer_check), ``escalation_target`` picks
+the model to try next, if a second call is worth its expected cost.
+
 It then picks a model by one of two rules:
 
 - ``utility`` (default): maximize ``accuracy - lam * cost_usd``. ``lam`` is
@@ -126,3 +129,24 @@ def rank_models(signal: TaskSignal, table: RoutingTable, models: list[Model], la
     else:
         raise ValueError(f'Unknown mode {mode!r}')
     return [e.model for e in ranked[:limit]]
+
+
+ESCALATION_FACTOR = 1.0  # Escalation uses the request's own lambda (see escalation_target).
+
+
+def escalation_target(signal: TaskSignal, table: RoutingTable, models: list[Model], lam: float,
+                      first: Model, factor: float = ESCALATION_FACTOR,
+                      use_complexity: bool = DEFAULT_USE_COMPLEXITY) -> Model | None:
+    """The model to try when ``first``'s answer fails a check (lonn.answer_check).
+
+    A failed answer is almost never right (under 1% on the benchmark), so a second
+    call is worth its price when the best other model's own score,
+    ``accuracy - lam * factor * cost``, is positive: its expected accuracy is worth
+    more than its expected cost at this lambda. Returns that model, or None when no
+    second call pays off (then the first answer is returned as it is).
+    """
+    others = [e for e in estimate(signal, table, models, lam * factor, use_complexity) if e.model.id != first.id]
+    if not others:
+        return None
+    best = max(others, key=lambda e: (e.score, -e.cost_usd, e.model.id))
+    return best.model if best.score > 0 else None

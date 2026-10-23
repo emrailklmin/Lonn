@@ -37,6 +37,12 @@ The server needs the key for the selected model's provider:
 `OPENROUTER_API_KEY` for `openrouter/...` models or `NVIDIA_NIM_API_KEY` for
 `nvidia_nim/...` models. The SDK does not start or deploy the server.
 
+`generate` checks the answer on the server before returning it (cut off, empty, or
+code that fails the prompt's worked examples). If it fails and a second model is
+worth its expected cost, that model answers instead: `result.escalated`,
+`result.attempts` and `result.total_cost_usd` show what happened and what it cost.
+Pass `verify=False` to skip the check.
+
 `lam` (lambda) defaults to 20: how many accuracy points one USD per request is
 worth. 0 picks the model with the best expected accuracy; higher values pick
 cheaper models. `result.estimates` lists the expected accuracy and cost per

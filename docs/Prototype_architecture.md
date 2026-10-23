@@ -14,7 +14,7 @@ The Lonn prototype consists of four core responsibilities:
 The app and the API route with the **task-type pipeline**. The sections further down describe the original pipeline (Laya topics, complexity and alpha), which remains in the code (`complexity.py`, `router.py`) but is no longer orchestrated.
 
 ```text
-prompt → task_classifier.py (TaskSignal) → task_router.py (+ routing table, pool) → ranked models → executor.py
+prompt → task_classifier.py (TaskSignal) → task_router.py (+ routing table, pool) → ranked models → executor.py → answer_check.py → (escalate once) → executor.py
 ```
 
 | Area | Original pipeline | `prototype3.0` |
@@ -26,7 +26,8 @@ prompt → task_classifier.py (TaskSignal) → task_router.py (+ routing table, 
 | Selection | Maximum of `alpha·complexity·quality − (1−alpha)·cost` | Maximum of `accuracy − lam·cost_usd`, mixing task-type rows by probability (`task_router.py`, default `lam` 20) |
 | HTTP request | `alpha`, optional `signal {complexity, topic_scores}` | `lam`, optional `signal {task_scores, complexity?}` |
 | HTTP response | `models`, `signal`, `alpha`, `analysis_source: laya/provided` | adds `estimates` (expected accuracy and cost per candidate); `lam`; `analysis_source: classifier/provided` |
-| SDK | `lonnrouter` 0.1.0 | `lonnrouter` 0.2.0: `lam` instead of `alpha`, new `Signal`, `CandidateEstimate` |
+| Answer check | None | `/generate` checks the answer (`answer_check.py`: cut off, empty, or code failing the prompt's examples in the sandbox) and escalates once when a second model is worth its cost (`task_router.escalation_target`); the response lists `attempts`, `escalated` and `total_cost_usd`; `verify: false` skips it |
+| SDK | `lonnrouter` 0.1.0 | `lonnrouter` 0.3.0: `lam` instead of `alpha`, new `Signal`, `CandidateEstimate`, `attempts`, `verify` |
 
 Module boundaries are unchanged:
 - the classifier knows nothing about routing;

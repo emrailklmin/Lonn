@@ -5,6 +5,10 @@ classifier gives a probability per task type, and the router picks the model
 with the highest expected accuracy minus ``lam`` times its expected cost per
 request, from the routing table measured on the benchmark.
 
+`/generate` checks the answer before returning it (lonn.answer_check: cut off,
+empty, or code that fails the prompt's worked examples). If it fails and a second
+model is worth its expected cost, that model answers instead (one escalation).
+
 Run: python3 -m uvicorn lonn.api:app --app-dir src --host 127.0.0.1
 """
 
@@ -18,12 +22,13 @@ from typing import Annotated, Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .answer_check import check_answer
 from .executor import execute
 from .model_pool import load_model_pool
 from .routing_table import RoutingTable
 from .schemas import Model, ModelResponse, TaskSignal
 from .task_classifier import TaskClassifier
-from .task_router import DEFAULT_LAMBDA, FALLBACK_LIMIT, estimate, rank_models
+from .task_router import DEFAULT_LAMBDA, FALLBACK_LIMIT, escalation_target, estimate, rank_models
 from .task_types import load_task_types
 
 
@@ -70,6 +75,7 @@ class RouteRequest(BaseModel):
 class GenerateRequest(RouteRequest):
     max_tokens: int = Field(default=4096, gt=0, strict=True)
     timeout: float = Field(default=120, gt=0, le=600, allow_inf_nan=False, strict=True)
+    verify: bool = Field(default=True, strict=True)  # check the answer and escalate once if it fails
 
 
 class CandidateEstimate(BaseModel):
@@ -77,6 +83,15 @@ class CandidateEstimate(BaseModel):
     expected_accuracy: float
     expected_cost_usd: float
     score: float
+
+
+class Attempt(BaseModel):
+    """One model call made for a /generate request."""
+
+    model_id: str
+    check: str  # "ok", "truncated", "empty", "failed_examples", "not_checked" or "error"
+    cost_usd: float
+    latency_ms: float
 
 
 class RouteResponse(BaseModel):
@@ -96,6 +111,9 @@ class GenerateResponse(BaseModel):
     analysis_source: Literal["classifier", "provided"]
     routing_latency_ms: float
     response: ModelResponse
+    attempts: list[Attempt]
+    escalated: bool
+    total_cost_usd: float
     total_latency_ms: float
 
 
@@ -189,10 +207,29 @@ def create_app() -> FastAPI:
             if code in (401, 403):
                 raise HTTPException(502, "Provider rejected server credentials or access") from None
             raise HTTPException(502, "Model execution failed. Check server credentials, dependencies, and provider availability.") from None
+        attempts = [Attempt(model_id=selected_model.id, check="not_checked", cost_usd=response.usage.total_cost,
+                            latency_ms=response.latency_ms)]
+        escalated = False
+        if request.verify:
+            result = check_answer(request.prompt, response.content, response.finish_reason)
+            attempts[0].check = "ok" if result.ok else result.reason
+            target = None if result.ok else escalation_target(
+                routed.signal, app.state.table, app.state.models, request.lam, selected_model)
+            if target is not None and request.max_tokens < target.context_window:
+                try:
+                    second = execute(request.prompt, target, timeout=request.timeout, max_tokens=request.max_tokens)
+                    attempts.append(Attempt(model_id=target.id, check="not_checked", cost_usd=second.usage.total_cost,
+                                            latency_ms=second.latency_ms))
+                    response, selected_model, escalated = second, target, True
+                except Exception as exc:  # Keep the first answer; the escalation is best effort.
+                    attempts.append(Attempt(model_id=target.id, check="error", cost_usd=0.0, latency_ms=0.0))
+                    logger.warning("Escalation failed (provider=%s model=%s error=%s status=%s)", target.provider,
+                                   target.id, type(exc).__name__, getattr(exc, "status_code", None))
         return GenerateResponse(
             model=selected_model, estimates=routed.estimates, signal=routed.signal, lam=routed.lam,
             analysis_source=routed.analysis_source,
-            routing_latency_ms=routed.routing_latency_ms, response=response,
+            routing_latency_ms=routed.routing_latency_ms, response=response, attempts=attempts,
+            escalated=escalated, total_cost_usd=sum(a.cost_usd for a in attempts),
             total_latency_ms=(perf_counter() - started) * 1000,
         )
 
