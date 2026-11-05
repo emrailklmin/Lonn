@@ -1,8 +1,8 @@
 {
   "run_name": "lambda-sweep-0-100-cascade",
-  "description": "Lambda sweep 0-100 step 10, shipped classifier, answer checks + one escalation, cross-fitted 5x10 (#19)",
-  "date": "2026-11-05T11:07:21+00:00",
-  "git_commit": "7b983e3",
+  "description": "Lambda sweep 0-100 step 10 plus 5 and 15, shipped classifier, answer checks + one escalation, cross-fitted 5x10 (#19)",
+  "date": "2026-11-05T11:18:38+00:00",
+  "git_commit": "b47e352",
   "git_dirty": false,
   "scorer": "results/classifier_bakeoff/bge-small-linear-wildchat/benchmark_signals.jsonl",
   "alpha": null,

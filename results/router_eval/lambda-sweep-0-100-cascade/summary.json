@@ -196,12 +196,28 @@
         "escalated_share": 0.0281
       },
       {
+        "value": 5.0,
+        "pass_rate": 0.8925,
+        "cost_usd": 4.731136,
+        "gap_closed": 0.6982,
+        "top_model_share": 0.35,
+        "escalated_share": 0.0261
+      },
+      {
         "value": 10.0,
         "pass_rate": 0.8962,
         "cost_usd": 3.912362,
         "gap_closed": 0.7215,
         "top_model_share": 0.3287,
         "escalated_share": 0.0606
+      },
+      {
+        "value": 15.0,
+        "pass_rate": 0.8812,
+        "cost_usd": 2.710715,
+        "gap_closed": 0.6274,
+        "top_model_share": 0.3851,
+        "escalated_share": 0.0793
       },
       {
         "value": 20.0,
@@ -286,12 +302,28 @@
         "escalated_share": 0.0281
       },
       {
+        "value": 5.0,
+        "pass_rate": 0.8925,
+        "cost_usd": 4.731136,
+        "gap_closed": 0.6982,
+        "top_model_share": 0.35,
+        "escalated_share": 0.0261
+      },
+      {
         "value": 10.0,
         "pass_rate": 0.8962,
         "cost_usd": 3.912362,
         "gap_closed": 0.7215,
         "top_model_share": 0.3287,
         "escalated_share": 0.0606
+      },
+      {
+        "value": 15.0,
+        "pass_rate": 0.8812,
+        "cost_usd": 2.710715,
+        "gap_closed": 0.6274,
+        "top_model_share": 0.3851,
+        "escalated_share": 0.0793
       },
       {
         "value": 20.0,
