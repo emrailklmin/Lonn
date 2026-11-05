@@ -5,7 +5,7 @@ whose ID is the full ``<provider>/<publisher>/<model>`` ID from
 config/models.yaml. Loading the pool, filtering active models, and routing
 remain the caller's job.
 
-Costs are computed from configured prices, not from provider billing data.
+Total cost prefers OpenRouter-reported billing, falling back to configured prices.
 """
 
 import os
@@ -22,6 +22,7 @@ def execute(
     *,
     timeout: float = 120.0,
     max_tokens: int = 4096,
+    api_key: str | None = None,
 ) -> ModelResponse:
     """Send one non-streaming text request to the selected model.
 
@@ -61,7 +62,7 @@ def execute(
 
     load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
     key_name = PROVIDER_API_KEYS[model.provider]
-    api_key = os.environ.get(key_name, "").strip()
+    api_key = (api_key if api_key is not None else os.environ.get(key_name, "")).strip()
     if not api_key or api_key.endswith("-your-key-here"):
         raise ValueError(f"Set {key_name} in the environment or repository .env")
 
@@ -100,6 +101,19 @@ def execute(
         raise ValueError("Provider returned missing or invalid token usage")
     input_cost = prompt_tokens / 1_000_000 * model.cost_per_m_input
     output_cost = completion_tokens / 1_000_000 * model.cost_per_m_output
+    reported_cost = getattr(usage, "cost", None)
+    # LiteLLM also preserves OpenRouter usage.cost in this provider-specific header.
+    # Do not use generic response_cost, which LiteLLM may calculate itself.
+    if reported_cost is None and model.provider == "openrouter":
+        hidden = getattr(response, "_hidden_params", {}) or {}
+        reported_cost = hidden.get("additional_headers", {}).get("llm_provider-x-litellm-response-cost")
+    if isinstance(reported_cost, str):
+        try:
+            reported_cost = float(reported_cost)
+        except ValueError:
+            reported_cost = None
+    actual = (model.provider == "openrouter" and type(reported_cost) in (int, float)
+              and isfinite(reported_cost) and reported_cost >= 0)
     return ModelResponse(
         content=content,
         model=model,
@@ -109,7 +123,9 @@ def execute(
             total_tokens=prompt_tokens + completion_tokens,
             input_cost=input_cost,
             output_cost=output_cost,
-            total_cost=input_cost + output_cost,
+            total_cost=reported_cost if actual else input_cost + output_cost,
+            cost_basis="provider_reported" if actual else "estimate",
+            provider_cost=reported_cost if actual else None,
         ),
         latency_ms=latency_ms,
         finish_reason=finish_reason,

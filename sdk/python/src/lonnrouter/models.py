@@ -37,6 +37,9 @@ class TokenUsage(BaseModel):
     input_cost: float
     output_cost: float
     total_cost: float
+    cost_basis: str = "estimate"
+    service_fee: float = 0.0
+    provider_cost: float | None = None
 
 
 class ModelResponse(BaseModel):
@@ -54,6 +57,7 @@ class Attempt(BaseModel):
     check: str  # "ok", "truncated", "empty", "failed_examples", "not_checked" or "error"
     cost_usd: float
     latency_ms: float
+    cost_basis: str = "estimate"
 
 
 class RouteResult(BaseModel):
@@ -70,6 +74,17 @@ class RouteResult(BaseModel):
         return self.models[0]
 
 
+class Billing(BaseModel):
+    """Provider/model token cost, savings-based Lönn fee, and customer total."""
+    model_cost_usd: float
+    service_fee_usd: float
+    total_cost_usd: float
+    estimated_top_model_cost_usd: float | None = None
+    estimated_savings_usd: float | None = None
+    service_fee_rate: float
+    service_fee_basis: str
+
+
 class GenerateResult(BaseModel):
     model: Model
     estimates: list[CandidateEstimate]
@@ -81,7 +96,9 @@ class GenerateResult(BaseModel):
     attempts: list[Attempt]
     escalated: bool
     total_cost_usd: float
+    cost_basis: str = "estimate"
     total_latency_ms: float
+    billing: Billing | None = None
 
     @property
     def content(self) -> str:

@@ -14,6 +14,7 @@ import re
 import signal
 import subprocess
 import sys
+import sysconfig
 
 TEST_TIMEOUT = 6.0  # Seconds per test case (LiveCodeBench's own default).
 MAX_OUTPUT_BYTES = 64 << 20  # Per output file; larger output kills the program.
@@ -41,6 +42,9 @@ def _sandbox_profile(workdir: str) -> str:
         f'(deny file-read* (subpath "{home}"))',
         f'(allow file-read-metadata (subpath "{home}"))',
         f'(allow file-read* (subpath "{sys.prefix}"))',
+        # uv/pyenv venvs keep the standard library outside sys.prefix.
+        # Permit only that runtime directory, not the surrounding home folder.
+        f'(allow file-read* (subpath "{Path(sysconfig.get_path("stdlib")).resolve()}"))',
     ])
 
 

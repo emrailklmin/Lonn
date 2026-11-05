@@ -50,7 +50,10 @@ class Model:
 
 @dataclass
 class TokenUsage:
-    """Reported token counts and estimated costs using configured prices."""
+    """Reported token counts; total_cost uses provider billing when available.
+
+    input_cost/output_cost remain configured-price estimates; cost_basis describes
+    total_cost, which may differ from their sum due to caching or provider fees."""
 
     prompt_tokens: int
     completion_tokens: int
@@ -58,6 +61,9 @@ class TokenUsage:
     input_cost: float
     output_cost: float
     total_cost: float
+    cost_basis: str = "estimate"
+    service_fee: float = 0.0
+    provider_cost: float | None = None
 
 
 @dataclass

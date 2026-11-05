@@ -136,3 +136,44 @@ the repository root in its server environment. The API currently has no
 authentication: use a trusted private network or an SSH tunnel. Through a
 tunnel such as `ssh -N -L 8001:127.0.0.1:8000 USER@HOST`, use
 `base_url="http://127.0.0.1:8001"` and keep the server bound to loopback.
+
+## Local customer demo authentication and pricing
+
+Use `LonnRouter(api_key="lonn_demo_…", base_url="http://127.0.0.1:8000")`
+(or `AsyncLonnRouter`) with the customer key from the portal. Both clients also
+read `LONN_API_KEY`. Never pass an OpenRouter credential to the customer SDK.
+The demo server uses `lam` as a request preference unless an organization, team,
+project, or application administrator enforces a value; enforced values take precedence.
+
+Customer-demo `total_cost_usd` is model token cost plus 20% of positive estimated
+savings against the highest-quality eligible model. Benchmark ratios estimate
+that baseline from each completed model call's cost. `result.billing` separates
+`model_cost_usd`, `service_fee_usd`, `total_cost_usd`, and the estimated baseline
+and savings. Missing benchmark data produces no savings fee. `cost_basis="calculated"`
+identifies this tariff; upstream reported `provider_cost` remains separate telemetry. See the repository's
+[customer demo guide](../../docs/customer_demo.md).
+
+## Organization applications
+
+A personal key must select an authorized application by name or ID:
+
+```python
+with LonnRouter(api_key="lonn_personal_...", application="engineering-app") as client:
+    print(client.generate("Explain binary search.").content)
+```
+
+An application key is bound to its application and needs no `application`
+argument. Application keys cannot select another application. The async client
+supports the same `application` argument. Set `LONN_APPLICATION` as an
+alternative. The local server resolves enforced λ in organization → team → project → application order;
+otherwise an explicit request `lam` overrides the saved user preference, followed by
+unlocked application and project defaults and finally 0.20.
+
+## Model discovery and direct generation (customer demo API)
+
+`client.model_pool()` lists active, measured models allowed by organization and
+team model settings before privacy restrictions. `client.models()` lists only
+models currently eligible after privacy filtering. Both return an empty list
+when there are no matches. Pass `model=model_id` to `client.generate()` to call
+one eligible model without falling back to another. The server rejects models
+outside the eligible pool. These additions are also available on the async client.

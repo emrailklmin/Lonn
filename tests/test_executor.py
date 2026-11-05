@@ -53,6 +53,25 @@ class ExecutorTests(unittest.TestCase):
             Path(__file__).resolve().parents[1] / ".env", override=False
         )
 
+    def test_reported_openrouter_charge_wins_over_price_estimate(self):
+        model = replace(self.model, id="openrouter/openai/gpt-oss-20b", provider="openrouter")
+        for value in (0.0, .001234):
+            self.response.usage.cost = value
+            result = execute("Hi", model, api_key="local-test-key")
+            self.assertEqual(result.usage.total_cost, value)
+            self.assertEqual(result.usage.cost_basis, "provider_reported")
+        del self.response.usage.cost
+        self.response._hidden_params = {"additional_headers": {"llm_provider-x-litellm-response-cost": "0.002"}}
+        self.assertEqual(execute("Hi", model, api_key="local-test-key").usage.total_cost, .002)
+
+    def test_invalid_or_missing_reported_cost_is_labeled_estimate(self):
+        model = replace(self.model, id="openrouter/openai/gpt-oss-20b", provider="openrouter")
+        for value in (None, float("nan"), -1, True, "invalid"):
+            self.response.usage.cost = value
+            result = execute("Hi", model, api_key="local-test-key")
+            self.assertEqual(result.usage.cost_basis, "estimate")
+            self.assertAlmostEqual(result.usage.total_cost, .00001)
+
     def test_truncation_is_preserved(self):
         self.response.choices[0].finish_reason = "length"
         self.assertEqual(execute("Hi", self.model).finish_reason, "length")

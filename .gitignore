@@ -38,3 +38,10 @@ htmlcov/
 # private HF dataset; only data/task_data/manifest.json is committed)
 /data/task_data/*
 !/data/task_data/manifest.json
+
+# Customer demo runtime, credentials and frontend builds
+/.local/
+/frontend/node_modules/
+/frontend/dist/
+*.sqlite3
+*.sqlite3-*

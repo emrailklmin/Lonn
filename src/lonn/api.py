@@ -92,6 +92,7 @@ class Attempt(BaseModel):
     check: str  # "ok", "truncated", "empty", "failed_examples", "not_checked" or "error"
     cost_usd: float
     latency_ms: float
+    cost_basis: str = "estimate"
 
 
 class RouteResponse(BaseModel):
@@ -114,6 +115,7 @@ class GenerateResponse(BaseModel):
     attempts: list[Attempt]
     escalated: bool
     total_cost_usd: float
+    cost_basis: str = "estimate"
     total_latency_ms: float
 
 
@@ -138,7 +140,8 @@ def create_app() -> FastAPI:
     def models():
         return app.state.models
 
-    def route_request(request: RouteRequest) -> RouteResponse:
+    def route_request(request: RouteRequest, pool=None) -> RouteResponse:
+        pool = app.state.models if pool is None else pool
         started = perf_counter()
         source = "provided" if request.signal is not None else "classifier"
         try:
@@ -148,9 +151,9 @@ def create_app() -> FastAPI:
                 # Protect lazy model loading and inference across worker threads.
                 with app.state.classifier_lock:
                     signal = app.state.classifier.classify(request.prompt)
-            ranked = rank_models(signal, app.state.table, app.state.models, lam=request.lam,
+            ranked = rank_models(signal, app.state.table, pool, lam=request.lam,
                                  limit=FALLBACK_LIMIT)
-            by_id = {e.model.id: e for e in estimate(signal, app.state.table, app.state.models, request.lam)}
+            by_id = {e.model.id: e for e in estimate(signal, app.state.table, pool, request.lam)}
         except Exception as exc:
             logger.warning("Prompt analysis or routing failed (source=%s error=%s)", source, type(exc).__name__)
             raise HTTPException(503, "Prompt analysis or routing failed. Check server dependencies and "
@@ -172,8 +175,13 @@ def create_app() -> FastAPI:
     @app.post("/generate", response_model=GenerateResponse)
     def generate(request: GenerateRequest):
         """Try up to five ranked models, falling back when execution fails."""
+        return generate_request(request)
+
+    def generate_request(request, pool=None, executor=None):
+        pool = app.state.models if pool is None else pool
+        executor = execute if executor is None else executor
         started = perf_counter()
-        routed = route_request(request)
+        routed = route_request(request, pool)
         eligible_models = [
             model for model in routed.models
             if request.max_tokens < model.context_window
@@ -185,7 +193,7 @@ def create_app() -> FastAPI:
         last_error = None
         for model in eligible_models:
             try:
-                response = execute(request.prompt, model,
+                response = executor(request.prompt, model,
                                    timeout=request.timeout, max_tokens=request.max_tokens)
                 selected_model = model
                 break
@@ -208,18 +216,18 @@ def create_app() -> FastAPI:
                 raise HTTPException(502, "Provider rejected server credentials or access") from None
             raise HTTPException(502, "Model execution failed. Check server credentials, dependencies, and provider availability.") from None
         attempts = [Attempt(model_id=selected_model.id, check="not_checked", cost_usd=response.usage.total_cost,
-                            latency_ms=response.latency_ms)]
+                            latency_ms=response.latency_ms, cost_basis=response.usage.cost_basis)]
         escalated = False
         if request.verify:
             result = check_answer(request.prompt, response.content, response.finish_reason)
             attempts[0].check = "ok" if result.ok else result.reason
             target = None if result.ok else escalation_target(
-                routed.signal, app.state.table, app.state.models, request.lam, selected_model)
+                routed.signal, app.state.table, pool, request.lam, selected_model)
             if target is not None and request.max_tokens < target.context_window:
                 try:
-                    second = execute(request.prompt, target, timeout=request.timeout, max_tokens=request.max_tokens)
+                    second = executor(request.prompt, target, timeout=request.timeout, max_tokens=request.max_tokens)
                     attempts.append(Attempt(model_id=target.id, check="not_checked", cost_usd=second.usage.total_cost,
-                                            latency_ms=second.latency_ms))
+                                            latency_ms=second.latency_ms, cost_basis=second.usage.cost_basis))
                     response, selected_model, escalated = second, target, True
                 except Exception as exc:  # Keep the first answer; the escalation is best effort.
                     attempts.append(Attempt(model_id=target.id, check="error", cost_usd=0.0, latency_ms=0.0))
@@ -230,9 +238,12 @@ def create_app() -> FastAPI:
             analysis_source=routed.analysis_source,
             routing_latency_ms=routed.routing_latency_ms, response=response, attempts=attempts,
             escalated=escalated, total_cost_usd=sum(a.cost_usd for a in attempts),
+            cost_basis=attempts[0].cost_basis if all(a.cost_basis == attempts[0].cost_basis for a in attempts) else "mixed",
             total_latency_ms=(perf_counter() - started) * 1000,
         )
 
+    app.state.route_request = route_request
+    app.state.generate_request = generate_request
     return app
 
 

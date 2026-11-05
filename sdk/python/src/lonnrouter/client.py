@@ -24,8 +24,10 @@ def _base_url(value: str | None) -> str:
 DEFAULT_LAMBDA = 20.0  # Accuracy points one USD per request is worth; higher picks cheaper models.
 
 
-def _payload(prompt: str, lam: float, signal: Signal | dict | None) -> dict:
-    payload = {"prompt": prompt, "lam": lam}
+def _payload(prompt: str, lam: float | None, signal: Signal | dict | None) -> dict:
+    payload = {"prompt": prompt}
+    if lam is not None:
+        payload["lam"] = lam
     if signal is not None:
         payload["signal"] = signal.model_dump(exclude_none=True) if isinstance(signal, Signal) else signal
     return payload
@@ -47,14 +49,20 @@ class LonnRouter:
     An injected `http_client` remains owned by the caller.
     """
 
-    def __init__(self, base_url: str | None = None, *, request_timeout: float = 300,
+    def __init__(self, base_url: str | None = None, *, api_key: str | None = None, application: str | None = None, request_timeout: float = 300,
                  http_client: httpx.Client | None = None):
+        self.api_key = api_key or os.getenv("LONN_API_KEY")
+        self.application = application or os.getenv("LONN_APPLICATION")
         self.base_url = _base_url(base_url)
         self.request_timeout = request_timeout
         self._owns_client = http_client is None
         self._client = http_client if http_client is not None else httpx.Client()
 
     def _request(self, method: str, path: str, result_type: type[T], **kwargs) -> T:
+        if self.api_key:
+            kwargs["headers"] = {"Authorization": f"Bearer {self.api_key}"}
+        if self.application:
+            kwargs.setdefault("headers", {})["X-Lonn-Application"] = self.application
         try:
             response = self._client.request(method, f"{self.base_url}/{path}",
                                             timeout=self.request_timeout, **kwargs)
@@ -64,19 +72,25 @@ class LonnRouter:
             raise LonnConnectionError("Could not reach Lonn; check base_url and server connectivity") from None
         return _parse(response, result_type)
 
-    def route(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
+    def route(self, prompt: str, *, lam: float | None = None,
               signal: Signal | dict | None = None) -> RouteResult:
         return self._request("POST", "route", RouteResult, json=_payload(prompt, lam, signal))
 
-    def generate(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
-                 signal: Signal | dict | None = None, max_tokens: int = 4096,
+    def generate(self, prompt: str, *, lam: float | None = None,
+                 signal: Signal | dict | None = None, model: str | None = None, max_tokens: int = 4096,
                  provider_timeout: float = 120, verify: bool = True) -> GenerateResult:
         payload = _payload(prompt, lam, signal)
+        if model is not None:
+            payload["model"] = model
         payload.update(max_tokens=max_tokens, timeout=provider_timeout, verify=verify)
         return self._request("POST", "generate", GenerateResult, json=payload)
 
     def models(self) -> list[Model]:
         return self._request("GET", "models", list[Model])
+
+    def model_pool(self) -> list[Model]:
+        """Configured routing pool before privacy eligibility filters (demo API)."""
+        return self._request("GET", "models/pool", list[Model])
 
     def health(self) -> Health:
         return self._request("GET", "health", Health)
@@ -95,14 +109,20 @@ class LonnRouter:
 class AsyncLonnRouter:
     """Async SDK for apps; use `async with` or await aclose()."""
 
-    def __init__(self, base_url: str | None = None, *, request_timeout: float = 300,
+    def __init__(self, base_url: str | None = None, *, api_key: str | None = None, application: str | None = None, request_timeout: float = 300,
                  http_client: httpx.AsyncClient | None = None):
+        self.api_key = api_key or os.getenv("LONN_API_KEY")
+        self.application = application or os.getenv("LONN_APPLICATION")
         self.base_url = _base_url(base_url)
         self.request_timeout = request_timeout
         self._owns_client = http_client is None
         self._client = http_client if http_client is not None else httpx.AsyncClient()
 
     async def _request(self, method: str, path: str, result_type: type[T], **kwargs) -> T:
+        if self.api_key:
+            kwargs["headers"] = {"Authorization": f"Bearer {self.api_key}"}
+        if self.application:
+            kwargs.setdefault("headers", {})["X-Lonn-Application"] = self.application
         try:
             response = await self._client.request(method, f"{self.base_url}/{path}",
                                                   timeout=self.request_timeout, **kwargs)
@@ -112,19 +132,25 @@ class AsyncLonnRouter:
             raise LonnConnectionError("Could not reach Lonn; check base_url and server connectivity") from None
         return _parse(response, result_type)
 
-    async def route(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
+    async def route(self, prompt: str, *, lam: float | None = None,
                     signal: Signal | dict | None = None) -> RouteResult:
         return await self._request("POST", "route", RouteResult, json=_payload(prompt, lam, signal))
 
-    async def generate(self, prompt: str, *, lam: float = DEFAULT_LAMBDA,
-                       signal: Signal | dict | None = None, max_tokens: int = 4096,
+    async def generate(self, prompt: str, *, lam: float | None = None,
+                       signal: Signal | dict | None = None, model: str | None = None, max_tokens: int = 4096,
                        provider_timeout: float = 120, verify: bool = True) -> GenerateResult:
         payload = _payload(prompt, lam, signal)
+        if model is not None:
+            payload["model"] = model
         payload.update(max_tokens=max_tokens, timeout=provider_timeout, verify=verify)
         return await self._request("POST", "generate", GenerateResult, json=payload)
 
     async def models(self) -> list[Model]:
         return await self._request("GET", "models", list[Model])
+
+    async def model_pool(self) -> list[Model]:
+        """Configured routing pool before privacy eligibility filters (demo API)."""
+        return await self._request("GET", "models/pool", list[Model])
 
     async def health(self) -> Health:
         return await self._request("GET", "health", Health)

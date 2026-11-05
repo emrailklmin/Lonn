@@ -5,6 +5,26 @@
 
 AI infrastructure for intelligent LLM routing, cost optimisation and observability.
 
+## Customer demo (Prototype 3.0 extension)
+
+The React customer portal and Nordic Notes example app run locally on one FastAPI server:
+
+```bash
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python scripts/demo.py
+```
+
+Requires Node.js 20+ with npm or pnpm for the frontend build. Open
+[the workspace](http://127.0.0.1:8000), sign in with a demo role, and configure the
+presenter OpenRouter credential in Settings. The customer application uses its
+own Lönn key; it never receives the provider credential. Subsequent starts can use
+`python scripts/demo.py --skip-build`.
+
+See [the customer demo guide](docs/customer_demo.md) for the complete setup,
+SDK examples, privacy filtering, persistence, reset command and limitations.
+The original prototype entrypoints below remain available separately.
+
 ## Repository layout
 
 ```text

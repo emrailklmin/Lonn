@@ -1,0 +1,66 @@
+{
+  "id": "demo-nordic",
+  "name": "Nordic Studio",
+  "start": "2026-10-20T08:00:00+00:00",
+  "request_count": 64,
+  "tasks": [
+    "math_problem",
+    "code_function",
+    "creative_writing",
+    "knowledge_recall"
+  ],
+  "random_seed": 20261105,
+  "teams": [
+    {
+      "id": "team-engineering",
+      "name": "Engineering"
+    },
+    {
+      "id": "team-support",
+      "name": "Customer Success"
+    },
+    {
+      "id": "team-content",
+      "name": "Content Studio"
+    }
+  ],
+  "private_account": {
+    "id": "demo-personal",
+    "name": "Personal workspace"
+  },
+  "users": [
+    {
+      "id": "user-admin",
+      "name": "Alex Nord",
+      "email": "admin@nordic.demo",
+      "role": "enterprise_admin",
+      "customer_id": "demo-nordic",
+      "team_id": null,
+      "password": "LonnDemo2026!"
+    },
+    {
+      "id": "user-engineer",
+      "name": "Robin Lind",
+      "email": "robin@nordic.demo",
+      "role": "enterprise_user",
+      "customer_id": "demo-nordic",
+      "team_id": "team-engineering",
+      "password": "LonnDemo2026!"
+    },
+    {
+      "id": "user-private",
+      "name": "Sam Berg",
+      "email": "sam@personal.demo",
+      "role": "private_user",
+      "customer_id": "demo-personal",
+      "team_id": null,
+      "password": "LonnDemo2026!"
+    }
+  ],
+  "task_weights": [
+    15,
+    50,
+    10,
+    25
+  ]
+}
