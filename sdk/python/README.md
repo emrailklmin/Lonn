@@ -45,8 +45,11 @@ Pass `verify=False` to skip the check.
 
 `lam` (lambda) defaults to 20: how many accuracy points one USD per request is
 worth. 0 picks the model with the best expected accuracy; higher values pick
-cheaper models. `result.estimates` lists the expected accuracy and cost per
-request of each ranked candidate, from the server's measured routing table. The returned
+cheaper models. `result.estimates` lists the estimated quality and cost per
+request of each ranked candidate. Quality may include user-supplied estimates.
+Each model's `task_aptitudes` exposes the 15 effective scores, their sources,
+and cost provenance; `topic_aptitudes` retains the original router's four scores.
+The returned
 `model` contains the selected model's metadata. `usage` reports tokens and
 estimated costs. `finish_reason == "length"` signals a truncated response and
 may accompany empty content. The complete wire response is available through

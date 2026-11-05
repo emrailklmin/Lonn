@@ -1,0 +1,398 @@
+{
+  "policies": {
+    "router": {
+      "questions": 690,
+      "passes": 590.3,
+      "pass_rate": 0.8555,
+      "cost_usd": 1.544106,
+      "cost_per_pass_usd": 0.002616,
+      "mean_latency_ms": 34564,
+      "escalated_share": 0.0858
+    },
+    "oracle": {
+      "questions": 690,
+      "passes": 649,
+      "pass_rate": 0.9406,
+      "cost_usd": 1.076653,
+      "cost_per_pass_usd": 0.001659,
+      "mean_latency_ms": 31689
+    },
+    "best_fixed": {
+      "model": "openrouter/anthropic/claude-sonnet-5.5",
+      "questions": 690,
+      "passes": 608,
+      "pass_rate": 0.8812,
+      "cost_usd": 7.581904,
+      "cost_per_pass_usd": 0.01247,
+      "mean_latency_ms": 18707
+    },
+    "cheapest": {
+      "model": "openrouter/openai/gpt-oss-20b",
+      "questions": 690,
+      "passes": 483,
+      "pass_rate": 0.7,
+      "cost_usd": 0.184515,
+      "cost_per_pass_usd": 0.000382,
+      "mean_latency_ms": 43602
+    },
+    "models": {
+      "openrouter/anthropic/claude-sonnet-5.5": {
+        "questions": 690,
+        "passes": 608,
+        "pass_rate": 0.8812,
+        "cost_usd": 7.581904,
+        "cost_per_pass_usd": 0.01247,
+        "mean_latency_ms": 18707
+      },
+      "openrouter/meta/muse-spark-1.3": {
+        "questions": 690,
+        "passes": 583,
+        "pass_rate": 0.8449,
+        "cost_usd": 7.369296,
+        "cost_per_pass_usd": 0.01264,
+        "mean_latency_ms": 31050
+      },
+      "openrouter/google/gemini-3.8-flash": {
+        "questions": 690,
+        "passes": 589,
+        "pass_rate": 0.8536,
+        "cost_usd": 4.516873,
+        "cost_per_pass_usd": 0.007669,
+        "mean_latency_ms": 13834
+      },
+      "openrouter/z-ai/glm-5.3-flash": {
+        "questions": 690,
+        "passes": 494,
+        "pass_rate": 0.7159,
+        "cost_usd": 0.370168,
+        "cost_per_pass_usd": 0.000749,
+        "mean_latency_ms": 32174
+      },
+      "openrouter/deepseek/deepseek-v4.1-flash": {
+        "questions": 690,
+        "passes": 542,
+        "pass_rate": 0.7855,
+        "cost_usd": 1.161362,
+        "cost_per_pass_usd": 0.002143,
+        "mean_latency_ms": 21786
+      },
+      "openrouter/deepseek/deepseek-v4-pro": {
+        "questions": 690,
+        "passes": 521,
+        "pass_rate": 0.7551,
+        "cost_usd": 3.983827,
+        "cost_per_pass_usd": 0.007647,
+        "mean_latency_ms": 45299
+      },
+      "openrouter/openai/gpt-oss-120b": {
+        "questions": 690,
+        "passes": 523,
+        "pass_rate": 0.758,
+        "cost_usd": 0.287177,
+        "cost_per_pass_usd": 0.000549,
+        "mean_latency_ms": 48468
+      },
+      "openrouter/openai/gpt-oss-20b": {
+        "questions": 690,
+        "passes": 483,
+        "pass_rate": 0.7,
+        "cost_usd": 0.184515,
+        "cost_per_pass_usd": 0.000382,
+        "mean_latency_ms": 43602
+      }
+    }
+  },
+  "reference": {
+    "run": "laya-stock-a05",
+    "pass_rate": 0.7812,
+    "cost_usd": 1.099091
+  },
+  "use_complexity": false,
+  "gap_closed": 0.4661,
+  "choice_share": {
+    "openrouter/deepseek/deepseek-v4.1-flash": 0.4132,
+    "openrouter/google/gemini-3.8-flash": 0.2059,
+    "openrouter/openai/gpt-oss-120b": 0.1584,
+    "openrouter/z-ai/glm-5.3-flash": 0.0986,
+    "openrouter/deepseek/deepseek-v4-pro": 0.0742,
+    "openrouter/openai/gpt-oss-20b": 0.0233,
+    "openrouter/meta/muse-spark-1.3": 0.0197,
+    "openrouter/anthropic/claude-sonnet-5.5": 0.0067
+  },
+  "by_task": {
+    "business_writing": {
+      "questions": 60,
+      "passes": 29.6,
+      "pass_rate": 0.4933,
+      "cost_usd": 0.563568,
+      "cost_per_pass_usd": 0.019039,
+      "mean_latency_ms": 108812
+    },
+    "code_algorithmic": {
+      "questions": 120,
+      "passes": 88.8,
+      "pass_rate": 0.74,
+      "cost_usd": 0.275306,
+      "cost_per_pass_usd": 0.0031,
+      "mean_latency_ms": 98127
+    },
+    "code_function": {
+      "questions": 80,
+      "passes": 75.6,
+      "pass_rate": 0.945,
+      "cost_usd": 0.028424,
+      "cost_per_pass_usd": 0.000376,
+      "mean_latency_ms": 5506
+    },
+    "instruction_following": {
+      "questions": 80,
+      "passes": 70.7,
+      "pass_rate": 0.8838,
+      "cost_usd": 0.104128,
+      "cost_per_pass_usd": 0.001473,
+      "mean_latency_ms": 25325
+    },
+    "knowledge_quantitative": {
+      "questions": 59,
+      "passes": 55.7,
+      "pass_rate": 0.9441,
+      "cost_usd": 0.070239,
+      "cost_per_pass_usd": 0.001261,
+      "mean_latency_ms": 12741
+    },
+    "knowledge_recall": {
+      "questions": 91,
+      "passes": 77.7,
+      "pass_rate": 0.8538,
+      "cost_usd": 0.141662,
+      "cost_per_pass_usd": 0.001823,
+      "mean_latency_ms": 5920
+    },
+    "math_problem": {
+      "questions": 150,
+      "passes": 148.2,
+      "pass_rate": 0.988,
+      "cost_usd": 0.104878,
+      "cost_per_pass_usd": 0.000708,
+      "mean_latency_ms": 8395
+    },
+    "science_expert": {
+      "questions": 50,
+      "passes": 44.0,
+      "pass_rate": 0.88,
+      "cost_usd": 0.2559,
+      "cost_per_pass_usd": 0.005816,
+      "mean_latency_ms": 10587
+    }
+  },
+  "sweep": {
+    "with_complexity": [
+      {
+        "value": 0,
+        "pass_rate": 0.8904,
+        "cost_usd": 6.927623,
+        "gap_closed": 0.6851,
+        "top_model_share": 0.47,
+        "escalated_share": 0.0283
+      },
+      {
+        "value": 2,
+        "pass_rate": 0.892,
+        "cost_usd": 5.480724,
+        "gap_closed": 0.6951,
+        "top_model_share": 0.4264,
+        "escalated_share": 0.0243
+      },
+      {
+        "value": 5,
+        "pass_rate": 0.8907,
+        "cost_usd": 4.527189,
+        "gap_closed": 0.687,
+        "top_model_share": 0.3583,
+        "escalated_share": 0.0303
+      },
+      {
+        "value": 10,
+        "pass_rate": 0.8936,
+        "cost_usd": 3.654674,
+        "gap_closed": 0.7051,
+        "top_model_share": 0.3246,
+        "escalated_share": 0.0652
+      },
+      {
+        "value": 15,
+        "pass_rate": 0.8801,
+        "cost_usd": 2.542849,
+        "gap_closed": 0.6205,
+        "top_model_share": 0.3659,
+        "escalated_share": 0.0841
+      },
+      {
+        "value": 20,
+        "pass_rate": 0.8555,
+        "cost_usd": 1.544106,
+        "gap_closed": 0.4661,
+        "top_model_share": 0.4132,
+        "escalated_share": 0.0858
+      },
+      {
+        "value": 30,
+        "pass_rate": 0.8409,
+        "cost_usd": 0.987864,
+        "gap_closed": 0.3745,
+        "top_model_share": 0.4681,
+        "escalated_share": 0.0897
+      },
+      {
+        "value": 40,
+        "pass_rate": 0.8255,
+        "cost_usd": 0.819721,
+        "gap_closed": 0.2779,
+        "top_model_share": 0.4701,
+        "escalated_share": 0.0932
+      },
+      {
+        "value": 60,
+        "pass_rate": 0.8141,
+        "cost_usd": 0.524983,
+        "gap_closed": 0.2064,
+        "top_model_share": 0.3926,
+        "escalated_share": 0.0841
+      },
+      {
+        "value": 80,
+        "pass_rate": 0.81,
+        "cost_usd": 0.442194,
+        "gap_closed": 0.1807,
+        "top_model_share": 0.41,
+        "escalated_share": 0.0743
+      },
+      {
+        "value": 120,
+        "pass_rate": 0.7994,
+        "cost_usd": 0.35439,
+        "gap_closed": 0.1142,
+        "top_model_share": 0.4483,
+        "escalated_share": 0.0741
+      },
+      {
+        "value": 160,
+        "pass_rate": 0.7954,
+        "cost_usd": 0.328218,
+        "gap_closed": 0.0891,
+        "top_model_share": 0.4791,
+        "escalated_share": 0.0729
+      }
+    ],
+    "without_complexity": [
+      {
+        "value": 0,
+        "pass_rate": 0.8904,
+        "cost_usd": 6.927623,
+        "gap_closed": 0.6851,
+        "top_model_share": 0.47,
+        "escalated_share": 0.0283
+      },
+      {
+        "value": 2,
+        "pass_rate": 0.892,
+        "cost_usd": 5.480724,
+        "gap_closed": 0.6951,
+        "top_model_share": 0.4264,
+        "escalated_share": 0.0243
+      },
+      {
+        "value": 5,
+        "pass_rate": 0.8907,
+        "cost_usd": 4.527189,
+        "gap_closed": 0.687,
+        "top_model_share": 0.3583,
+        "escalated_share": 0.0303
+      },
+      {
+        "value": 10,
+        "pass_rate": 0.8936,
+        "cost_usd": 3.654674,
+        "gap_closed": 0.7051,
+        "top_model_share": 0.3246,
+        "escalated_share": 0.0652
+      },
+      {
+        "value": 15,
+        "pass_rate": 0.8801,
+        "cost_usd": 2.542849,
+        "gap_closed": 0.6205,
+        "top_model_share": 0.3659,
+        "escalated_share": 0.0841
+      },
+      {
+        "value": 20,
+        "pass_rate": 0.8555,
+        "cost_usd": 1.544106,
+        "gap_closed": 0.4661,
+        "top_model_share": 0.4132,
+        "escalated_share": 0.0858
+      },
+      {
+        "value": 30,
+        "pass_rate": 0.8409,
+        "cost_usd": 0.987864,
+        "gap_closed": 0.3745,
+        "top_model_share": 0.4681,
+        "escalated_share": 0.0897
+      },
+      {
+        "value": 40,
+        "pass_rate": 0.8255,
+        "cost_usd": 0.819721,
+        "gap_closed": 0.2779,
+        "top_model_share": 0.4701,
+        "escalated_share": 0.0932
+      },
+      {
+        "value": 60,
+        "pass_rate": 0.8141,
+        "cost_usd": 0.524983,
+        "gap_closed": 0.2064,
+        "top_model_share": 0.3926,
+        "escalated_share": 0.0841
+      },
+      {
+        "value": 80,
+        "pass_rate": 0.81,
+        "cost_usd": 0.442194,
+        "gap_closed": 0.1807,
+        "top_model_share": 0.41,
+        "escalated_share": 0.0743
+      },
+      {
+        "value": 120,
+        "pass_rate": 0.7994,
+        "cost_usd": 0.35439,
+        "gap_closed": 0.1142,
+        "top_model_share": 0.4483,
+        "escalated_share": 0.0741
+      },
+      {
+        "value": 160,
+        "pass_rate": 0.7954,
+        "cost_usd": 0.328218,
+        "gap_closed": 0.0891,
+        "top_model_share": 0.4791,
+        "escalated_share": 0.0729
+      }
+    ]
+  },
+  "headline_other_complexity_setting": {
+    "questions": 690,
+    "passes": 590.3,
+    "pass_rate": 0.8555,
+    "cost_usd": 1.544106,
+    "cost_per_pass_usd": 0.002616,
+    "mean_latency_ms": 34564,
+    "escalated_share": 0.0858
+  },
+  "fallbacks_used": 0,
+  "unanswered": 0,
+  "alpha_sweep": null
+}

@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Signal(BaseModel):
@@ -13,12 +13,22 @@ class Signal(BaseModel):
 
 
 class CandidateEstimate(BaseModel):
-    """The router's expectation for one ranked model, from the measured routing table."""
+    """One ranked model's quality and cost estimates, using the effective routing table."""
 
     model_id: str
     expected_accuracy: float
     expected_cost_usd: float
     score: float
+
+
+class TaskAptitude(BaseModel):
+    """A model's task score, its provenance, and the cost used when routing."""
+
+    score: float
+    source: Literal['measured', 'supplied', 'derived']
+    sample_size: int | None
+    cost_usd: float
+    cost_source: Literal['task_benchmark', 'global_benchmark']
 
 
 class Model(BaseModel):
@@ -27,7 +37,9 @@ class Model(BaseModel):
     cost_per_m_input: float
     cost_per_m_output: float
     context_window: int
+    # The older four-topic scores are retained for backwards compatibility.
     topic_aptitudes: dict[str, float]
+    task_aptitudes: dict[str, TaskAptitude] = Field(default_factory=dict)
 
 
 class TokenUsage(BaseModel):

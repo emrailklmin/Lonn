@@ -8,7 +8,7 @@ import streamlit as st
 
 from lonn.executor import execute
 from lonn.model_pool import load_model_pool
-from lonn.routing_table import RoutingTable
+from lonn.routing_table import load_runtime_table
 from lonn.schemas import PROVIDER_API_KEYS, TaskSignal
 from lonn.task_classifier import TaskClassifier
 from lonn.task_router import DEFAULT_LAMBDA, estimate, rank_models
@@ -34,7 +34,7 @@ with st.sidebar:
 
 try:
     models = load_model_pool()
-    table = RoutingTable.load()
+    table = load_runtime_table()
 except (OSError, ValueError) as exc:
     st.error(f'Model configuration could not be loaded: {exc}')
     st.stop()
@@ -44,8 +44,23 @@ with st.expander('Available models and estimated prices'):
                    'Input $/M': m.cost_per_m_input, 'Output $/M': m.cost_per_m_output,
                    'In routing table': m.id in table.global_row}
                   for m in models], hide_index=True, width='stretch')
-st.caption('Routing uses accuracy and billed cost measured per task type on the benchmark '
-           '(config/routing_table.json); models without measurements are not ranked.')
+st.caption('Routing combines benchmark-measured pass rates with supplied aptitude estimates. '
+           'Estimated and derived task scores use each model’s global benchmark cost.')
+
+with st.expander('Model task aptitudes'):
+    model_id = st.selectbox('Model', [m.id for m in models])
+    aptitudes = table.model_aptitudes(model_id)
+    chart = [{'Task type': task, 'Measured': a.score if a.source == 'measured' else None,
+              'Supplied': a.score if a.source == 'supplied' else None,
+              'Derived': a.score if a.source == 'derived' else None}
+             for task, a in aptitudes.items()]
+    st.bar_chart(chart, x='Task type', y=['Measured', 'Supplied', 'Derived'])
+    st.dataframe([{'Task type': task, 'Score': a.score, 'Source': a.source,
+                   'Benchmark answers': a.sample_size, 'Cost per request (USD)': a.cost_usd,
+                   'Cost source': a.cost_source} for task, a in aptitudes.items()],
+                 hide_index=True, width='stretch')
+    st.caption('Supplied scores are estimates; other is the mean of the other 14 scores. '
+               'Tool-calling scores are shown for routing research; the executor handles text only.')
 
 with st.form('request', enter_to_submit=False):
     prompt = st.text_area('Your prompt', height=160,
@@ -128,7 +143,7 @@ if 'last_run' in st.session_state:
         st.dataframe([{'Task type': t, 'Probability': round(p, 3)} for t, p in top],
                      hide_index=True, width='stretch')
     if 'estimates' in record:
-        st.dataframe([{'Rank': i + 1, 'Model': e.model.id, 'Expected accuracy': round(e.accuracy, 3),
+        st.dataframe([{'Rank': i + 1, 'Model': e.model.id, 'Estimated quality': round(e.accuracy, 3),
                        'Expected cost per request (USD)': round(e.cost_usd, 5), 'Score': round(e.score, 3)}
                       for i, e in enumerate(record['estimates'])], hide_index=True, width='stretch')
     if 'selected' in record:

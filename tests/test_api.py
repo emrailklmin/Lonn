@@ -31,7 +31,7 @@ class ApiTests(unittest.TestCase):
         table = build_table(rows(self.model.id, 9, 10, 0.01) + rows(self.cheap.id, 3, 10, 0.0001))
         self.signal = TaskSignal({"code_function": 1.0})
         self.stack.enter_context(patch("lonn.api.load_model_pool", return_value=[self.model, self.cheap]))
-        self.stack.enter_context(patch("lonn.api.RoutingTable.load", return_value=table))
+        self.stack.enter_context(patch("lonn.api.load_runtime_table", return_value=table))
         self.classify = self.stack.enter_context(patch("lonn.api.TaskClassifier.classify", return_value=self.signal))
         self.execute = self.stack.enter_context(patch("lonn.api.execute", return_value=ModelResponse(
             "Answer", self.model, TokenUsage(10, 20, 30, .00001, .00004, .00005), 15, "stop")))
@@ -174,7 +174,7 @@ class ApiTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Invalid pool"):
                 with TestClient(create_app()):
                     pass
-        with patch("lonn.api.RoutingTable.load", side_effect=FileNotFoundError("routing_table.json")):
+        with patch("lonn.api.load_runtime_table", side_effect=FileNotFoundError("routing_table.json")):
             with self.assertRaises(FileNotFoundError):
                 with TestClient(create_app()):
                     pass

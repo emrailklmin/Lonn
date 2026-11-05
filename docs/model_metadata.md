@@ -1,5 +1,9 @@
 # Model metadata and benchmark mapping
 
+> Historical model-pool and legacy topic metadata. Prototype 4.0 task routing
+> uses the measured table and separately supplied scores described in
+> [Prototype 4.0](prototype4.md).
+
 Research snapshot: 2026-09-29. `config/models.yaml` is the only runtime
 configuration. This note records the evidence and the conversion policy.
 

@@ -1,12 +1,12 @@
-"""Route on task type, complexity and measured cost (issue #19, prototype3.0).
+"""Route on task type, complexity, measured or supplied aptitude, and cost.
 
 For each pool model the router estimates the expected accuracy and the expected
 cost per request of this prompt from the routing table:
 
 - **Task-type mix:** a probability-weighted mix of the task types' rows, so an
   uncertain classification gives a smooth blend instead of a hard jump.
-  Probability mass on task types without measurements (summarization, other,
-  ...) uses the table's ``global`` row.
+  Prototype 4.0 provides explicit scores for all 15 known task types. An unknown
+  task type falls back to the measured table's ``global`` row.
 - **Complexity** (only with ``use_complexity=True``): within a task type, the
   row moves from the ``easy`` cell (complexity 0) through ``medium`` (0.5) to
   ``hard`` (1), interpolating linearly between the levels the task type has.

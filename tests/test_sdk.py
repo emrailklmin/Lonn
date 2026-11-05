@@ -25,7 +25,7 @@ def fake_inference(stack):
     table = build_table([{"task": "code_function", "difficulty": None, "model_id": model.id,
                           "correct": True, "cost_usd": 0.001}])
     stack.enter_context(patch("lonn.api.load_model_pool", return_value=[model]))
-    stack.enter_context(patch("lonn.api.RoutingTable.load", return_value=table))
+    stack.enter_context(patch("lonn.api.load_runtime_table", return_value=table))
     score = stack.enter_context(patch("lonn.api.TaskClassifier.classify",
                                      return_value=TaskSignal({"code_function": 1.0})))
     execute = stack.enter_context(patch("lonn.api.execute", return_value=ModelResponse(
@@ -52,6 +52,7 @@ class SDKTests(unittest.TestCase):
         self.assertEqual(result.signal.task_scores, {"code_function": 1.0})
         self.assertEqual(result.estimates[0].model_id, self.model.id)
         self.assertEqual(result.estimates[0].expected_accuracy, 1.0)
+        self.assertEqual(result.model.task_aptitudes['code_function'].source, 'measured')
         # The fake reply is cut off, but the one-model pool has nobody to escalate to.
         self.assertFalse(result.escalated)
         self.assertEqual([(a.model_id, a.check) for a in result.attempts], [(self.model.id, "truncated")])

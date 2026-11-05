@@ -1,5 +1,9 @@
 # Task types
 
+> The benchmark and training notes below describe Prototype 3.0. Prototype 4.0
+> assigns supplied or derived scores to the seven unmeasured types; see
+> [Prototype 4.0](prototype4.md).
+
 Issue #19, branch `prototype3.0`. The new router replaces the four broad topics with about a dozen **task types**. The classifier picks a task type (plus complexity) for each prompt. For each measured task type, the answer bank gives every pool model a measured accuracy and mean cost, and the router trades these off. The mapping lives in `config/task_types.yaml`; `tests/test_task_types.py` checks it against `data/benchmark/manifest.json`.
 
 ## Rule for splitting and merging

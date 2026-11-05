@@ -1,5 +1,8 @@
 # Task-type router
 
+> This page records Prototype 3.0 and its original evaluation. Prototype 4.0
+> replaces the seven unmeasured-type fallbacks; see [Prototype 4.0](prototype4.md).
+
 Issue #19, branch `prototype3.0`. A router that decides from **task type**, **complexity** and **measured cost** instead of four topics, static aptitudes and list prices. The app and the API use it, with the task classifier from `docs/classifier_bakeoff.md`. The old router (`src/lonn/router.py`) remains in the code but is no longer used.
 
 ## How it decides

@@ -2,8 +2,8 @@
 
 Routing uses the task-type router (issue #19, docs/task_router.md): the task
 classifier gives a probability per task type, and the router picks the model
-with the highest expected accuracy minus ``lam`` times its expected cost per
-request, from the routing table measured on the benchmark.
+with the highest estimated quality minus ``lam`` times its expected cost per
+request. The routing table combines measured and user-supplied task scores.
 
 `/generate` checks the answer before returning it (lonn.answer_check: cut off,
 empty, or code that fails the prompt's worked examples). If it fails and a second
@@ -25,7 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .answer_check import check_answer
 from .executor import execute
 from .model_pool import load_model_pool
-from .routing_table import RoutingTable
+from .routing_table import load_runtime_table
 from .schemas import Model, ModelResponse, TaskSignal
 from .task_classifier import TaskClassifier
 from .task_router import DEFAULT_LAMBDA, FALLBACK_LIMIT, escalation_target, estimate, rank_models
@@ -80,7 +80,7 @@ class GenerateRequest(RouteRequest):
 
 class CandidateEstimate(BaseModel):
     model_id: str
-    expected_accuracy: float
+    expected_accuracy: float = Field(description="Probability-weighted task quality; may include supplied estimates.")
     expected_cost_usd: float
     score: float
 
@@ -122,7 +122,9 @@ def create_app() -> FastAPI:
     async def lifespan(app):
         # Fail startup on invalid configuration; freeze the pool and table for this run.
         app.state.models = load_model_pool()
-        app.state.table = RoutingTable.load()
+        app.state.table = load_runtime_table()
+        for model in app.state.models:
+            model.task_aptitudes = app.state.table.model_aptitudes(model.id)
         app.state.classifier = TaskClassifier()  # The embedder loads on first use.
         app.state.classifier_lock = Lock()
         yield

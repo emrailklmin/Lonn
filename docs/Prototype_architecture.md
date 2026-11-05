@@ -1,5 +1,8 @@
 # Lonn Prototype Architecture
 
+> The 3.0 architecture below is historical. For current aptitude sources and
+> benchmark results, see [Prototype 4.0](prototype4.md).
+
 The Lonn prototype consists of four core responsibilities:
 
 1. Analyse the incoming prompt.

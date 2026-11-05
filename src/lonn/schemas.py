@@ -1,7 +1,8 @@
 """Shared data contracts for prompt analysis, routing, and execution."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Literal
 
 # Supported LiteLLM providers and the environment variable holding each key.
 # A model ID starts with its provider: "<provider>/<publisher>/<model>".
@@ -39,13 +40,27 @@ class TaskSignal:
 
 
 @dataclass
+class TaskAptitude:
+    """A task score and its provenance, as used by the task router."""
+
+    score: float
+    source: Literal['measured', 'supplied', 'derived']
+    sample_size: int | None
+    cost_usd: float
+    cost_source: Literal['task_benchmark', 'global_benchmark']
+
+
+@dataclass
 class Model:
     id: str
     provider: str
     cost_per_m_input: float
     cost_per_m_output: float
     context_window: int
+    # Legacy four-topic scores are kept for the original router and SDK clients.
     topic_aptitudes: dict[TopicCategory, float]
+    # Populated from the effective routing table; never a second definition.
+    task_aptitudes: dict[str, TaskAptitude] = field(default_factory=dict)
 
 
 @dataclass

@@ -1,5 +1,6 @@
 """Cross-fitted task-router evaluation (#19). Fake bank: no Laya, no network."""
 from pathlib import Path
+import json
 import sys
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'scripts')]
 from benchmark import eval_task_router as et, results  # noqa: E402
 from lonn.schemas import Model, TopicCategory as T  # noqa: E402
+from lonn.routing_table import add_supplied_aptitudes  # noqa: E402
 from lonn.task_types import load_task_types  # noqa: E402
 
 CHEAP = Model('openrouter/test/cheap', 'openrouter', 0.1, 0.1, 100000, {t: 0.5 for t in T})
@@ -109,6 +111,56 @@ class EvalTaskRouterTests(unittest.TestCase):
         self.assertEqual(chosen['math500-009'], STRONG.id)
         self.assertEqual(summary['k']['metrics']['pass_rate'], 1.0)
         self.assertEqual(summary['k']['metrics']['questions'], len(self.questions))
+
+    def test_supplied_and_other_scores_are_built_from_each_training_fold(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bank_dir = Path(directory) / 'bank'
+            types = load_task_types()
+            measured = [t.id for t in types if t.measured]
+            estimated = [t.id for t in types if not t.measured and t.id != 'other']
+            questions = []
+            for task in measured:
+                for i in range(5):
+                    q = {'prompt_id': f'{task}-{i}', 'dataset': task, 'category': 'x',
+                         'difficulty': 'medium', 'task': task, 'level': None}
+                    questions.append(q)
+                    for model in POOL:
+                        row = {'prompt_id': q['prompt_id'], 'model_id': model.id, 'dataset': task,
+                               'error': None, 'correct': i == 0, 'cost_usd': 0.001,
+                               'latency_ms': 100, 'output_tokens': 10, 'input_tokens': 10}
+                        results.append_row(results.result_path(bank_dir, 'x', task, model.id), row)
+            bank = results.ResultBank(bank_dir)
+            supplied = {m.id: {task: 0.8 for task in estimated} for m in POOL}
+            seen = []
+
+            def check_training_table(table, fixed):
+                extended = add_supplied_aptitudes(table, fixed)
+                for model in POOL:
+                    self.assertTrue(all(table.cell(task)[model.id].n == 4 for task in measured))
+                    scores = [table.cell(task)[model.id].accuracy for task in measured]
+                    scores += [fixed[model.id][task] for task in estimated]
+                    self.assertAlmostEqual(extended.cell('other')[model.id].accuracy, sum(scores) / 14)
+                seen.append(extended.cell('other')[CHEAP.id].accuracy)
+                return extended
+
+            with patch.object(et, 'add_supplied_aptitudes', side_effect=check_training_table):
+                et.crossfit(questions, POOL, bank, [('k', {'lam': 20})], folds=5, repeats=1,
+                            supplied_aptitudes=supplied)
+            self.assertEqual(len(seen), 5)
+            self.assertGreater(len(set(seen)), 1)
+
+    def test_saved_question_metadata_reproduces_the_original_fold_assignments(self):
+        path = ROOT / 'results' / 'router_eval' / 'task-true-utility' / 'decisions.jsonl'
+        bank = results.ResultBank()
+        questions = et.load_saved_questions(path, bank)
+        original = {d['prompt_id']: d['fold'] for d in map(json.loads, path.read_text().splitlines())}
+        manifest = json.loads((ROOT / 'data' / 'benchmark' / 'manifest.json').read_text())
+        expected = {prompt_id for name, entry in manifest['datasets'].items() if not name.startswith('bfcl')
+                    for prompt_id in entry['ids']}
+        self.assertEqual(len(questions), 690)
+        self.assertEqual({q['prompt_id'] for q in questions}, expected)
+        self.assertTrue(all(original[q['prompt_id']] == fold
+                            for q, fold in zip(questions, et.folds_for(questions, 5, 0))))
 
 
 if __name__ == '__main__':

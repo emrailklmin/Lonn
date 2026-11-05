@@ -1,0 +1,68 @@
+{
+  "run_name": "p4-bakeoff-gte-base-linear",
+  "description": "",
+  "date": "2026-11-05T22:32:22+00:00",
+  "git_commit": "b4d2ddd",
+  "git_dirty": true,
+  "scorer": "results/classifier_bakeoff/gte-base-linear/benchmark_signals.jsonl",
+  "alpha": null,
+  "models": [
+    "openrouter/anthropic/claude-sonnet-5.5",
+    "openrouter/meta/muse-spark-1.3",
+    "openrouter/google/gemini-3.8-flash",
+    "openrouter/z-ai/glm-5.3-flash",
+    "openrouter/deepseek/deepseek-v4.1-flash",
+    "openrouter/deepseek/deepseek-v4-pro",
+    "openrouter/openai/gpt-oss-120b",
+    "openrouter/openai/gpt-oss-20b"
+  ],
+  "prices": {
+    "openrouter/anthropic/claude-sonnet-5.5": [
+      2,
+      10
+    ],
+    "openrouter/meta/muse-spark-1.3": [
+      1.25,
+      4.25
+    ],
+    "openrouter/google/gemini-3.8-flash": [
+      0.75,
+      3.75
+    ],
+    "openrouter/z-ai/glm-5.3-flash": [
+      0.0232,
+      1.2
+    ],
+    "openrouter/deepseek/deepseek-v4.1-flash": [
+      0.15,
+      0.6
+    ],
+    "openrouter/deepseek/deepseek-v4-pro": [
+      0.442656,
+      0.885312
+    ],
+    "openrouter/openai/gpt-oss-120b": [
+      0.037,
+      0.17
+    ],
+    "openrouter/openai/gpt-oss-20b": [
+      0.018,
+      0.09
+    ]
+  },
+  "prices_hash": "274d82af0bc6",
+  "max_tokens_equivalent": 8192,
+  "questions": 690,
+  "excluded": 0,
+  "policy": "task-utility",
+  "lambda": 20.0,
+  "tau": null,
+  "crossfit": "5x10",
+  "smoothing": 5.0,
+  "use_complexity": false,
+  "levels_from_signals": false,
+  "escalation_factor": 1.0,
+  "question_source": "results/router_eval/task-true-utility/decisions.jsonl",
+  "aptitude_source": "config/task_aptitudes.yaml",
+  "aptitude_sha256": "84e2b431b0e36ce1ddf805e9b483957b4b4e01b142329c686ca4f4bcfae8c082"
+}

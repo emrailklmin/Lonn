@@ -20,6 +20,7 @@ like eval_router.py. No API calls are made.
 """
 import argparse
 from collections import Counter
+import hashlib
 import json
 from pathlib import Path
 import random
@@ -28,10 +29,11 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
 from benchmark import eval_router as ev  # noqa: E402
-from benchmark.build_data import DEFAULT_DATA_DIR  # noqa: E402
+from benchmark.build_data import DATASETS, DEFAULT_DATA_DIR  # noqa: E402
 from benchmark.results import RESULTS_DIR, ResultBank  # noqa: E402
 from lonn.model_pool import load_model_pool  # noqa: E402
-from lonn.routing_table import build_table  # noqa: E402
+from lonn.routing_table import (DEFAULT_TASK_APTITUDES, add_supplied_aptitudes, build_table,  # noqa: E402
+                                load_supplied_aptitudes)
 from lonn.schemas import TaskSignal  # noqa: E402
 from lonn.task_router import (DEFAULT_LAMBDA, ESCALATION_FACTOR, LEVEL_POSITION, escalation_target,  # noqa: E402
                               rank_models)
@@ -64,6 +66,37 @@ def table_rows(questions, pool, bank) -> list:
                 rows.append({'task': q['task'], 'difficulty': q['level'], 'model_id': m.id,
                              'correct': result[0], 'cost_usd': result[1]})
     return rows
+
+
+def load_saved_questions(path: Path, bank) -> list:
+    """Recover original question metadata from a committed evaluation and answer bank.
+
+    Prompt text is not needed for replay: classifier signals and answer checks
+    were already saved. Sort by the original dataset and prompt-file order so
+    the same seeded cross-validation folds are obtained.
+    """
+    decisions = [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
+    metadata = {}
+    for (prompt_id, _), row in bank.rows.items():
+        fields = {key: row.get(key) for key in ('prompt_id', 'dataset', 'category', 'difficulty')}
+        if prompt_id in metadata and metadata[prompt_id] != fields:
+            raise ValueError(f'{prompt_id}: inconsistent question metadata in answer bank')
+        metadata[prompt_id] = fields
+    known_tasks = {t.id for t in load_task_types()}
+    questions, seen = [], set()
+    for decision in decisions:
+        prompt_id = decision['prompt_id']
+        if prompt_id in seen or prompt_id not in metadata:
+            raise ValueError(f'{prompt_id}: duplicate question or missing answer-bank metadata')
+        seen.add(prompt_id)
+        task, level = decision['task'], decision['level']
+        if task not in known_tasks or (level is not None and level not in LEVEL_POSITION):
+            raise ValueError(f'{prompt_id}: invalid saved task or difficulty')
+        questions.append({**metadata[prompt_id], 'task': task, 'level': level})
+    order = {name: i for i, name in enumerate(DATASETS)}
+    if not questions or any(q['dataset'] not in order for q in questions):
+        raise ValueError('Saved questions are empty or include unknown datasets')
+    return sorted(questions, key=lambda q: (order[q['dataset']], q['prompt_id']))
 
 
 def folds_for(questions, folds, seed) -> list:
@@ -126,7 +159,7 @@ def cascade(q, d, target, bank, checks) -> dict:
 
 
 def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0, seed=0, signals=None,
-             checks=None, escalation_factor=ESCALATION_FACTOR) -> dict:
+             checks=None, escalation_factor=ESCALATION_FACTOR, supplied_aptitudes=None) -> dict:
     """settings: list of (key, rank_models kwargs). Returns per key the averaged metrics,
     the choice shares and, from the first repeat, the per-question decisions."""
     out = {key: {'items': [], 'choices': Counter(), 'decisions': []} for key, _ in settings}
@@ -136,6 +169,8 @@ def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0
             train = [q for q, f in zip(questions, assignment) if f != fold]
             test = [q for q, f in zip(questions, assignment) if f == fold]
             table = build_table(table_rows(train, pool, bank), smoothing=smoothing)
+            if supplied_aptitudes is not None:
+                table = add_supplied_aptitudes(table, supplied_aptitudes)
             for key, kwargs in settings:
                 for q in test:
                     signal = signal_for(q, signals)
@@ -240,14 +275,21 @@ def main(argv=None):
     parser.add_argument('--results-dir', type=Path, default=RESULTS_DIR)
     parser.add_argument('--eval-dir', type=Path, default=ev.EVAL_DIR)
     parser.add_argument('--data-dir', type=Path, default=DEFAULT_DATA_DIR)
+    parser.add_argument('--saved-questions', type=Path,
+                        help='replay question metadata from a previous decisions.jsonl when prompt files are absent')
+    parser.add_argument('--legacy-global-fallback', action='store_true',
+                        help='reproduce Prototype 3.0 without supplied or derived task scores')
     args = parser.parse_args(argv)
 
     bank = ResultBank(args.results_dir)
     pool = ev.bank_pool(load_model_pool(), bank, args.models)
-    questions, excluded = ev.load_questions(args.data_dir, bank)
-    if not questions:
-        raise SystemExit('No questions with saved answers; build the prompt files (build_data.py) first.')
-    questions = annotate(questions, load_task_types())
+    if args.saved_questions:
+        questions, excluded = load_saved_questions(args.saved_questions, bank), 0
+    else:
+        questions, excluded = ev.load_questions(args.data_dir, bank)
+        if not questions:
+            raise SystemExit('No questions with saved answers; build the prompt files or use --saved-questions.')
+        questions = annotate(questions, load_task_types())
     signals = load_signals(args.signals) if args.signals else None
     if args.levels_from_signals:
         # The table's difficulty cells use the same scale as the router: the predicted complexity.
@@ -279,8 +321,9 @@ def main(argv=None):
         checks = read_checks(CHECKS_PATH)
         if not checks:
             raise SystemExit('No answer checks: run scripts/benchmark/answer_checks.py first.')
+    supplied = None if args.legacy_global_fallback else load_supplied_aptitudes()
     results = crossfit(questions, pool, bank, settings, args.folds, args.repeats, args.smoothing, signals=signals,
-                       checks=checks, escalation_factor=args.escalation_factor)
+                       checks=checks, escalation_factor=args.escalation_factor, supplied_aptitudes=supplied)
     base = baselines(questions, pool, bank)
     reference = reference_run(args.eval_dir, args.reference_run)
 
@@ -316,7 +359,11 @@ def main(argv=None):
     config.update(policy=f"task-{args.mode}{'-cascade' if args.cascade else ''}", **{'lambda': headline if args.mode == 'utility' else None},
                   tau=headline if args.mode == 'threshold' else None,
                   crossfit=f'{args.folds}x{args.repeats}', smoothing=args.smoothing,
-                  use_complexity=args.use_complexity)
+                  use_complexity=args.use_complexity, levels_from_signals=args.levels_from_signals,
+                  escalation_factor=args.escalation_factor,
+                  question_source=str(args.saved_questions) if args.saved_questions else str(args.data_dir),
+                  aptitude_source=None if supplied is None else str(DEFAULT_TASK_APTITUDES.relative_to(ROOT)),
+                  aptitude_sha256=None if supplied is None else hashlib.sha256(DEFAULT_TASK_APTITUDES.read_bytes()).hexdigest())
     folder = ev.save_run(args.eval_dir, config, head['decisions'], summary)
     fixed = {m.removeprefix('openrouter/'): v for m, v in base['models'].items()}
     for label, pts in sweep.items():

@@ -12,6 +12,16 @@ APP = Path(__file__).resolve().parents[1] / 'examples/app.py'
 
 
 class AppTests(unittest.TestCase):
+    def test_model_view_displays_fifteen_aptitudes_with_provenance(self):
+        app = AppTest.from_file(str(APP), default_timeout=30).run()
+        self.assertFalse(app.exception)
+        profile = app.dataframe[1].value
+        self.assertEqual(len(profile), 15)
+        self.assertEqual(set(profile['Source']), {'measured', 'supplied', 'derived'})
+        creative = profile[profile['Task type'] == 'creative_writing'].iloc[0]
+        self.assertEqual(creative['Score'], 0.985)
+        self.assertEqual(creative['Source'], 'supplied')
+
     def test_manual_analysis_does_not_call_provider(self):
         with patch('lonn.executor.execute') as execute:
             app = AppTest.from_file(str(APP), default_timeout=30).run()
