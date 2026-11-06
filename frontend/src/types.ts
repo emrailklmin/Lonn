@@ -1,9 +1,14 @@
+export type Region =
+  "north_america" | "south_america" | "europe" | "asia" | "africa" | "oceania";
 export type Settings = {
   lam: number;
   enforce_lam: boolean;
   require_zdr: boolean;
   forbid_training: boolean;
-  region: string;
+  require_encryption: boolean;
+  require_private_network: boolean;
+  require_audit_logs: boolean;
+  allowed_regions: Region[];
   max_retention_days: number | null;
   disabled_models: string[];
 };
@@ -23,20 +28,39 @@ export type Account = {
   provider_configured: boolean;
   endpoint: string;
 };
+export type TaskAptitude = {
+  score: number;
+  source: "measured" | "supplied" | "derived";
+  sample_size: number | null;
+  cost_usd: number;
+  cost_source: "task_benchmark" | "global_benchmark";
+};
 export type Catalog = {
   id: string;
   provider: string;
   active: boolean;
   eligible: boolean;
+  policy_eligible: boolean;
+  policy_exclusion_reasons: string[];
   availability: string;
   exclusion_reasons: string[];
   privacy_status: string;
+  security: {
+    regions: Region[];
+    zero_data_retention: boolean;
+    no_training: boolean;
+    encryption: boolean;
+    private_network: boolean;
+    audit_logs: boolean;
+  };
+  matching_regions: Region[];
   cost_per_m_input: number;
   cost_per_m_output: number;
   context_window: number;
   price_basis: string;
   aptitude_basis: string;
   topic_aptitudes: Record<string, number>;
+  task_aptitudes: Record<string, TaskAptitude>;
 };
 export type Billing = {
   model_cost_usd: number;
@@ -46,6 +70,7 @@ export type Billing = {
   service_fee_basis?: string;
   estimated_top_model_cost_usd?: number | null;
   estimated_savings_usd?: number | null;
+  estimated_customer_savings_usd?: number | null;
 };
 export type Usage = {
   id: string;
@@ -76,6 +101,7 @@ export type Usage = {
       output_tokens: number;
     };
     billing?: Billing;
+    cost_basis?: string;
     attempt_costs?: {
       model: string;
       cost: number;
@@ -113,7 +139,7 @@ export async function api<T>(
   return response.json();
 }
 export const shortModel = (id: string | null) =>
-  id?.split("/").slice(2).join("/") || "No selection";
+  id?.split("/").at(-1) || "No selection";
 export const money = (n: number) =>
   "$" + n.toFixed(n !== 0 && Math.abs(n) < 0.0001 ? 8 : 4);
 export type Team = {

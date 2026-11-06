@@ -81,6 +81,7 @@ class Billing(BaseModel):
     total_cost_usd: float
     estimated_top_model_cost_usd: float | None = None
     estimated_savings_usd: float | None = None
+    estimated_customer_savings_usd: float | None = None
     service_fee_rate: float
     service_fee_basis: str
 
@@ -99,6 +100,8 @@ class GenerateResult(BaseModel):
     cost_basis: str = "estimate"
     total_latency_ms: float
     billing: Billing | None = None
+    lambda_source: str | None = None
+    lam_locked: bool | None = None
 
     @property
     def content(self) -> str:

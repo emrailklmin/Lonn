@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import { LambdaSlider } from "./components/LambdaSlider";
+import "./HierarchyView.css";
+import { MAX_LAMBDA, LambdaSlider } from "./components/LambdaSlider";
 import { Button } from "./components/ui/button";
 import { CopyButton } from "./components/CopyButton";
-import { api, type Team, type DemoUser } from "./types";
+import { api, type Team, type DemoUser, type Catalog, type Usage } from "./types";
+import { UserAccessTable } from "./UserAccessTable";
+import { TeamsView } from "./TeamsView";
+import { UsersView } from "./UsersView";
 type LambdaState = { lam: number; source: string; locked: boolean };
 type Project = {
   id: string;
@@ -13,6 +17,14 @@ type Project = {
   lambda_state: LambdaState;
   parent_lock: string | null;
 };
+type Security = {
+  require_zdr: boolean;
+  forbid_training: boolean;
+  require_encryption: boolean;
+  require_private_network: boolean;
+  require_audit_logs: boolean;
+  allowed_regions: string[] | null;
+};
 type Application = {
   id: string;
   name: string;
@@ -22,6 +34,10 @@ type Application = {
   lam_locked: boolean;
   lambda_state: LambdaState;
   parent_lock: string | null;
+  security_overrides: Security;
+  security_effective: Security;
+  security_inherited?: Security;
+  eligible_model_count: number;
 };
 type Member = {
   user_id: string;
@@ -40,28 +56,33 @@ export type Hierarchy = {
 };
 export function HierarchyView({
   teams,
+  catalog,
+  usage,
+  refreshWorkspace,
   isAdmin,
   isPrivate,
 }: {
   teams: Team[];
+  catalog: Catalog[];
+  usage: Usage[];
+  refreshWorkspace: () => Promise<void>;
   isAdmin: boolean;
   isPrivate: boolean;
 }) {
   const [data, setData] = useState<Hierarchy | null>(null),
     [users, setUsers] = useState<DemoUser[]>([]),
-    [target, setTarget] = useState(""),
     [name, setName] = useState(""),
     [parent, setParent] = useState(""),
     [kind, setKind] = useState("project"),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [expandedApp, setExpandedApp] = useState(""),
+    [tab, setTab] = useState<"applications" | "users">("applications");
   async function refresh() {
     const h = await api<Hierarchy>("/api/hierarchy");
     setData(h);
     if (isAdmin) {
       const u = await api<DemoUser[]>("/api/users");
       setUsers(u);
-      if (!target)
-        setTarget(u.find((x) => x.role === "enterprise_user")?.id ?? "");
     }
   }
   useEffect(() => {
@@ -81,170 +102,102 @@ export function HierarchyView({
     apps = data.applications;
   return (
     <>
-      <div className="notice">
-        <div>
-          <strong>Organization → teams → projects → applications</strong>
-          <p>
-            Personal keys require an assigned application. Application keys
-            always attribute requests to their own application.
-          </p>
-        </div>
-      </div>
-      {error && (
-        <div className="error" role="alert">
-          {error}
-        </div>
-      )}
-      {isAdmin && (
-        <article className="panel">
-          <h2>Create a project or application</h2>
-          <label>
-            Type
-            <select
-              value={kind}
-              onChange={(e) => {
-                setKind(e.target.value);
-                setParent("");
-              }}
-            >
-              <option value="project">Project</option>
-              <option value="application">Application</option>
-            </select>
-          </label>
-          <label>
-            Name
-            <input value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label>
-            {kind === "project" ? "Team" : "Project"}
+      {error && <div className="error" role="alert">{error}</div>}
+      {isAdmin && <div className="management-tabs" role="tablist" aria-label="Management">
+        <button role="tab" aria-selected={tab === "applications"} onClick={() => setTab("applications")}>Applications</button>
+        <button role="tab" aria-selected={tab === "users"} onClick={() => setTab("users")}>Users</button>
+      </div>}
+      {tab === "applications" ? <>
+      {isAdmin && <details className="panel hierarchy-create">
+        <summary>Create a project or application</summary>
+        <div className="hierarchy-create-fields">
+          <label>Type<select value={kind} onChange={(e) => { setKind(e.target.value); setParent(""); }}>
+            <option value="project">Project</option><option value="application">Application</option>
+          </select></label>
+          <label>Name<input value={name} onChange={(e) => setName(e.target.value)} /></label>
+          <label>{kind === "project" ? "Team" : "Project"}
             <select value={parent} onChange={(e) => setParent(e.target.value)}>
               <option value="">Select…</option>
-              {(kind === "project" ? teams : projects).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
+              {(kind === "project" ? teams : projects).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </label>
-          <Button
-            disabled={!name.trim() || !parent}
-            onClick={async () => {
-              await send(
-                `/api/${kind === "project" ? "projects" : "applications"}`,
-                "POST",
-                { name, parent_id: parent },
+          <Button disabled={!name.trim() || !parent} onClick={async () => {
+            await send(`/api/${kind === "project" ? "projects" : "applications"}`, "POST", { name, parent_id: parent });
+            setName("");
+          }}>Create {kind}</Button>
+        </div>
+      </details>}
+      <article className="panel hierarchy-table-panel">
+        <div className="panel-heading"><div><h2>Applications</h2><small>Applications inherit their project, team and organization policies.</small></div></div>
+        <div className="table-scroll">
+          <table className="hierarchy-table">
+            <thead><tr><th>Application</th><th>Project</th><th>Team</th><th>API key</th><th>Effective λ</th><th>Security</th><th><span className="sr-only">Details</span></th></tr></thead>
+            {apps.map((app) => {
+              const project = projects.find((p) => p.id === app.project_id);
+              const team = teams.find((t) => t.id === project?.team_id);
+              if (!project || !team) return null;
+              const open = expandedApp === app.id;
+              const canEditApp = isAdmin || isPrivate || data.application_memberships.some(
+                (m) => m.application_id === app.id && m.role === "application_admin",
               );
-              setName("");
-            }}
-          >
-            Create {kind}
-          </Button>
-        </article>
-      )}
-      {teams.map((team) => (
-        <article className="panel" key={team.id}>
-          <h2>{team.name}</h2>
-          <Policy
-            label="Team-enforced λ"
-            value={team.enforced_lam ?? null}
-            onSave={(v) =>
-              send(`/api/teams/${team.id}/lambda`, "PUT", { lam: v })
-            }
-            canEdit={
-              !data.organization_lock &&
-              (isAdmin ||
-                data.team_memberships.some(
-                  (m) => m.team_id === team.id && m.role === "team_admin",
-                ))
-            }
-          />
-          {data.organization_lock && (
-            <small>Team λ is locked by the organization.</small>
-          )}
-          {projects
-            .filter((p) => p.team_id === team.id)
-            .map((project) => (
-              <section className="hierarchy-project" key={project.id}>
-                <h3>{project.name}</h3>
-                <ScopedPolicy
-                  id={`project-${project.id}`}
-                  label="Project λ"
-                  value={project.configured_lam}
-                  locked={project.lam_locked}
-                  effective={project.lambda_state}
-                  parentLock={project.parent_lock}
-                  canEdit={
-                    isAdmin ||
-                    isPrivate ||
-                    data.team_memberships.some(
-                      (m) => m.team_id === team.id && m.role === "team_admin",
-                    )
-                  }
-                  onSave={(lam, lock) =>
-                    send(`/api/projects/${project.id}/lambda`, "PUT", {
-                      lam,
-                      lock,
-                    })
-                  }
-                />
-                {apps
-                  .filter((a) => a.project_id === project.id)
-                  .map((a) => (
-                    <div className="hierarchy-app" key={a.id}>
-                      <strong>{a.name}</strong>
-                      <small>Application ID: {a.id}</small>
-                      <EffectiveLambda
-                        key={`${a.id}-${a.enforced_lam}-${a.lam_locked}-${project.configured_lam}-${project.lam_locked}-${team.enforced_lam}-${data.organization_lock}`}
-                        applicationId={a.id}
-                      />
-                      <ScopedPolicy
-                        id={`app-${a.id}`}
-                        label="Application λ"
-                        value={a.enforced_lam}
-                        locked={a.lam_locked}
-                        effective={a.lambda_state}
-                        parentLock={a.parent_lock}
-                        canEdit={
-                          isAdmin ||
-                          isPrivate ||
-                          data.application_memberships.some(
-                            (m) =>
-                              m.application_id === a.id &&
-                              m.role === "application_admin",
-                          )
-                        }
-                        onSave={(lam, lock) =>
-                          send(`/api/applications/${a.id}/lambda`, "PUT", {
-                            lam,
-                            lock,
-                          })
-                        }
-                      />
-                      {a.api_key && (
-                        <ApplicationKey
-                          value={a.api_key}
-                          rotate={() =>
-                            send(`/api/applications/${a.id}/rotate`, "POST", {})
-                          }
-                        />
-                      )}
+              const canEditProject = isAdmin || isPrivate || data.team_memberships.some(
+                (m) => m.team_id === team.id && m.role === "team_admin",
+              );
+              return <tbody key={app.id}>
+                <tr>
+                  <td><strong>{app.name}</strong></td><td>{project.name}</td><td>{team.name}</td>
+                  <td>{app.api_key ? <code>••••••••</code> : <small>Restricted</small>}</td>
+                  <td><strong>{app.lambda_state.lam.toFixed(2)}</strong><small className="hierarchy-sub">{app.lambda_state.source}{app.lambda_state.locked ? " · enforced" : ""}</small></td>
+                  <td><strong>{app.eligible_model_count} eligible</strong><small className="hierarchy-sub">{Object.entries(app.security_overrides ?? {}).some(([key, value]) => key === "allowed_regions" ? value !== null : value === true) ? "Additional restrictions" : "Inherited"}</small></td>
+                  <td><button type="button" className="hierarchy-expand" aria-expanded={open}
+                    onClick={() => setExpandedApp(open ? "" : app.id)}>{open ? "Close" : "Manage"}</button></td>
+                </tr>
+                {open && <tr className="hierarchy-details"><td colSpan={7}>
+                  <div className="hierarchy-details-grid">
+                    <div>
+                      <ScopedPolicy id={`app-${app.id}`} label="Application λ" value={app.enforced_lam}
+                        locked={app.lam_locked} effective={app.lambda_state} parentLock={app.parent_lock}
+                        canEdit={canEditApp} onSave={(lam, lock) => send(`/api/applications/${app.id}/lambda`, "PUT", { lam, lock })} />
                     </div>
-                  ))}
-              </section>
-            ))}
-        </article>
-      ))}
-      <PersonalPreference applications={apps} />
-      {isAdmin && (
-        <MembershipEditor
-          data={data}
-          teams={teams}
-          users={users}
-          target={target}
-          setTarget={setTarget}
-          save={(v) => send(`/api/users/${target}/memberships`, "PUT", v)}
-        />
-      )}
+                    <div className="hierarchy-detail-side">
+                      <SecurityControls value={app.security_overrides} effective={app.security_effective}
+                        inherited={app.security_inherited} canEdit={canEditApp}
+                        onSave={(security) => send(`/api/applications/${app.id}/security`, "PUT", security)} />
+                      <strong>Application key</strong>
+                      {app.api_key ? <ApplicationKey value={app.api_key} rotate={() => send(`/api/applications/${app.id}/rotate`, "POST", {})} /> : <small>Available to organization administrators.</small>}
+                      <details><summary>Project λ</summary>
+                        <ScopedPolicy id={`project-${project.id}`} label="Project λ" value={project.configured_lam}
+                          locked={project.lam_locked} effective={project.lambda_state} parentLock={project.parent_lock}
+                          canEdit={canEditProject} onSave={(lam, lock) => send(`/api/projects/${project.id}/lambda`, "PUT", { lam, lock })} />
+                      </details>
+                    </div>
+                  </div>
+                </td></tr>}
+              </tbody>;
+            })}
+          </table>
+          {!apps.length && <p>No applications available.</p>}
+        </div>
+      </article>
+      <details className="panel hierarchy-team-policies"><summary>Team λ policies</summary>
+        <div className="hierarchy-team-list">{teams.map((team) => <div key={team.id}>
+          <strong>{team.name}</strong>
+          <Policy label="Team-enforced λ" value={team.enforced_lam ?? null}
+            onSave={(v) => send(`/api/teams/${team.id}/lambda`, "PUT", { lam: v })}
+            canEdit={!data.organization_lock && (isAdmin || data.team_memberships.some(
+              (m) => m.team_id === team.id && m.role === "team_admin"))} />
+          {data.organization_lock && <small>Team λ is locked by the organization.</small>}
+        </div>)}</div>
+      </details>
+      <details className="management-details"><summary>Your routing preference</summary><PersonalPreference applications={apps} /></details>
+      {isAdmin && <details className="management-details"><summary>Manage teams</summary>
+        <TeamsView teams={teams} catalog={catalog} usage={usage} refresh={async () => { await refreshWorkspace(); await refresh(); }} />
+      </details>}
+      </> : <>
+        <UserAccessTable data={data} teams={teams} users={users}
+          save={(userId, value) => send(`/api/users/${userId}/memberships`, "PUT", value)} />
+        <details className="management-details" onToggle={(event) => { if (!event.currentTarget.open) void refresh(); }}><summary>Manage user logins</summary><UsersView teams={teams} /></details>
+      </>}
     </>
   );
 }
@@ -268,7 +221,7 @@ function Policy({
         <input
           type="number"
           min="0"
-          max="1"
+          max={MAX_LAMBDA}
           step="0.01"
           value={val}
           disabled={!canEdit}
@@ -320,7 +273,7 @@ function ScopedPolicy({
     text.trim() !== "" &&
     Number.isFinite(numeric) &&
     numeric >= 0 &&
-    numeric <= 1;
+    numeric <= MAX_LAMBDA;
   const disabled = !canEdit || !!parentLock;
   const status = parentLock
     ? `Locked by ${parentLock}`
@@ -362,8 +315,8 @@ function ScopedPolicy({
               onChange={(v) => setText(String(v))}
             />
             <div className="slider-scale">
-              <span>0 · More accuracy weight</span>
-              <span>1 · More cost weight</span>
+              <span>0 · Cost only</span>
+              <span>{MAX_LAMBDA} · Quality only</span>
             </div>
           </div>
           <label>
@@ -372,7 +325,7 @@ function ScopedPolicy({
               aria-label={`${label} exact value`}
               type="number"
               min="0"
-              max="1"
+              max={MAX_LAMBDA}
               step="any"
               value={text}
               disabled={disabled}
@@ -413,166 +366,48 @@ function ScopedPolicy({
   );
 }
 
-function MembershipEditor({
-  data,
-  teams,
-  users,
-  target,
-  setTarget,
-  save,
-}: {
-  data: Hierarchy;
-  teams: Team[];
-  users: DemoUser[];
-  target: string;
-  setTarget: (s: string) => void;
-  save: (v: unknown) => Promise<void>;
+const securityFields = [
+  ["require_zdr", "Zero data retention"],
+  ["forbid_training", "No provider training"],
+  ["require_encryption", "Encryption"],
+  ["require_private_network", "Private network"],
+  ["require_audit_logs", "Audit logs"],
+] as const;
+const securityRegions = [
+  ["north_america", "North America"], ["south_america", "South America"],
+  ["europe", "Europe"], ["asia", "Asia"], ["africa", "Africa"], ["oceania", "Oceania"],
+] as const;
+
+function SecurityControls({ value, effective, inherited, canEdit, onSave }: {
+  value: Security; effective: Security; inherited?: Security; canEdit: boolean;
+  onSave: (value: Security) => Promise<void>;
 }) {
-  const [teamIds, setTeams] = useState<string[]>([]),
-    [projectIds, setProjects] = useState<string[]>([]),
-    [appIds, setApps] = useState<string[]>([]),
-    [teamAdmins, setTeamAdmins] = useState<string[]>([]),
-    [appAdmins, setAppAdmins] = useState<string[]>([]);
-  useEffect(() => {
-    setTeams(
-      data.team_memberships
-        .filter((m) => m.user_id === target)
-        .map((m) => m.team_id!),
-    );
-    setProjects(
-      data.project_memberships
-        .filter((m) => m.user_id === target)
-        .map((m) => m.project_id!),
-    );
-    setApps(
-      data.application_memberships
-        .filter((m) => m.user_id === target)
-        .map((m) => m.application_id!),
-    );
-    setTeamAdmins(
-      data.team_memberships
-        .filter((m) => m.user_id === target && m.role === "team_admin")
-        .map((m) => m.team_id!),
-    );
-    setAppAdmins(
-      data.application_memberships
-        .filter((m) => m.user_id === target && m.role === "application_admin")
-        .map((m) => m.application_id!),
-    );
-  }, [target, data]);
-  const toggle = (id: string, items: string[], set: (x: string[]) => void) =>
-    set(items.includes(id) ? items.filter((x) => x !== id) : [...items, id]);
-  return (
-    <article className="panel">
-      <h2>Assign user access</h2>
-      <label>
-        User
-        <select value={target} onChange={(e) => setTarget(e.target.value)}>
-          {users
-            .filter((u) => u.role === "enterprise_user")
-            .map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} · {u.email}
-              </option>
-            ))}
-        </select>
-      </label>
-      <p>
-        Choose each team, its projects, and its applications. Admin roles can
-        enforce λ at their assigned scope.
-      </p>
-      {teams.map((t) => (
-        <div key={t.id}>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={teamIds.includes(t.id)}
-              onChange={() => toggle(t.id, teamIds, setTeams)}
-            />
-            <strong>{t.name}</strong>
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={teamAdmins.includes(t.id)}
-              onChange={() => toggle(t.id, teamAdmins, setTeamAdmins)}
-            />
-            Team admin
-          </label>
-          {data.projects
-            .filter((p) => p.team_id === t.id)
-            .map((p) => (
-              <div className="membership-indent" key={p.id}>
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={projectIds.includes(p.id)}
-                    onChange={() => toggle(p.id, projectIds, setProjects)}
-                  />
-                  {p.name}
-                </label>
-                {data.applications
-                  .filter((a) => a.project_id === p.id)
-                  .map((a) => (
-                    <div className="membership-indent" key={a.id}>
-                      <label className="check">
-                        <input
-                          type="checkbox"
-                          checked={appIds.includes(a.id)}
-                          onChange={() => toggle(a.id, appIds, setApps)}
-                        />
-                        {a.name}
-                      </label>
-                      <label className="check">
-                        <input
-                          type="checkbox"
-                          checked={appAdmins.includes(a.id)}
-                          onChange={() => toggle(a.id, appAdmins, setAppAdmins)}
-                        />
-                        Application admin
-                      </label>
-                    </div>
-                  ))}
-              </div>
-            ))}
-        </div>
-      ))}
-      <Button
-        disabled={!target}
-        onClick={() =>
-          void save({
-            team_ids: teamIds,
-            project_ids: projectIds,
-            application_ids: appIds,
-            team_admin_ids: teamAdmins,
-            application_admin_ids: appAdmins,
-          })
-        }
-      >
-        Save assignments
-      </Button>
-    </article>
-  );
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  if (!draft || !effective) return null;
+  const inheritedRegions = inherited?.allowed_regions ?? effective.allowed_regions ?? [];
+  return <details className="hierarchy-security"><summary>Security & privacy</summary>
+    <small>Organization requirements always apply. Application settings can add restrictions. Model security metadata is based on demo assumptions.</small>
+    {securityFields.map(([key, label]) => <label className="check" key={key}>
+      <input type="checkbox" disabled={!canEdit || !!inherited?.[key]} checked={draft[key] || !!inherited?.[key]}
+        onChange={(event) => setDraft({ ...draft, [key]: event.target.checked })} />
+      {label} {inherited?.[key] && <small>· inherited</small>}
+    </label>)}
+    <label className="check"><input type="checkbox" disabled={!canEdit} checked={draft.allowed_regions !== null}
+      onChange={(event) => setDraft({ ...draft, allowed_regions: event.target.checked ? [...inheritedRegions] : null })} />
+      Restrict regions for this application
+    </label>
+    {draft.allowed_regions !== null && <div className="hierarchy-regions">{securityRegions.map(([id, label]) => {
+      const allowedByParent = inherited ? !!inherited.allowed_regions?.includes(id) : true;
+      return <label className="check" key={id}><input type="checkbox" disabled={!canEdit || !allowedByParent}
+        checked={draft.allowed_regions!.includes(id)} onChange={(event) => setDraft({ ...draft,
+          allowed_regions: event.target.checked ? [...draft.allowed_regions!, id] : draft.allowed_regions!.filter((region) => region !== id),
+        })} />{label}{!allowedByParent && " · restricted by organization"}</label>;
+    })}</div>}
+    {canEdit && <Button variant="outline" onClick={() => void onSave(draft)}>Save security</Button>}
+  </details>;
 }
 
-function EffectiveLambda({ applicationId }: { applicationId: string }) {
-  const [state, setState] = useState<{
-    lam: number;
-    source: string;
-    locked: boolean;
-  } | null>(null);
-  useEffect(() => {
-    void api<typeof state>(`/api/applications/${applicationId}/lambda`).then(
-      setState,
-    );
-  }, [applicationId]);
-  return state ? (
-    <p>
-      Effective λ: <strong>{state.lam.toFixed(2)}</strong> · {state.source}
-      {state.locked ? " (locked)" : ""}
-    </p>
-  ) : null;
-}
 function PersonalPreference({ applications }: { applications: Application[] }) {
   const [id, setId] = useState(applications[0]?.id ?? ""),
     [val, setVal] = useState(""),
@@ -615,7 +450,7 @@ function PersonalPreference({ applications }: { applications: Application[] }) {
         <input
           type="number"
           min="0"
-          max="1"
+          max={MAX_LAMBDA}
           step="0.01"
           value={val}
           disabled={!!state?.locked}

@@ -1,0 +1,62 @@
+# Prototype 4.0: user-supplied estimates, not measured benchmark pass rates.
+# Model IDs refer to config/models.yaml. The measured eight task types remain
+# in routing_table.json; `other` is calculated from all 14 scores at runtime.
+version: 1
+source: user_supplied
+models:
+  openrouter/anthropic/claude-sonnet-5.5:
+    summarization: 1.000
+    translation: 0.950
+    information_extraction: 0.931
+    creative_writing: 0.985
+    conversation: 0.920
+    tool_calling: 0.900
+  openrouter/meta/muse-spark-1.3:
+    summarization: 0.940
+    translation: 0.930
+    information_extraction: 0.957
+    creative_writing: 0.870
+    conversation: 0.880
+    tool_calling: 0.900
+  openrouter/google/gemini-3.8-flash:
+    summarization: 0.940
+    translation: 1.000
+    information_extraction: 0.933
+    creative_writing: 0.828
+    conversation: 0.890
+    tool_calling: 0.900
+  openrouter/deepseek/deepseek-v4-pro:
+    summarization: 0.940
+    translation: 0.930
+    information_extraction: 0.933
+    creative_writing: 0.843
+    conversation: 0.870
+    tool_calling: 0.900
+  openrouter/deepseek/deepseek-v4.1-flash:
+    summarization: 0.850
+    translation: 0.850
+    information_extraction: 0.850
+    creative_writing: 0.800
+    conversation: 0.820
+    tool_calling: 0.800
+  openrouter/z-ai/glm-5.3-flash:
+    summarization: 1.000
+    translation: 0.920
+    information_extraction: 0.924
+    creative_writing: 0.970
+    conversation: 0.860
+    tool_calling: 0.900
+  openrouter/openai/gpt-oss-120b:
+    summarization: 0.850
+    translation: 0.810
+    information_extraction: 0.850
+    creative_writing: 0.750
+    conversation: 0.820
+    tool_calling: 0.678
+  openrouter/openai/gpt-oss-20b:
+    summarization: 0.800
+    translation: 0.760
+    information_extraction: 0.800
+    creative_writing: 0.680
+    conversation: 0.760
+    tool_calling: 0.548

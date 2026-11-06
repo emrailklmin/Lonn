@@ -8,7 +8,7 @@ import {
   ChevronDown,
   Code2,
   FileCode2,
-  Leaf,
+  MessageSquare,
   Link2,
   LockKeyhole,
   Plus,
@@ -19,24 +19,44 @@ import {
 import { Button } from "./components/ui/button";
 import { CopyButton } from "./components/CopyButton";
 import { PythonCode } from "./components/PythonCode";
-import { LambdaSlider } from "./components/LambdaSlider";
+import { RuntimeRouting, type RuntimeTrace } from "./components/RuntimeRouting";
+import { LonnLogo } from "./components/LonnLogo";
+import {
+  DEFAULT_LAMBDA,
+  MAX_LAMBDA,
+  LambdaSlider,
+} from "./components/LambdaSlider";
 import { api, shortModel, money, type Account, type Billing } from "./types";
 
 type Connection = {
   application: { id: string; name: string };
   key_type: "personal" | "application";
+  preference_scope: string;
   lam: number;
   source: string;
   locked: boolean;
 };
+const preferenceKey = (connection: Connection) =>
+  `lonn.lambda.${connection.preference_scope}.${connection.application.id}`;
+function savedLambda(connection: Connection): number | null {
+  try {
+    const value = localStorage.getItem(preferenceKey(connection));
+    if (value === null) return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 && number <= MAX_LAMBDA ? number : null;
+  } catch { return null; }
+}
 type Model = { id: string; provider: string };
 type Message = {
   prompt: string;
   content?: string;
   model?: string;
+  mode?: "router" | "direct";
   cost?: number;
   billing?: Billing;
   lam?: number;
+  lambdaSource?: string;
+  lambdaLocked?: boolean;
   finish?: string;
   error?: string;
 };
@@ -47,18 +67,20 @@ export function CustomerApp() {
   const [draftKey, setDraftKey] = useState(""),
     [draftApplication, setDraftApplication] = useState("");
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [endpoint, setEndpoint] = useState(window.location.origin);
   const [models, setModels] = useState<Model[]>([]),
     [connecting, setConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState(""),
     [menu, setMenu] = useState<"connection" | "routing" | null>(null);
   const [mode, setMode] = useState<"router" | "direct">("router"),
     [model, setModel] = useState("");
-  const [lam, setLam] = useState(0.2),
+  const [lam, setLam] = useState(DEFAULT_LAMBDA),
     [customLam, setCustomLam] = useState(false);
   const [prompt, setPrompt] = useState(""),
     [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]),
     [showCode, setShowCode] = useState(true);
+  const [trace, setTrace] = useState<RuntimeTrace | null>(null);
   const connectionRef = useRef<HTMLDivElement>(null),
     routingRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null),
@@ -98,8 +120,9 @@ export function CustomerApp() {
           ? previous
           : (eligible[0]?.id ?? ""),
       );
-      if (!refresh || context.locked || !customLam) setLam(context.lam);
-      if (!refresh || context.locked) setCustomLam(false);
+      const saved = savedLambda(context);
+      setLam(context.locked ? context.lam : (saved ?? context.lam));
+      setCustomLam(!context.locked && saved !== null);
       if (!refresh) setMenu(null);
     } catch (e) {
       if (refresh) setConnection(null);
@@ -110,6 +133,13 @@ export function CustomerApp() {
       setConnecting(false);
     }
   }
+  function chooseLambda(value: number) {
+    setLam(value);
+    setCustomLam(true);
+    if (connection) {
+      try { localStorage.setItem(preferenceKey(connection), String(value)); } catch { /* Storage is optional. */ }
+    }
+  }
   useEffect(() => {
     let active = true;
     Promise.all([
@@ -117,6 +147,7 @@ export function CustomerApp() {
       api<{ applications: { name: string }[] }>("/api/hierarchy"),
     ])
       .then(([account, hierarchy]) => {
+        if (active) setEndpoint(account.endpoint);
         if (active && account.api_key && hierarchy.applications.length) {
           void connect(account.api_key, hierarchy.applications[0].name);
         }
@@ -160,25 +191,64 @@ export function CustomerApp() {
     )
       return;
     const text = prompt.trim();
+    setTrace({ status: "pending", mode });
     setBusy(true);
     setMenu(null);
     setPrompt("");
     setMessages((previous) => [...previous, { prompt: text }]);
     try {
+      const routed = await api<{
+        models: { id: string; context_window: number }[];
+        signal: { task_scores: Record<string, number>; complexity: number | null };
+        estimates: { model_id: string; score: number }[];
+        lam: number;
+      }>("/route", {
+        method: "POST",
+        headers: headers(key, application),
+        body: JSON.stringify({
+          prompt: text,
+          ...(mode === "router" ? { router: "router1.0", lam } : {}),
+        }),
+      });
+      const selected = mode === "router"
+        ? routed.models.slice(0, 5).find((candidate) => candidate.context_window > 4096)?.id
+        : routed.models.find((candidate) => candidate.id === shortModel(model))?.id;
+      setTrace({
+        status: "generating", mode, lam: routed.lam,
+        topics: routed.signal.task_scores, eligible: routed.models.map((candidate) => candidate.id),
+        ranking: mode === "router" ? routed.estimates : undefined, selected,
+      });
       const result = await api<{
         model: { id: string };
         lam: number;
+        lambda_source: string;
+        lam_locked: boolean;
         total_cost_usd: number;
         billing?: Billing;
         response: { content: string; finish_reason: string };
+        signal: { task_scores: Record<string, number> };
+        eligible_models: string[];
+        attempted_models: string[];
+        estimates: { model_id: string; score: number }[];
+        attempts: { model_id: string; check: string }[];
+        escalated: boolean;
       }>("/generate", {
         method: "POST",
         headers: headers(key, application),
         body: JSON.stringify({
           prompt: text,
-          ...(mode === "direct" ? { model } : {}),
-          ...(!connection.locked && customLam ? { lam } : {}),
+          signal: routed.signal,
+          ...(mode === "direct"
+            ? { model: shortModel(model) }
+            : { router: "router1.0", lam }),
         }),
+      });
+      setTrace({
+        status: "complete", mode, lam: result.lam,
+        topics: result.signal.task_scores, eligible: result.eligible_models,
+        ranking: mode === "router" ? result.estimates : undefined,
+        selected: result.model.id, attempts: result.attempts,
+        attemptedModels: result.attempted_models, escalated: result.escalated,
       });
       setMessages((previous) => [
         ...previous.slice(0, -1),
@@ -186,13 +256,33 @@ export function CustomerApp() {
           prompt: text,
           content: result.response.content || "No final text returned.",
           model: result.model.id,
+          mode,
           cost: result.total_cost_usd,
           billing: result.billing,
           lam: result.lam,
+          lambdaSource: result.lambda_source,
+          lambdaLocked: result.lam_locked,
           finish: result.response.finish_reason,
         },
       ]);
+      // The policy can change while the connection menu is open. Trust the
+      // request's server snapshot for both its receipt and the next request.
+      setConnection(
+        (previous) =>
+          previous && {
+            ...previous,
+            lam: result.lam,
+            source: result.lambda_source,
+            locked: result.lam_locked,
+          },
+      );
+      if (mode === "router" || result.lam_locked) setLam(result.lam);
+      if (result.lam_locked) setCustomLam(false);
     } catch (e) {
+      setTrace((previous) => ({
+        ...previous, status: "error", mode,
+        error: e instanceof Error ? e.message : "Request failed",
+      }));
       setMessages((previous) => [
         ...previous.slice(0, -1),
         {
@@ -212,22 +302,21 @@ export function CustomerApp() {
 
   const codePrompt =
     prompt.trim() || messages.at(-1)?.prompt || "Explain an idea in a new way.";
-  const code = `import os\nfrom lonnrouter import LonnRouter\n\n# Connect your application\nclient = LonnRouter(\n    api_key=os.environ["LONN_API_KEY"],${connection?.key_type === "application" ? "" : `\n    application=${JSON.stringify(connection?.application.name || draftApplication || "your-application")},`}\n)\n\n# ${mode === "router" ? "router1.0 · automatic routing (the SDK default)" : "Direct selection from your eligible pool"}${connection?.locked ? `\n# λ = ${connection.lam} · enforced by ${connection.source}` : ""}\nresult = client.generate(\n    ${JSON.stringify(codePrompt)},${mode === "direct" ? `\n    model=${JSON.stringify(model || "eligible-model-id")},` : ""}${!connection?.locked && customLam ? `\n    lam=${lam},` : ""}\n)\n\nprint(result.content)`;
+  const code = `import os\nfrom lonnrouter import LonnRouter\n\nclient = LonnRouter(\n    api_key=os.environ["LONN_API_KEY"],\n    base_url=${JSON.stringify(endpoint)},${connection?.key_type === "application" ? "" : `\n    application=${JSON.stringify(connection?.application.name || draftApplication || "your-application")},`}\n)\n\nresult = client.generate(\n    ${JSON.stringify(codePrompt)},${mode === "direct" ? `\n    model=${JSON.stringify(model ? shortModel(model) : "eligible-model-id")},` : `\n    router="router1.0",\n    lam=${lam},`}\n)\n\nprint(result.content)`;
   const routingLabel = mode === "router" ? "router1.0" : shortModel(model);
 
   return (
     <div className="customer">
       <div className="customer-window">
         <header className="customer-titlebar">
-          <a className="customer-brand" href="/" aria-label="Lönn workspace">
-            <Leaf size={23} />
-            <strong>
-              nordic<span>/</span>notes
-            </strong>
-          </a>
-          <span className="customer-window-caption">
-            A space to think, build, and explore
-          </span>
+          <div className="customer-masthead-routing">
+            <a href="/" aria-label="Lönn workspace"><LonnLogo /></a>
+            <span>ROUTING INFRASTRUCTURE</span>
+          </div>
+          <div className="customer-masthead-app">
+            <div><MessageSquare size={28} strokeWidth={1.7} /><strong>Nordic Notes</strong></div>
+            <span>EXAMPLE CUSTOMER APPLICATION</span>
+          </div>
           <a
             className="customer-workspace-link"
             href="/"
@@ -238,15 +327,14 @@ export function CustomerApp() {
           </a>
         </header>
         <div className={`customer-body ${showCode ? "" : "code-hidden"}`}>
+          <div className="customer-left" hidden={!showCode}>
           <aside
             className="customer-editor"
             aria-label="Python integration code"
             hidden={!showCode}
           >
             <div className="customer-editor-top">
-              <span>
-                <Code2 size={15} /> YOUR INTEGRATION
-              </span>
+              <LonnLogo inverse />
               <button
                 className="customer-icon-button"
                 onClick={() => setShowCode(false)}
@@ -254,6 +342,11 @@ export function CustomerApp() {
               >
                 <X size={15} />
               </button>
+            </div>
+            <div className="customer-infrastructure-heading">
+              <span>ROUTING INFRASTRUCTURE</span>
+              <strong><Code2 size={15} /> API integration</strong>
+              <small>Python code connecting your app to Lönn</small>
             </div>
             <div className="customer-file-tab">
               <span>
@@ -306,6 +399,8 @@ export function CustomerApp() {
               </span>
             </div>
           </aside>
+          <RuntimeRouting trace={trace} />
+          </div>
           <main className="customer-chat">
             <div className="customer-chat-top">
               <div className="customer-chat-title">
@@ -319,7 +414,7 @@ export function CustomerApp() {
                   </button>
                 )}
                 <span>
-                  <Sparkles size={17} /> New conversation
+                  <MessageSquare size={19} /> Nordic Notes
                 </span>
               </div>
               <div className="customer-connection" ref={connectionRef}>
@@ -413,15 +508,14 @@ export function CustomerApp() {
               {!messages.length ? (
                 <div className="customer-empty">
                   <div className="customer-assistant-mark">
-                    <Sparkles size={28} strokeWidth={1.4} />
+                    <MessageSquare size={28} strokeWidth={1.4} />
                   </div>
                   <p className="customer-kicker">
-                    A LITTLE SPACE FOR BIG IDEAS
+                    POWERED BY LÖNN AI
                   </p>
                   <h1>Where should we begin?</h1>
                   <p>
-                    Bring a question, a half-formed idea, or your next big
-                    thing.
+                    This sample application uses Lönn to route AI requests automatically.
                   </p>
                   <div className="customer-suggestions">
                     {[
@@ -494,7 +588,13 @@ export function CustomerApp() {
                                     {money(message.billing.service_fee_usd)}
                                   </>
                                 )}{" "}
-                                · λ {message.lam}
+                                {message.mode === "router" && (
+                                  <>
+                                    · Effective λ {message.lam}
+                                    {message.lambdaSource &&
+                                      ` · ${message.lambdaLocked ? "enforced by " : ""}${message.lambdaSource}`}
+                                  </>
+                                )}
                                 {message.finish === "length"
                                   ? " · Output limit reached"
                                   : ""}
@@ -621,15 +721,25 @@ export function CustomerApp() {
                                 !connection ||
                                 connection.locked
                               }
-                              onChange={(value) => {
-                                setLam(value);
-                                setCustomLam(true);
-                              }}
+                              onChange={chooseLambda}
                             />
                             <div className="customer-lambda-scale">
-                              <span>Accuracy</span>
-                              <span>Lower cost</span>
+                              <span>0 · Cost only</span>
+                              <span>{MAX_LAMBDA} · Quality only</span>
                             </div>
+                            <button
+                              type="button"
+                              className="balance-preset"
+                              disabled={
+                                busy ||
+                                connecting ||
+                                !connection ||
+                                connection.locked
+                              }
+                              onClick={() => chooseLambda(DEFAULT_LAMBDA)}
+                            >
+                              {DEFAULT_LAMBDA} · Balanced default
+                            </button>
                             <small>
                               {connection?.locked ? (
                                 <>
@@ -641,7 +751,7 @@ export function CustomerApp() {
                                   {customLam
                                     ? "Your request preference"
                                     : `Inherited from ${connection?.source || "default"}`}{" "}
-                                  · suggested λ 0.20
+                                  · default λ {DEFAULT_LAMBDA}
                                 </>
                               )}
                             </small>
@@ -705,7 +815,7 @@ export function CustomerApp() {
                     <Sparkles size={12} />
                     {routingLabel}
                   </span>
-                  {connection?.locked && (
+                  {mode === "router" && connection?.locked && (
                     <span
                       className="customer-locked-hint"
                       title={`λ ${connection.lam} enforced by ${connection.source}`}
@@ -735,7 +845,7 @@ export function CustomerApp() {
               </form>
               <div className="customer-chat-footnote">
                 <span>
-                  <Leaf size={11} /> Powered by Lönn
+                  <MessageSquare size={11} /> Powered by Lönn API
                 </span>
                 <span>Each message is a separate request.</span>
               </div>

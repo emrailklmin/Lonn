@@ -1,0 +1,23 @@
+.hierarchy-create, .hierarchy-team-policies { margin-bottom: 14px; }
+.hierarchy-create > summary, .hierarchy-team-policies > summary, .hierarchy-detail-side summary { cursor: pointer; color: #335b40; font-weight: 600; }
+.hierarchy-create-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding-top: 14px; }
+.hierarchy-create-fields label { flex: 1 1 150px; margin: 0; }
+.hierarchy-table-panel { padding: 20px; }
+.hierarchy-table-panel h2 { margin-bottom: 3px; }
+.hierarchy-table { width: 100%; border-collapse: collapse; text-align: left; }
+.hierarchy-table th { font-size: 11px; font-weight: 500; color: #718376; padding: 12px 10px; white-space: nowrap; }
+.hierarchy-table td { border-top: 1px solid #e4eae0; padding: 11px 10px; vertical-align: middle; font-size: 12px; }
+.hierarchy-table td strong { white-space: nowrap; }
+.hierarchy-sub { display: block; margin-top: 3px; color: #728274; }
+.hierarchy-expand { color: #315e45; background: #edf3e9; border: 1px solid #d9e4d5; border-radius: 5px; padding: 5px 9px; font-size: 11px; }
+.hierarchy-table .hierarchy-details td { background: #f8faf6; padding: 16px; }
+.hierarchy-details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.hierarchy-detail-side { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; min-width: 0; }
+.hierarchy-detail-side > details { width: 100%; }
+.hierarchy-detail-side code { overflow-wrap: anywhere; }
+.hierarchy-team-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding-top: 14px; }
+.hierarchy-security { border: 1px solid #dfe8da; border-radius: 6px; padding: 10px; }
+.hierarchy-security > small { display: block; margin: 9px 0; }
+.hierarchy-security .check { margin: 6px 0; }
+.hierarchy-regions { padding-left: 16px; }
+@media (max-width: 800px) { .hierarchy-details-grid { grid-template-columns: 1fr; } }

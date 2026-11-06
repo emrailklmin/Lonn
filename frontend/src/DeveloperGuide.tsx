@@ -10,8 +10,8 @@ type Chapter = {
   intro: string;
   cells: { title: string; text: string; code?: string; note?: string }[];
 };
-export function chapters(application: string): Chapter[] {
-  const setup = `import os\nfrom lonnrouter import LonnRouter\n\nclient = LonnRouter(\n    api_key=os.environ["LONN_API_KEY"],\n    application="${application}",\n    base_url="http://127.0.0.1:8000",\n)`;
+export function chapters(application: string, endpoint: string): Chapter[] {
+  const setup = `import os\nfrom lonnrouter import LonnRouter\n\nclient = LonnRouter(\n    api_key=os.environ["LONN_API_KEY"],\n    application="${application}",\n    base_url=${JSON.stringify(endpoint)},\n)`;
   return [
     {
       title: "Quickstart",
@@ -55,13 +55,13 @@ export function chapters(application: string): Chapter[] {
       title: "Lambda Preferences",
       kicker: "03 / ROUTING CONTROL",
       intro:
-        "λ controls the trade-off in the router’s score. Higher values put more weight on lower cost; lower values favor expected accuracy.",
+        "λ controls the trade-off in the router’s score. Higher values favor quality; lower values favor cost.",
       cells: [
         {
           title: "Set a request preference",
-          text: "Pass lam between 0 and 1. When no administrator has enforced a higher-level policy, it applies to this request.",
-          code: `${setup}\n\nwith client:\n    result = client.generate("Explain a neural network.", lam=0.20)\n    print("Effective λ:", result.lam)\n    print(result.content)`,
-          note: "Organization, team, project, and application enforcement takes precedence over a request value. Otherwise your request and personal preference take precedence over unlocked application and project defaults; the fallback is 0.20.",
+          text: "Pass a literal lam between 0 and 1: 0 is cost only, 1 is quality only. The default is 0.50. When no administrator has enforced a higher-level policy, it applies to this request.",
+          code: `${setup}\n\nwith client:\n    result = client.generate("Explain a neural network.", lam=0.50)\n    print("Effective λ:", result.lam, result.lambda_source)\n    print(result.content)`,
+          note: "Organization, team, project, and application enforcement takes precedence over a request value. Otherwise your request and personal preference take precedence over unlocked application and project defaults; the fallback is 0.50.",
         },
       ],
     },
@@ -97,7 +97,7 @@ export function chapters(application: string): Chapter[] {
       title: "Eligible Models",
       kicker: "06 / POLICY",
       intro:
-        "Eligibility applies the current privacy requirements to the configured pool. Unknown privacy metadata cannot satisfy a strict requirement.",
+        "Eligibility applies your security requirements to demo model assumptions. Provider safeguards and processing locations are not verified or controlled by the demo.",
       cells: [
         {
           title: "List models you can use now",
@@ -182,6 +182,7 @@ export function DeveloperGuide({ account }: { account: Account }) {
   const [chapter, setChapter] = useState(0);
   const pages = chapters(
     account.user.role === "private_user" ? "personal-app" : "engineering-app",
+    account.endpoint,
   );
   const current = pages[chapter];
   return (

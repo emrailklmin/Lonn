@@ -2,6 +2,7 @@ import { CopyButton } from "./components/CopyButton";
 import { api, type Account } from "./types";
 import { Button } from "./components/ui/button";
 import { useState } from "react";
+import { regionLabels } from "./components/RegionMap";
 export function AccessView({
   account,
   refresh,
@@ -54,7 +55,7 @@ export function AccessView({
         ) : (
           <p>Team API access is currently revoked.</p>
         )}
-        <pre>{`from lonnrouter import LonnRouter\n\nwith LonnRouter(api_key="YOUR_PERSONAL_KEY", application="engineering-app") as client:\n    print(client.generate("Explain binary search").content)`}</pre>
+        <pre>{`from lonnrouter import LonnRouter\n\nwith LonnRouter(api_key="YOUR_PERSONAL_KEY", application="engineering-app", base_url=${JSON.stringify(account.endpoint)}) as client:\n    print(client.generate("Explain binary search").content)`}</pre>
       </article>
       <article className="panel">
         <h2>Privacy requirements</h2>
@@ -65,8 +66,26 @@ export function AccessView({
           Provider training:{" "}
           {account.settings.forbid_training ? "Prohibited" : "No restriction"}
           <br />
-          Processing region: {account.settings.region}
+          Allowed regions:{" "}
+          {account.settings.allowed_regions
+            .map((region) => regionLabels[region])
+            .join(", ") || "None"}
+          <br />
+          Encryption:{" "}
+          {account.settings.require_encryption ? "Required" : "No restriction"}
+          <br />
+          Private network:{" "}
+          {account.settings.require_private_network
+            ? "Required"
+            : "No restriction"}
+          <br />
+          Audit logs:{" "}
+          {account.settings.require_audit_logs ? "Required" : "No restriction"}
         </p>
+        <small>
+          Security and region metadata are demo assumptions, not verified
+          provider guarantees.
+        </small>
         <small>
           Inspect effective λ and set your personal preference under Projects &
           apps.

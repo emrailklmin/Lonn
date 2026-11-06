@@ -1,5 +1,10 @@
-import { LambdaSlider } from "./components/LambdaSlider";
+import {
+  DEFAULT_LAMBDA,
+  MAX_LAMBDA,
+  LambdaSlider,
+} from "./components/LambdaSlider";
 import { ModelRadar } from "./components/ModelRadar";
+import { RegionMap } from "./components/RegionMap";
 import { useState } from "react";
 import { Button } from "./components/ui/button";
 import { CopyButton } from "./components/CopyButton";
@@ -10,6 +15,15 @@ import {
   type Catalog,
   type Settings,
 } from "./types";
+
+const requirements = [
+  { key: "require_zdr", label: "Zero data retention" },
+  { key: "forbid_training", label: "No provider training" },
+  { key: "require_encryption", label: "Encryption" },
+  { key: "require_private_network", label: "Private network" },
+  { key: "require_audit_logs", label: "Audit logs" },
+] as const;
+
 export function SettingsView({
   account,
   catalog,
@@ -37,13 +51,41 @@ export function SettingsView({
       setBusy(false);
     }
   }
+  async function savePolicy(patch: Partial<Settings>) {
+    const previous = settings;
+    setSettings((current) => ({ ...current, ...patch }));
+    setBusy(true);
+    setMessage("");
+    let saved: Settings | undefined;
+    try {
+      saved = await api<Settings>("/api/settings");
+      await api("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify({ ...saved, ...patch }),
+      });
+      await refresh();
+      setMessage("Security settings saved.");
+    } catch (e) {
+      const original = saved ?? previous;
+      setSettings((current) => {
+        const restored = { ...current };
+        for (const key of Object.keys(patch) as (keyof Settings)[]) {
+          Object.assign(restored, { [key]: original[key] });
+        }
+        return restored;
+      });
+      setMessage(`Could not save settings: ${String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="settings-grid">
       <article className="panel">
         <h2>Routing preferences</h2>
         <p>
-          Choose a cost weight for the router. Higher λ gives cost more weight;
-          lower λ favors expected accuracy.
+          Choose a quality preference for the router. Higher λ gives quality
+          more weight; lower λ favors lower cost.
         </p>
         <div className="quality-control">
           <label htmlFor="routing-lambda">
@@ -55,14 +97,14 @@ export function SettingsView({
             onChange={(lam) => setSettings({ ...settings, lam })}
           />
           <div className="slider-scale">
-            <span>0 · More accuracy weight</span>
-            <span>1 · More cost weight</span>
+            <span>0 · Cost only</span>
+            <span>{MAX_LAMBDA} · Quality only</span>
           </div>
           <button
             className="balance-preset"
-            onClick={() => setSettings({ ...settings, lam: 0.2 })}
+            onClick={() => setSettings({ ...settings, lam: DEFAULT_LAMBDA })}
           >
-            0.20 · Suggested balance
+            {DEFAULT_LAMBDA} · Balanced default
           </button>
           <small>
             The curve illustrates the suggested balance. It does not represent
@@ -87,77 +129,64 @@ export function SettingsView({
         </small>
         <h2>Security & privacy</h2>
         <p>
-          Unknown metadata fails strict requirements. The current catalog has no
-          verified endpoint guarantees; these restrictions will exclude all
-          models.
+          Model security and regions are demo assumptions. Provider safeguards
+          and processing locations are not verified or controlled by this demo.
         </p>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={settings.require_zdr}
-            onChange={(e) =>
-              setSettings({ ...settings, require_zdr: e.target.checked })
-            }
-          />{" "}
-          Require zero data retention
-        </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={settings.forbid_training}
-            onChange={(e) =>
-              setSettings({ ...settings, forbid_training: e.target.checked })
-            }
-          />{" "}
-          Prohibit provider training on data
-        </label>
-        <label>
-          Processing region
-          <select
-            value={settings.region}
-            onChange={(e) =>
-              setSettings({ ...settings, region: e.target.value })
-            }
-          >
-            <option value="any">No restriction</option>
-            <option value="EU">EU only</option>
-            <option value="US">US only</option>
-          </select>
-        </label>
-        <label>
-          Maximum retention days (blank = no restriction)
-          <input
-            type="number"
-            min="0"
-            max="3650"
-            value={settings.max_retention_days ?? ""}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                max_retention_days:
-                  e.target.value === "" ? null : Number(e.target.value),
-              })
-            }
-          />
-        </label>
+        <p role="status">
+          {catalog.filter((model) => model.eligible).length} of {catalog.length}{" "}
+          models eligible
+        </p>
+        <RegionMap
+          allowed={settings.allowed_regions}
+          disabled={busy}
+          onChange={(allowed_regions) => void savePolicy({ allowed_regions })}
+        />
+        <h3>Required safeguards</h3>
+        {requirements.map(({ key, label }) => (
+          <label className="check" key={key}>
+            <input
+              type="checkbox"
+              disabled={busy}
+              checked={settings[key]}
+              onChange={(event) =>
+                void savePolicy({ [key]: event.target.checked })
+              }
+            />{" "}
+            {label}
+          </label>
+        ))}
         <h2>Model selection</h2>
         {catalog
           .filter((m) => m.active)
           .map((m) => (
-            <label key={m.id} className="check">
+            <label
+              key={m.id}
+              className={
+                m.policy_eligible
+                  ? "check model-choice"
+                  : "check model-choice unavailable"
+              }
+            >
               <input
                 type="checkbox"
-                checked={!settings.disabled_models.includes(m.id)}
+                disabled={busy || !m.policy_eligible}
+                checked={
+                  m.policy_eligible && !settings.disabled_models.includes(m.id)
+                }
                 onChange={(e) =>
-                  setSettings({
-                    ...settings,
+                  void savePolicy({
                     disabled_models: e.target.checked
                       ? settings.disabled_models.filter((id) => id !== m.id)
                       : [...settings.disabled_models, m.id],
                   })
                 }
               />
-              {shortModel(m.id)}
+              <span>
+                {shortModel(m.id)}
+                {!m.policy_eligible && (
+                  <small>{m.policy_exclusion_reasons.join(" · ")}</small>
+                )}
+              </span>
             </label>
           ))}
         <details className="draft-coverage">
@@ -165,13 +194,12 @@ export function SettingsView({
           <ModelRadar
             models={[]}
             coverage={catalog.filter(
-              (m) => m.active && !settings.disabled_models.includes(m.id),
+              (m) => m.eligible && !settings.disabled_models.includes(m.id),
             )}
           />
           <small>
-            Best catalog score per category among checked models, before privacy
-            filtering. Explore individual profiles and comparisons on the Model
-            pool page.
+            Best router aptitude per task among models eligible for your
+            settings.
           </small>
         </details>
         <Button

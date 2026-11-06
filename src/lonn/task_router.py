@@ -1,12 +1,12 @@
-"""Route on task type, complexity and measured cost (issue #19, prototype3.0).
+"""Route on task type, complexity, measured or supplied aptitude, and cost.
 
 For each pool model the router estimates the expected accuracy and the expected
 cost per request of this prompt from the routing table:
 
 - **Task-type mix:** a probability-weighted mix of the task types' rows, so an
   uncertain classification gives a smooth blend instead of a hard jump.
-  Probability mass on task types without measurements (summarization, other,
-  ...) uses the table's ``global`` row.
+  Prototype 4.0 provides explicit scores for all 15 known task types. An unknown
+  task type falls back to the measured table's ``global`` row.
 - **Complexity** (only with ``use_complexity=True``): within a task type, the
   row moves from the ``easy`` cell (complexity 0) through ``medium`` (0.5) to
   ``hard`` (1), interpolating linearly between the levels the task type has.
@@ -19,8 +19,9 @@ the model to try next, if a second call is worth its expected cost.
 
 It then picks a model by one of two rules:
 
-- ``utility`` (default): maximize ``accuracy - lam * cost_usd``. ``lam`` is
-  how many accuracy points one USD per request is worth. Higher means cheaper.
+- ``utility`` (default): maximize ``lam * accuracy - (1-lam) * cost / scale``.
+  Lambda ranges from cost only (0) to quality only (1); scale is shared by the table.
+  Explicit ``cost_weight`` is retained solely for historical benchmark comparisons.
 - ``threshold``: the cheapest model whose expected accuracy is at least
   ``tau``. If none qualifies, the most accurate model.
 
@@ -34,7 +35,8 @@ from .routing_table import ALL, Cells, CellStats, RoutingTable
 from .schemas import Model, TaskSignal
 
 LEVEL_POSITION = {'easy': 0.0, 'medium': 0.5, 'hard': 1.0}
-DEFAULT_LAMBDA = 20.0
+DEFAULT_LAMBDA = 0.5
+LEGACY_COST_WEIGHT = 20.0  # Retained only for historical benchmark replay.
 DEFAULT_USE_COMPLEXITY = False
 FALLBACK_LIMIT = 5  # Candidates returned, so callers can fall back when a provider call fails.
 
@@ -84,12 +86,25 @@ def task_row(table: RoutingTable, task: str, complexity: float | None) -> Cells:
     return table.cell(task, ALL)  # Unreachable: the points cover [first, last].
 
 
-def estimate(signal: TaskSignal, table: RoutingTable, models: list[Model], lam: float = DEFAULT_LAMBDA,
-             use_complexity: bool = DEFAULT_USE_COMPLEXITY) -> list[Estimate]:
+def cost_scale(table: RoutingTable) -> float:
+    """One shared training-table maximum across every model and task average."""
+    return max((stat.cost_usd for task in table.task_types
+                for stat in table.cell(task).values()), default=0.0) or 1.0
+
+
+def estimate(signal: TaskSignal, table: RoutingTable, models: list[Model], cost_weight: float | None = None,
+             use_complexity: bool = DEFAULT_USE_COMPLEXITY, *,
+             lam: float | None = None, normalization: float | None = None) -> list[Estimate]:
     """Expected accuracy, cost and utility score for every model the table covers."""
     validate_signal(signal)
-    if not isfinite(lam) or lam < 0:
-        raise ValueError('lam must be finite and non-negative')
+    if cost_weight is not None and (lam is not None or not isfinite(cost_weight) or cost_weight < 0):
+        raise ValueError('Use either lam in [0, 1] or a historical non-negative cost_weight')
+    lam = DEFAULT_LAMBDA if lam is None else lam
+    if not isfinite(lam) or not 0 <= lam <= 1:
+        raise ValueError('lam must be in [0, 1]')
+    scale = cost_scale(table) if normalization is None else normalization
+    if not isfinite(scale) or scale <= 0:
+        raise ValueError('Cost normalization must be positive')
     complexity = signal.complexity if use_complexity else None
     rows = [(p, task_row(table, task, complexity)) for task, p in signal.task_scores.items() if p > 0]
     estimates, seen = [], set()
@@ -101,17 +116,20 @@ def estimate(signal: TaskSignal, table: RoutingTable, models: list[Model], lam: 
             continue
         accuracy = fsum(p * row[model.id].accuracy for p, row in rows)
         cost = fsum(p * row[model.id].cost_usd for p, row in rows)
-        estimates.append(Estimate(model, accuracy, cost, accuracy - lam * cost))
+        score = (accuracy - cost_weight * cost if cost_weight is not None else
+                 lam * accuracy - (1 - lam) * cost / scale)
+        estimates.append(Estimate(model, accuracy, cost, score))
     return estimates
 
 
-def rank_models(signal: TaskSignal, table: RoutingTable, models: list[Model], lam: float = DEFAULT_LAMBDA,
+def rank_models(signal: TaskSignal, table: RoutingTable, models: list[Model], cost_weight: float | None = None,
                 limit: int = FALLBACK_LIMIT, mode: str = 'utility', tau: float | None = None,
-                use_complexity: bool = DEFAULT_USE_COMPLEXITY) -> list[Model]:
+                use_complexity: bool = DEFAULT_USE_COMPLEXITY, *,
+                lam: float | None = None, normalization: float | None = None) -> list[Model]:
     """Best candidates first, for execution and fallback on provider errors."""
     if type(limit) is not int or limit <= 0:
         raise ValueError('limit must be a positive integer')
-    estimates = estimate(signal, table, models, lam, use_complexity)
+    estimates = estimate(signal, table, models, cost_weight, use_complexity, lam=lam, normalization=normalization)
     if not estimates:
         raise ValueError('No pool model has routing-table measurements')
 
@@ -134,18 +152,20 @@ def rank_models(signal: TaskSignal, table: RoutingTable, models: list[Model], la
 ESCALATION_FACTOR = 1.0  # Escalation uses the request's own lambda (see escalation_target).
 
 
-def escalation_target(signal: TaskSignal, table: RoutingTable, models: list[Model], lam: float,
+def escalation_target(signal: TaskSignal, table: RoutingTable, models: list[Model], cost_weight: float,
                       first: Model, factor: float = ESCALATION_FACTOR,
-                      use_complexity: bool = DEFAULT_USE_COMPLEXITY) -> Model | None:
+                      use_complexity: bool = DEFAULT_USE_COMPLEXITY, *,
+                      lam: float | None = None, normalization: float | None = None) -> Model | None:
     """The model to try when ``first``'s answer fails a check (lonn.answer_check).
 
     A failed answer is almost never right (under 1% on the benchmark), so a second
     call is worth its price when the best other model's own score,
-    ``accuracy - lam * factor * cost``, is positive: its expected accuracy is worth
+    ``accuracy - cost_weight * factor * cost``, is positive: its expected accuracy is worth
     more than its expected cost at this lambda. Returns that model, or None when no
     second call pays off (then the first answer is returned as it is).
     """
-    others = [e for e in estimate(signal, table, models, lam * factor, use_complexity) if e.model.id != first.id]
+    others = [e for e in estimate(signal, table, models, None if cost_weight is None else cost_weight * factor, use_complexity,
+                                           lam=lam, normalization=normalization) if e.model.id != first.id]
     if not others:
         return None
     best = max(others, key=lambda e: (e.score, -e.cost_usd, e.model.id))

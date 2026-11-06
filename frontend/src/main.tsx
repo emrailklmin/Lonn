@@ -3,13 +3,10 @@ import { createRoot } from "react-dom/client";
 import {
   Activity,
   BookOpen,
-  Users,
   FolderTree,
-  KeyRound,
   ArrowUpRight,
   Layers,
   LayoutDashboard,
-  Leaf,
   Settings2,
   Terminal,
   RefreshCw,
@@ -23,7 +20,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
 } from "recharts";
 import { Button } from "./components/ui/button";
 import {
@@ -40,15 +36,19 @@ import {
 import "./style.css";
 import { DeveloperGuide } from "./DeveloperGuide";
 import { SpendingComparison } from "./SpendingComparison";
-import { benchmarkTopCost, providerCost, lonnFee } from "./spending";
+import {
+  benchmarkTopCost,
+  cumulativeSpending,
+  lonnFee,
+  providerCost,
+} from "./spending";
 import { HierarchyView, type Hierarchy } from "./HierarchyView";
 import { LoginView } from "./LoginView";
-import { TeamsView } from "./TeamsView";
-import { UsersView } from "./UsersView";
 import { AccessView } from "./AccessView";
 import { ModelPoolView } from "./ModelPoolView";
 import { SettingsView } from "./SettingsView";
 import { CustomerApp } from "./CustomerApp";
+import { LonnLogo } from "./components/LonnLogo";
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="empty">{children}</p>;
@@ -136,31 +136,14 @@ function App() {
     (a, r) => ({
       tokens: a.tokens + r.input_tokens + r.output_tokens,
       cost: a.cost + r.cost_usd,
-      provider: a.provider + (providerCost(r) ?? 0),
-      fees: a.fees + (lonnFee(r) ?? 0),
-      costsKnown:
-        a.costsKnown && providerCost(r) !== null && lonnFee(r) !== null,
-      latency: a.latency + r.latency_ms,
-      success: a.success + (r.status === "success" ? 1 : 0),
     }),
-    {
-      tokens: 0,
-      cost: 0,
-      provider: 0,
-      fees: 0,
-      costsKnown: true,
-      latency: 0,
-      success: 0,
-    },
+    { tokens: 0, cost: 0 },
   );
   const days: Record<
     string,
     { day: string; requests: number; cost: number; tokens: number }
   > = {};
-  const models: Record<
-    string,
-    { model: string; requests: number; cost: number; tokens: number }
-  > = {};
+  const models: Record<string, { model: string; requests: number }> = {};
   rows.forEach((r) => {
     const day = r.timestamp.slice(0, 10);
     const d = (days[day] ??= { day, requests: 0, cost: 0, tokens: 0 });
@@ -171,21 +154,49 @@ function App() {
     const m = (models[name] ??= {
       model: name,
       requests: 0,
-      cost: 0,
-      tokens: 0,
     });
     m.requests++;
-    m.cost += r.cost_usd;
-    m.tokens += r.input_tokens + r.output_tokens;
   });
   const timeline = Object.values(days).sort((a, b) =>
     a.day.localeCompare(b.day),
   );
+  const comparison = cumulativeSpending(rows);
+  const metrics = [
+    {
+      label: "Total spend",
+      value: `$${(Math.floor(total.cost * 100) / 100).toFixed(2)}`,
+      caption: "Includes Lönn fees",
+      trend: timeline.map((day) => ({ value: day.cost })),
+    },
+    {
+      label: "Estimated savings",
+      value: comparison.comparable.length ? money(comparison.netSavings) : "—",
+      caption:
+        comparison.netSavingsPercent === null
+          ? "No comparable baseline"
+          : `${comparison.netSavingsPercent.toFixed(1)}% after fees · ${money(comparison.savings)} before fees`,
+      trend: comparison.data.map((day) => ({
+        value: day.netSavings,
+      })),
+    },
+    {
+      label: "Requests",
+      value: rows.length.toLocaleString(),
+      caption: "Total requests",
+      trend: timeline.map((day) => ({ value: day.requests })),
+    },
+    {
+      label: "Token usage",
+      value: total.tokens.toLocaleString(),
+      caption: "Input + output tokens",
+      trend: timeline.map((day) => ({ value: day.tokens })),
+    },
+  ];
   return (
     <div className="shell">
       <aside>
         <div className="brand">
-          <Leaf /> lönn<span>AI</span>
+          <LonnLogo className="workspace-logo" inverse />
         </div>
         <div className="workspace">
           <span className="avatar">
@@ -209,17 +220,10 @@ function App() {
         <nav>
           {[
             [LayoutDashboard, "Overview"],
-            [Activity, "Request history"],
             [Layers, "Model pool"],
             [Settings2, "Settings"],
-            [FolderTree, "Projects & apps"],
+            [FolderTree, "Applications & access"],
             [BookOpen, "Developer guide"],
-            ...(isAdmin
-              ? [
-                  [KeyRound, "Teams & access"],
-                  [Users, "Users"],
-                ]
-              : []),
           ].map(([Icon, label]) => {
             const I = Icon as typeof Activity;
             return (
@@ -245,7 +249,7 @@ function App() {
           <p>
             <i /> Running locally
           </p>
-          <small>Prototype 3.0 · Customer demo</small>
+          <small>Prototype 4.0 · Customer demo</small>
           <button
             onClick={async () => {
               await api("/api/demo/logout", { method: "POST" });
@@ -279,11 +283,9 @@ function App() {
                       ? "Build with Lönn, step by step."
                       : page === "Settings"
                         ? "Shape how your intelligence works."
-                        : page === "Teams & access"
-                          ? "One organization. Purpose-built access for every team."
-                          : page === "Users"
-                            ? "The people behind your workspace."
-                            : "Follow each routing decision."}
+                        : page === "Applications & access"
+                          ? "Manage applications and access in one place."
+                          : "Follow each routing decision."}
               </p>
             </div>
             <Button variant="outline" onClick={() => void refresh()}>
@@ -306,12 +308,6 @@ function App() {
                   <option value="all">All requests</option>
                   <option value="seeded">Seeded demonstration</option>
                   <option value="live">Live requests</option>
-                </select>
-              </label>
-              <label>
-                Organization
-                <select value={account.id} onChange={() => {}}>
-                  <option value={account.id}>{account.name}</option>
                 </select>
               </label>
               {isAdmin && (
@@ -383,138 +379,92 @@ function App() {
                   ))}
                 </select>
               </label>
-              <small>
-                Updates every 5 seconds · Lönn fee: 20% of positive estimated
-                savings
-              </small>
             </div>
           )}
           {page === "Overview" && (
             <>
               <div className="metrics">
-                {[
-                  [
-                    "Requests",
-                    rows.length.toLocaleString(),
-                    `${total.success} successful · ${rows.length - total.success} failed`,
-                  ],
-                  [
-                    "Total tokens",
-                    total.tokens.toLocaleString(),
-                    "Input + output, across reported attempts",
-                  ],
-                  [
-                    "Total customer spend",
-                    money(total.cost),
-                    total.costsKnown
-                      ? `Provider ${money(total.provider)} + Lönn ${money(total.fees)} · USD`
-                      : "Includes recorded fees · some cost breakdowns unavailable",
-                  ],
-                  [
-                    "Average latency",
-                    `${rows.length ? (total.latency / rows.length / 1000).toFixed(2) : "0"} s`,
-                    "End-to-end server time",
-                  ],
-                ].map(([label, value, caption]) => (
+                {metrics.map(({ label, value, caption, trend }) => (
                   <article className="metric" key={label}>
                     <p>{label}</p>
                     <strong>{value}</strong>
                     <small>{caption}</small>
-                  </article>
-                ))}
-              </div>
-              <SpendingComparison rows={rows} />
-              <div className="charts">
-                {(["requests", "cost", "tokens"] as const).map((key) => (
-                  <article className="panel" key={key}>
-                    <h2>
-                      {key === "requests"
-                        ? "Request volume"
-                        : key === "cost"
-                          ? "Total customer spending over time"
-                          : "Tokens over time"}
-                    </h2>
-                    <div className="chart">
-                      {timeline.length ? (
+                    {trend.length > 1 && (
+                      <div className="metric-trend" aria-hidden="true">
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={timeline}>
-                            <CartesianGrid vertical={false} stroke="#e7ebe4" />
-                            <XAxis
-                              dataKey="day"
-                              tickFormatter={(v) => v.slice(5)}
-                              fontSize={11}
-                            />
-                            <YAxis width={55} fontSize={11} />
-                            <Tooltip />
+                          <AreaChart data={trend}>
+                            <YAxis hide domain={["dataMin", "dataMax"]} />
                             <Area
                               type="monotone"
-                              dataKey={key}
-                              stroke="#46725a"
-                              fill="#e0eadd"
-                              strokeWidth={2}
+                              dataKey="value"
+                              stroke="#7f9b80"
+                              fill="#edf4e9"
+                              strokeWidth={1.5}
+                              dot={false}
                             />
                           </AreaChart>
                         </ResponsiveContainer>
-                      ) : (
-                        <Empty>No requests in this view yet.</Empty>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
-              <article className="panel">
-                <h2>Model distribution</h2>
-                <div className="chart">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={Object.values(models).sort(
-                        (a, b) => b.requests - a.requests,
-                      )}
-                    >
-                      <XAxis dataKey="model" fontSize={10} />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Bar
-                        dataKey="requests"
-                        fill="#52745e"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Model</th>
-                        <th>Requests</th>
-                        <th>Tokens</th>
-                        <th>Customer spend</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.values(models)
-                        .sort((a, b) => b.requests - a.requests)
-                        .map((m) => (
-                          <tr key={m.model}>
-                            <td>{m.model}</td>
-                            <td>{m.requests}</td>
-                            <td>{m.tokens.toLocaleString()}</td>
-                            <td>{money(m.cost)}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </article>
+              <div className="overview-panels">
+                <SpendingComparison
+                  comparison={comparison}
+                  totalRequests={rows.length}
+                />
+                <article className="panel overview-models">
+                  <p className="eyebrow">MODEL USAGE</p>
+                  <h2>Requests by model</h2>
+                  <div className="chart overview-chart">
+                    {rows.length ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          layout="vertical"
+                          data={Object.values(models).sort(
+                            (a, b) => b.requests - a.requests,
+                          )}
+                          margin={{ top: 0, right: 10, left: 0 }}
+                        >
+                          <XAxis
+                            type="number"
+                            allowDecimals={false}
+                            fontSize={10}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            type="category"
+                            dataKey="model"
+                            width={130}
+                            fontSize={10}
+                            interval={0}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip />
+                          <Bar
+                            name="Requests"
+                            dataKey="requests"
+                            fill="#52745e"
+                            radius={[0, 4, 4, 0]}
+                            barSize={12}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <Empty>No requests in this view yet.</Empty>
+                    )}
+                  </div>
+                </article>
+              </div>
             </>
           )}
-          {(page === "Overview" || page === "Request history") && (
+          {page === "Request history" && (
             <article className="panel">
               <div className="panel-heading">
-                <h2>
-                  {page === "Overview" ? "Recent requests" : "Request history"}
-                </h2>
+                <h2>Request history</h2>
                 <small>Click a request for routing details</small>
               </div>
               {rows.length ? (
@@ -533,7 +483,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.slice(0, page === "Overview" ? 8 : 200).map((r) => (
+                      {rows.slice(0, 200).map((r) => (
                         <tr key={r.id}>
                           <td>
                             <button
@@ -612,7 +562,12 @@ function App() {
                   {detail.details.billing && (
                     <div className="model-stats">
                       <span>
-                        Provider cost (token rates)
+                        Provider cost{" "}
+                        {detail.details.cost_basis === "provider_reported"
+                          ? "(reported)"
+                          : detail.details.cost_basis === "mixed"
+                            ? "(partly estimated)"
+                            : "(estimated)"}
                         <strong>
                           {money(detail.details.billing.model_cost_usd)}
                         </strong>
@@ -620,7 +575,9 @@ function App() {
                       <span>
                         Lönn fee (
                         {detail.details.billing.service_fee_basis ===
-                        "estimated_savings_v1"
+                          "estimated_savings_v1" ||
+                        detail.details.billing.service_fee_basis ===
+                          "estimated_savings_v2"
                           ? "20% of positive savings"
                           : "historical rate"}
                         )
@@ -647,10 +604,18 @@ function App() {
                       <p>
                         Estimated savings before fee:{" "}
                         {money(
-                          benchmarkTopCost(detail)! - providerCost(detail)!,
+                          Math.max(
+                            0,
+                            benchmarkTopCost(detail)! - providerCost(detail)!,
+                          ),
                         )}{" "}
                         · after fee:{" "}
-                        {money(benchmarkTopCost(detail)! - detail.cost_usd)}
+                        {money(
+                          Math.max(
+                            0,
+                            benchmarkTopCost(detail)! - providerCost(detail)!,
+                          ) - (lonnFee(detail) ?? 0),
+                        )}
                       </p>
                     )}
                   <details>
@@ -667,9 +632,12 @@ function App() {
             </article>
           )}
           {page === "Developer guide" && <DeveloperGuide account={account} />}
-          {page === "Projects & apps" && (
+          {page === "Applications & access" && (
             <HierarchyView
               teams={teams}
+              catalog={catalog}
+              usage={usage}
+              refreshWorkspace={refresh}
               isAdmin={isAdmin}
               isPrivate={account.user.role === "private_user"}
             />
@@ -681,15 +649,6 @@ function App() {
               refresh={refresh}
             />
           )}
-          {page === "Teams & access" && isAdmin && (
-            <TeamsView
-              teams={teams}
-              catalog={catalog}
-              usage={usage}
-              refresh={refresh}
-            />
-          )}
-          {page === "Users" && isAdmin && <UsersView teams={teams} />}
           {page === "Settings" && isMember && (
             <AccessView account={account} refresh={refresh} />
           )}

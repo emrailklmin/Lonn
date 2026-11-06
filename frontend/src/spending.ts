@@ -1,6 +1,6 @@
 import type { Usage } from "./types";
-// Historical records predate saved benchmark estimates. Keep their recorded
-// provider costs and fees, using only exact IDs from the supplied benchmark.
+// Legacy records predate saved benchmark estimates. Preserve the rounded
+// benchmark snapshot used for their original comparison and fees.
 const benchmarkCosts: Record<string, number> = {
   "openrouter/anthropic/claude-sonnet-5.5": 7.57,
   "openrouter/meta/muse-spark-1.3": 7.37,
@@ -24,7 +24,10 @@ export const lonnFee = (row: Usage): number | null =>
 
 export function benchmarkTopCost(row: Usage): number | null {
   const billing = row.details.billing;
-  if (billing?.service_fee_basis === "estimated_savings_v1") {
+  if (
+    billing?.service_fee_basis === "estimated_savings_v1" ||
+    billing?.service_fee_basis === "estimated_savings_v2"
+  ) {
     // New requests freeze their estimate. Never reconstruct an unknown baseline.
     return finite(billing.estimated_top_model_cost_usd)
       ? billing.estimated_top_model_cost_usd
@@ -70,20 +73,35 @@ export function cumulativeSpending(rows: Usage[]) {
       provider: number;
       fee: number;
       baseline: number;
+      savings: number;
+      netSavings: number;
     }
   > = {};
   for (const row of comparable) {
     const day = row.timestamp.slice(0, 10),
-      d = (daily[day] ??= { day, actual: 0, provider: 0, fee: 0, baseline: 0 });
+      d = (daily[day] ??= {
+        day,
+        actual: 0,
+        provider: 0,
+        fee: 0,
+        baseline: 0,
+        savings: 0,
+        netSavings: 0,
+      });
     d.actual += row.cost_usd;
     d.provider += providerCost(row)!;
     d.fee += lonnFee(row)!;
     d.baseline += benchmarkTopCost(row)!;
+    const savings = Math.max(0, benchmarkTopCost(row)! - providerCost(row)!);
+    d.savings += savings;
+    d.netSavings += savings - lonnFee(row)!;
   }
   let actual = 0,
     provider = 0,
     fee = 0,
-    baseline = 0;
+    baseline = 0,
+    savings = 0,
+    netSavings = 0;
   const data = Object.values(daily)
     .sort((a, b) => a.day.localeCompare(b.day))
     .map((d) => ({
@@ -92,6 +110,8 @@ export function cumulativeSpending(rows: Usage[]) {
       provider: (provider += d.provider),
       fee: (fee += d.fee),
       baseline: (baseline += d.baseline),
+      savings: (savings += d.savings),
+      netSavings: (netSavings += d.netSavings),
     }));
   return {
     comparable,
@@ -100,9 +120,9 @@ export function cumulativeSpending(rows: Usage[]) {
     provider,
     fee,
     baseline,
-    savings: baseline - provider,
-    savingsPercent: baseline > 0 ? 100 * (1 - provider / baseline) : null,
-    netSavings: baseline - actual,
-    netSavingsPercent: baseline > 0 ? 100 * (1 - actual / baseline) : null,
+    savings,
+    savingsPercent: baseline > 0 ? (100 * savings) / baseline : null,
+    netSavings,
+    netSavingsPercent: baseline > 0 ? (100 * netSavings) / baseline : null,
   };
 }

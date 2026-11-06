@@ -1,8 +1,17 @@
 import { useState } from "react";
 import { Layers, Search } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { ModelRadar, attributes } from "./components/ModelRadar";
-import { api, shortModel, money, type Catalog, type Account } from "./types";
+import { ModelRadar } from "./components/ModelRadar";
+import { attributes } from "./modelAptitudes";
+import { regionLabels } from "./components/RegionMap";
+import {
+  api,
+  shortModel,
+  money,
+  type Catalog,
+  type Account,
+  type Settings,
+} from "./types";
 
 export function ModelPoolView({
   catalog,
@@ -20,18 +29,15 @@ export function ModelPoolView({
       .map((m) => m.id),
   );
   const [query, setQuery] = useState(""),
-    [filter, setFilter] = useState("active"),
+    [filter, setFilter] = useState("all"),
     [expanded, setExpanded] = useState<string | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
-  const active = catalog.filter((m) => m.active),
-    eligible = catalog.filter((m) => m.eligible);
+  const eligible = catalog.filter((m) => m.eligible);
   const comparison = catalog.filter((m) => selected.includes(m.id));
   const visible = catalog.filter(
     (m) =>
-      (filter === "all" ||
-        (filter === "active" && m.active) ||
-        (filter === "eligible" && m.eligible)) &&
+      (filter === "all" || (filter === "eligible" && m.eligible)) &&
       m.id.toLowerCase().includes(query.toLowerCase()),
   );
   function compare(id: string) {
@@ -47,12 +53,12 @@ export function ModelPoolView({
     setBusy(true);
     setError("");
     try {
-      const latest = await api<Account>("/api/account");
-      const ids = latest.settings.disabled_models;
+      const latest = await api<Settings>("/api/settings");
+      const ids = latest.disabled_models;
       await api("/api/settings", {
         method: "PUT",
         body: JSON.stringify({
-          ...latest.settings,
+          ...latest,
           disabled_models: ids.includes(model.id)
             ? ids.filter((id) => id !== model.id)
             : [...ids, model.id],
@@ -77,6 +83,15 @@ export function ModelPoolView({
             Enable models for routing, or compare their characteristics below.
             Privacy restrictions still apply to every selection and fallback.
           </p>
+          <small>
+            Security and region metadata are demo assumptions; provider
+            safeguards and location are not verified or controlled.
+          </small>
+          {!eligible.length && (
+            <p role="alert">
+              No models meet your current security and model pool settings.
+            </p>
+          )}
         </div>
       </div>
       {error && (
@@ -98,7 +113,7 @@ export function ModelPoolView({
           quality score.
         </p>
         <div className="comparison-picks">
-          {active.map((m) => (
+          {catalog.map((m) => (
             <button
               key={m.id}
               className={
@@ -123,38 +138,6 @@ export function ModelPoolView({
             coverage.
           </p>
         )}
-        <small>
-          Normalized 0–1 aptitude proxies from the existing catalog (
-          {comparison.every((m) => m.aptitude_basis === "arena_elo")
-            ? "Arena-derived"
-            : "mixed benchmark sources"}
-          ). These are historical model attributes, not measured quality for
-          your requests or a live Arena leaderboard.
-        </small>
-        <div className="coverage-grid">
-          {attributes.map((a) => {
-            const sorted = [...eligible].sort(
-              (x, y) =>
-                (y.topic_aptitudes[a.key] ?? 0) -
-                (x.topic_aptitudes[a.key] ?? 0),
-            );
-            return (
-              <div key={a.key}>
-                <small>{a.label} coverage</small>
-                <strong>
-                  {sorted.length
-                    ? shortModel(sorted[0].id)
-                    : "No eligible model"}
-                </strong>
-                <span>
-                  {sorted.length
-                    ? sorted[0].topic_aptitudes[a.key].toFixed(3)
-                    : "—"}
-                </span>
-              </div>
-            );
-          })}
-        </div>
       </article>
       <div className="pool-toolbar">
         <label className="search">
@@ -169,11 +152,10 @@ export function ModelPoolView({
         <label>
           Show
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="active">Active models ({active.length})</option>
+            <option value="all">All models ({catalog.length})</option>
             <option value="eligible">
               Eligible models ({eligible.length})
             </option>
-            <option value="all">All known models ({catalog.length})</option>
           </select>
         </label>
       </div>
@@ -211,7 +193,7 @@ export function ModelPoolView({
               </small>
               <p className="eligibility-reason">
                 {m.exclusion_reasons.join(" · ") ||
-                  "Eligible: active, measured and permitted by your account."}
+                  "Eligible for your current settings."}
               </p>
               <div className="actions">
                 <Button
@@ -223,10 +205,14 @@ export function ModelPoolView({
                 {m.active && account.user.role !== "enterprise_user" && (
                   <Button
                     variant={enabled ? "ghost" : "default"}
-                    disabled={busy}
+                    disabled={busy || !m.policy_eligible}
                     onClick={() => void toggle(m)}
                   >
-                    {enabled ? "Disable for routing" : "Enable for routing"}
+                    {!m.policy_eligible
+                      ? "Unavailable under policy"
+                      : enabled
+                        ? "Disable for routing"
+                        : "Enable for routing"}
                   </Button>
                 )}
               </div>
@@ -236,14 +222,38 @@ export function ModelPoolView({
                     {m.availability}. {m.privacy_status}.
                   </p>
                   <p>
-                    Attribute source: {m.aptitude_basis.replaceAll("_", " ")}.
-                    Configured price source: {m.price_basis}.
+                    Assumed supported regions:{" "}
+                    {m.security.regions
+                      .map((region) => regionLabels[region])
+                      .join(", ")}
+                    .
                   </p>
+                  <p>
+                    Allowed overlap:{" "}
+                    {m.matching_regions
+                      .map((region) => regionLabels[region])
+                      .join(", ") || "None"}
+                    .
+                  </p>
+                  <p>
+                    Assumed safeguards:{" "}
+                    {[
+                      m.security.zero_data_retention && "Zero data retention",
+                      m.security.no_training && "No training",
+                      m.security.encryption && "Encryption",
+                      m.security.private_network && "Private network",
+                      m.security.audit_logs && "Audit logs",
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "None"}
+                    .
+                  </p>
+                  <p>Configured price source: {m.price_basis}.</p>
                   <table>
                     <thead>
                       <tr>
-                        <th>Attribute</th>
-                        <th>Catalog score</th>
+                        <th>Task</th>
+                        <th>Score</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -251,7 +261,7 @@ export function ModelPoolView({
                         <tr key={a.key}>
                           <td>{a.label}</td>
                           <td>
-                            {m.topic_aptitudes[a.key]?.toFixed(4) ?? "Unknown"}
+                            {m.task_aptitudes[a.key]?.score.toFixed(4) ?? "—"}
                           </td>
                         </tr>
                       ))}

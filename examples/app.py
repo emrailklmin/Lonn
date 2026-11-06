@@ -20,7 +20,7 @@ st.caption('Explore the tradeoff between model quality and cost, then try a live
 
 with st.sidebar:
     st.header('Routing controls')
-    lam = st.slider('Cost weight (lambda)', 0.0, 160.0, DEFAULT_LAMBDA, 5.0)
+    lam = st.slider('Quality preference (λ)', 0.0, 1.0, DEFAULT_LAMBDA, 0.01)
     st.caption('How many accuracy points one USD per request is worth: 0 = best expected accuracy, '
                'higher = cheaper models. The default (20) matches the benchmarked setting.')
     mode = st.radio('Prompt analysis', ['Automatic (classifier)', 'Manual task type'])
@@ -73,7 +73,7 @@ if analyze or run:
                 st.write('Analysis complete. Selecting a model…')
                 candidates = rank_models(signal, table, models, lam=lam)
                 record['candidates'] = candidates
-                by_id = {e.model.id: e for e in estimate(signal, table, models, lam)}
+                by_id = {e.model.id: e for e in estimate(signal, table, models, lam=lam)}
                 record['estimates'] = [by_id[m.id] for m in candidates]
                 st.write('Ranked fallback candidates: ' + ', '.join(m.id for m in candidates))
                 if run:
@@ -122,7 +122,7 @@ if 'last_run' in st.session_state:
     record = st.session_state.last_run
     st.subheader('Last submitted request')
     st.text(record['prompt'])
-    st.caption(f"Analysis: {record['mode']} · lambda: {record['lam']:g}")
+    st.caption(f"Analysis: {record['mode']} · lam: {record['lam']:g}")
     if 'signal' in record:
         top = sorted(record['signal'].task_scores.items(), key=lambda item: -item[1])[:5]
         st.dataframe([{'Task type': t, 'Probability': round(p, 3)} for t, p in top],

@@ -2,6 +2,7 @@
 import json
 import os
 import secrets
+from datetime import datetime, timezone
 from uuid import uuid4
 from sqlalchemy import inspect
 from pathlib import Path
@@ -11,6 +12,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from lonn.model_pool import DEFAULT_POOL
 from .seed import history
+from .policy import DEMO_SECURITY, MAX_DEMO_LAMBDA, Settings, normalize_settings
 from .pricing import FEE_BASIS
 from .auth import password_hash
 from .enterprise import Project, Application, TeamMember, ProjectMember, ApplicationMember, new_id, new_key
@@ -78,6 +80,7 @@ class Store:
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.engine = create_engine(f'sqlite:///{self.directory / "demo.sqlite3"}',
                                    connect_args={'check_same_thread': False, 'timeout': 30})
+        self.migrate_lambda()
         SQLModel.metadata.create_all(self.engine)
         # Only additive schema updates: existing settings, credentials and usage survive.
         additions = {'usage': {'team_id': 'VARCHAR', 'project_id': 'VARCHAR',
@@ -85,7 +88,8 @@ class Store:
                      'user': {'personal_key': 'VARCHAR', 'lam_preference': 'FLOAT'},
                      'team': {'enforced_lam': 'FLOAT'},
                      'project': {'configured_lam': 'FLOAT', 'lam_locked': 'BOOLEAN DEFAULT 0'},
-                     'application': {'lam_locked': 'BOOLEAN DEFAULT 1'}}
+                     'application': {'lam_locked': 'BOOLEAN DEFAULT 1',
+                                     'security_overrides': "VARCHAR DEFAULT '{}'"}}
         for table, columns in additions.items():
             existing = {c['name'] for c in inspect(self.engine).get_columns(table)}
             with self.engine.begin() as connection:
@@ -97,7 +101,6 @@ class Store:
         self.seed_teams()
         self.seed_users()
         self.seed_hierarchy()
-        self.migrate_lambda()
         self.migrate_seeded_tariff()
 
     def seed(self):
@@ -106,9 +109,9 @@ class Store:
             if s.get(Account, seed['id']):
                 return
             s.add(Account(id=seed['id'], name=seed['name'], api_key='lonn_demo_' + secrets.token_urlsafe(32),
-                          settings=json.dumps(dict(lam=0.20, require_zdr=False,
-                              forbid_training=False, region='any', max_retention_days=None, disabled_models=[]))))
-            entries = yaml.safe_load(DEFAULT_POOL.read_text())
+                          settings=Settings().model_dump_json()))
+            entries = [entry for entry in yaml.safe_load(DEFAULT_POOL.read_text())
+                       if entry['active'] and entry['id'] in DEMO_SECURITY]
             for entry in entries:
                 s.add(Catalog(id=entry['id'], metadata_json=json.dumps(entry)))
             for values in history(seed, entries):
@@ -155,15 +158,28 @@ class Store:
             s.commit()
 
     def migrate_lambda(self):
-        """Replace legacy out-of-range slider values; preserve valid literal values."""
-        with Session(self.engine) as s:
-            for account in s.exec(select(Account)).all():
-                settings = json.loads(account.settings)
-                if not 0 <= settings['lam'] <= 1:
-                    settings['lam'] = 0.20
-                    account.settings = json.dumps(settings)
-                    s.add(account)
-            s.commit()
+        """Rename the 0–1 alpha settings to lambda without changing their values."""
+        tables = set(inspect(self.engine).get_table_names())
+        pairs = {'user': [('alpha_preference','lam_preference')],
+                 'team': [('enforced_alpha','enforced_lam')],
+                 'project': [('configured_alpha','configured_lam'),('alpha_locked','lam_locked')],
+                 'application': [('enforced_alpha','enforced_lam'),('alpha_locked','lam_locked')]}
+        with self.engine.begin() as connection:
+            for table, names in pairs.items():
+                if table not in tables:
+                    continue
+                columns = {c['name'] for c in inspect(connection).get_columns(table)}
+                for old, new in names:
+                    if old in columns and new not in columns:
+                        connection.exec_driver_sql(f'ALTER TABLE "{table}" RENAME COLUMN "{old}" TO "{new}"')
+            if 'account' in tables:
+                for account_id, raw in connection.exec_driver_sql('SELECT id, settings FROM account').all():
+                    settings = json.loads(raw)
+                    if 'alpha' in settings:
+                        settings['lam'] = settings.pop('alpha')
+                        settings['enforce_lam'] = settings.pop('enforce_alpha', False)
+                        connection.exec_driver_sql('UPDATE account SET settings=? WHERE id=?',
+                                                   (json.dumps(settings), account_id))
 
     def for_account(self, customer_id):
         scoped = object.__new__(Store)
@@ -264,10 +280,13 @@ class Store:
             return team
 
     def migrate_seeded_tariff(self):
-        # Rebill only synthetic fixtures; real historical invoices are immutable.
+        # Refresh only synthetic fixtures; real historical invoices are immutable.
         with Session(self.engine) as session:
             rows = session.exec(select(Usage).where(Usage.customer_id == self.customer_id, Usage.source == 'seeded')).all()
-            outdated = any(json.loads(row.details).get('billing', {}).get('service_fee_basis') != FEE_BASIS for row in rows)
+            today = datetime.now(timezone.utc).date().isoformat()
+            details = (json.loads(row.details) for row in rows)
+            outdated = any(item.get('billing', {}).get('service_fee_basis') != FEE_BASIS
+                           or item.get('seed_window_end', '')[:10] != today for item in details)
         if outdated:
             self.refresh_seeded_history()
 
@@ -290,10 +309,10 @@ class Store:
         with Session(self.engine) as s:
             account = s.get(Account, self.account().id)
             if value is not None:
-                account.settings = json.dumps(value)
+                account.settings = json.dumps(normalize_settings(value))
                 s.add(account)
                 s.commit()
-            return json.loads(account.settings)
+            return normalize_settings(json.loads(account.settings))
 
     def rotate(self):
         with Session(self.engine) as s:
@@ -306,7 +325,8 @@ class Store:
 
     def catalog(self):
         with Session(self.engine) as s:
-            return [json.loads(row.metadata_json) for row in s.exec(select(Catalog)).all()]
+            entries = [json.loads(row.metadata_json) for row in s.exec(select(Catalog)).all()]
+            return [entry for entry in entries if entry.get('active') and entry['id'] in DEMO_SECURITY]
 
     def record(self, **values):
         with Session(self.engine) as s:

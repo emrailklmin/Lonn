@@ -1,19 +1,17 @@
 """Customer tariff: model token cost plus 20% of positive benchmark savings."""
 from decimal import Decimal
+import json
+from pathlib import Path
 
 SERVICE_FEE_RATE = Decimal('0.20')
-FEE_BASIS = 'estimated_savings_v1'
-# User-supplied benchmark: total USD for 690 prompts. Unknown models stay unknown.
-BENCHMARK_COSTS = {
-    'openrouter/anthropic/claude-sonnet-5.5': Decimal('7.57'),
-    'openrouter/meta/muse-spark-1.3': Decimal('7.37'),
-    'openrouter/google/gemini-3.8-flash': Decimal('4.53'),
-    'openrouter/deepseek/deepseek-v4-pro': Decimal('3.98'),
-    'openrouter/deepseek/deepseek-v4.1-flash': Decimal('1.17'),
-    'openrouter/z-ai/glm-5.3-flash': Decimal('0.38'),
-    'openrouter/openai/gpt-oss-120b': Decimal('0.30'),
-    'openrouter/openai/gpt-oss-20b': Decimal('0.19'),
-}
+FEE_BASIS = 'estimated_savings_v2'
+# Fixed-model totals from the existing 690-question benchmark, not token prices.
+BENCHMARK_SUMMARY = Path(__file__).resolve().parents[3] / 'results/router_eval/task-true-cascade/summary.json'
+_models = json.loads(BENCHMARK_SUMMARY.read_text(), parse_float=Decimal)['policies']['models']
+BENCHMARK_COSTS = {model_id: Decimal(str(result['cost_usd'])) for model_id, result in _models.items()
+                   if result['questions'] == 690}
+if not BENCHMARK_COSTS or any(not cost.is_finite() or cost <= 0 for cost in BENCHMARK_COSTS.values()):
+    raise ValueError('Invalid benchmark cost totals')
 
 
 def token_cost(input_tokens, output_tokens, input_rate, output_rate):
@@ -28,12 +26,13 @@ def request_billing(model_costs, top_model_id):
     top = BENCHMARK_COSTS.get(top_model_id)
     comparable = top is not None and all(model_id in BENCHMARK_COSTS for model_id, _ in costs)
     baseline = sum((cost * top / BENCHMARK_COSTS[model_id] for model_id, cost in costs), Decimal(0)) if comparable else None
-    savings = baseline - model_cost if baseline is not None else None
-    fee = SERVICE_FEE_RATE * max(Decimal(0), savings) if savings is not None else Decimal(0)
+    savings = max(Decimal(0), baseline - model_cost) if baseline is not None else None
+    fee = SERVICE_FEE_RATE * savings if savings is not None else Decimal(0)
     return {'model_cost_usd': float(model_cost), 'service_fee_usd': float(fee),
             'service_fee_rate': float(SERVICE_FEE_RATE), 'service_fee_basis': FEE_BASIS,
             'estimated_top_model_cost_usd': float(baseline) if baseline is not None else None,
             'estimated_savings_usd': float(savings) if savings is not None else None,
+            'estimated_customer_savings_usd': float(savings - fee) if savings is not None else None,
             'total_cost_usd': float(model_cost + fee)}
 
 

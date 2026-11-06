@@ -1,5 +1,6 @@
-"""Authenticated local demo API around Prototype 3.0's unchanged routing pipeline."""
+"""Authenticated local demo API around the task-type routing pipeline."""
 import json
+from math import isfinite
 from dataclasses import replace
 import secrets
 from contextlib import asynccontextmanager
@@ -12,12 +13,15 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field, SecretStr
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from lonn.api import GenerateRequest, GenerateResponse, RouteRequest, RouteResponse, create_app as core_app
+from lonn.api import (GenerateRequest, GenerateResponse, RouteRequest, RouteResponse,
+                      create_app as core_app, public_model, public_routing, resolve_model_id)
 from lonn.executor import execute
-from .policy import Settings, catalog_status
+from .policy import (MAX_DEMO_LAMBDA, REGIONS, REQUIREMENTS, Settings, ApplicationSecurity,
+                     application_security, catalog_status)
 from .pricing import BENCHMARK_COSTS, request_billing, token_cost
 from .baseline import top_model_baseline
 from .auth import verify_password
@@ -41,6 +45,7 @@ def create_app(directory=None):
 
     app.router.lifespan_context = lifespan
     app.title = 'Lönn customer demo'
+    app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=4)
     # Never expose the original unauthenticated generation routes on the demo server.
     app.router.routes = [r for r in app.router.routes if r.path not in ('/route', '/generate', '/models')]
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['localhost', '127.0.0.1', 'testserver'])
@@ -117,10 +122,12 @@ def create_app(directory=None):
                     return store, team, project, application, None
         raise HTTPException(401, 'Invalid or revoked Lönn API key')
 
-    def effective_settings(store, team):
+    def effective_settings(store, team, application=None):
         settings = store.settings()
         if team:
             settings['disabled_models'] = sorted(set(settings['disabled_models']) | set(json.loads(team.disabled_models)))
+        if application:
+            settings = application_security(settings, json.loads(application.security_overrides or '{}'))
         return settings
 
     def pool(store, settings):
@@ -154,7 +161,7 @@ def create_app(directory=None):
         return {'ok': True}
 
     @app.get('/api/account')
-    def account(identity=Depends(viewer)):
+    def account(request: Request, identity=Depends(viewer)):
         store, user = identity
         a = store.account()
         team = user_team(store, user)
@@ -163,7 +170,11 @@ def create_app(directory=None):
                 'user': {'id': user.id, 'name': user.name, 'email': user.email, 'role': user.role,
                          'team_id': user.team_id, 'team_name': team.name if team else None,
                          'lam_preference': user.lam_preference},
-                'provider_configured': bool(store.credential()), 'endpoint': 'http://127.0.0.1:8000'}
+                'provider_configured': bool(store.credential()), 'endpoint': str(request.base_url).rstrip('/')}
+
+    @app.get('/api/settings')
+    def current_settings(store=Depends(management)):
+        return store.settings()
 
     @app.put('/api/settings')
     def settings(value: Settings, store=Depends(management)):
@@ -293,7 +304,7 @@ def create_app(directory=None):
         return public_user(user)
 
     class LambdaPolicy(BaseModel):
-        lam: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False, strict=True)
+        lam: float | None = Field(default=None, ge=0, le=MAX_DEMO_LAMBDA, allow_inf_nan=False, strict=True)
 
     class NamedParent(BaseModel):
         name: str = Field(min_length=1, max_length=80)
@@ -336,9 +347,16 @@ def create_app(directory=None):
                 p = projects_by_id[a.project_id]
                 team = teams_by_id[p.team_id]
                 parent = lambda_state(store, team, p)
-                return dict(a.model_dump(exclude={'api_key'}),
+                inherited = effective_settings(store, team)
+                security = effective_settings(store, team, a)
+                fields = [key for key, _, _ in REQUIREMENTS] + ['allowed_regions']
+                return dict(a.model_dump(exclude={'api_key', 'security_overrides'}),
                             lambda_state=lambda_state(store, team, p, a),
                             parent_lock=parent['source'] if parent['locked'] else None,
+                            security_overrides=ApplicationSecurity.model_validate_json(a.security_overrides or '{}').model_dump(),
+                            security_inherited={key: inherited[key] for key in fields},
+                            security_effective={key: security[key] for key in fields},
+                            eligible_model_count=sum(m['eligible'] for m in catalog(store, security)) if team.enabled and a.enabled else 0,
                             **({'api_key': a.api_key} if user.role == 'enterprise_admin' else {}))
             return {'organization_lock': bool(organization.get('enforce_lam', False)),
                     'projects': [project_view(p) for p in projects],
@@ -476,59 +494,75 @@ def create_app(directory=None):
             session.add(application); session.commit()
         return {'lam': value.lam, 'locked': value.lock if value.lam is not None else False}
 
+    @app.put('/api/applications/{application_id}/security')
+    def app_security(application_id: str, value: ApplicationSecurity, identity=Depends(viewer)):
+        store, user = identity
+        with Session(store.engine) as session:
+            application = session.get(Application, application_id)
+            member = session.get(ApplicationMember, (user.id, application_id))
+            if not application or application.customer_id != store.customer_id or (user.role not in ('enterprise_admin', 'private_user') and (not member or member.role != 'application_admin')):
+                raise HTTPException(403, 'Application administrator access required')
+            application.security_overrides = value.model_dump_json()
+            session.add(application); session.commit()
+        return value.model_dump()
+
     def request_lambda(request, store, team, project, application, user):
         state = lambda_state(store, team, project, application, user)
         if 'lam' in request.model_fields_set:
-            if request.lam > 1:
-                raise HTTPException(422, 'λ must be between 0 and 1 in the demo')
+            if request.lam > MAX_DEMO_LAMBDA:
+                raise HTTPException(422, f'λ must be between 0 and {MAX_DEMO_LAMBDA:g} in the demo')
             if not state['locked']:
-                return request.lam, 'request'
-        return state['lam'], state['source']
-
-    class DemoGenerateRequest(GenerateRequest):
-        model: str | None = Field(default=None, min_length=1, max_length=300)
+                return request.lam, 'request', False
+        return state['lam'], state['source'], state['locked']
 
     @app.get('/connection')
     def connection(identity=Depends(customer)):
         store, team, project, application, user = identity
         return {'application': {'id': application.id, 'name': application.name},
                 'key_type': 'personal' if user else 'application',
+                'preference_scope': f'user:{user.id}' if user else f'application:{application.id}',
                 **lambda_state(store, team, project, application, user)}
 
     @app.get('/models/pool')
     def configured_pool(identity=Depends(customer)):
         store, team, project, application, user = identity
-        settings = effective_settings(store, team)
+        settings = effective_settings(store, team, application)
         # Pool membership includes organization/team selections; privacy rules
         # are applied separately to form the eligible set.
-        settings.update(require_zdr=False, forbid_training=False, region='any', max_retention_days=None)
+        settings.update(require_zdr=False, forbid_training=False, require_encryption=False,
+                        require_private_network=False, require_audit_logs=False,
+                        allowed_regions=list(REGIONS), max_retention_days=None)
         ids = {m['id'] for m in catalog(store, settings) if m['eligible']}
-        return [m for m in app.state.models if m.id in ids]
+        return [public_model(m) for m in app.state.models if m.id in ids]
 
     @app.get('/models')
     def models(identity=Depends(customer)):
         store, team, project, application, user = identity
-        settings = effective_settings(store, team)
+        settings = effective_settings(store, team, application)
         ids = {m['id'] for m in catalog(store, settings) if m['eligible']}
-        return [m for m in app.state.models if m.id in ids]
+        return [public_model(m) for m in app.state.models if m.id in ids]
 
     @app.post('/route', response_model=RouteResponse)
     def route(request: RouteRequest, identity=Depends(customer)):
         store, team, project, application, user = identity
-        settings = effective_settings(store, team)
-        settings['lam'], _ = request_lambda(request, store, team, project, application, user)
-        return app.state.route_request(request.model_copy(update={'lam': settings['lam']}), pool(store, settings))
+        settings = effective_settings(store, team, application)
+        settings['lam'], _, _ = request_lambda(request, store, team, project, application, user)
+        return public_routing(app.state.route_request(request.model_copy(update={'lam': settings['lam']}), pool(store, settings)))
 
     class DemoGenerateResponse(GenerateResponse):
         billing: dict
+        lambda_source: str
+        lam_locked: bool
+        eligible_models: list[str]
+        attempted_models: list[str]
 
     @app.post('/generate', response_model=DemoGenerateResponse)
-    def generate(request: DemoGenerateRequest, response: Response, identity=Depends(customer)):
+    def generate(request: GenerateRequest, response: Response, identity=Depends(customer)):
         store, team, project, application, user = identity
         started = perf_counter()
         request_id = str(uuid4())
-        settings = effective_settings(store, team)
-        settings['lam'], lambda_source = request_lambda(request, store, team, project, application, user)
+        settings = effective_settings(store, team, application)
+        settings['lam'], lambda_source, lam_locked = request_lambda(request, store, team, project, application, user)
         calls = []
         attempted = []
         result = None
@@ -536,6 +570,10 @@ def create_app(directory=None):
         baseline = None
         billing = None
         model_costs = []
+        def cost_basis():
+            bases = {call.usage.cost_basis for call in calls}
+            return next(iter(bases)) if len(bases) == 1 else 'mixed' if bases else 'estimate'
+
         def finalize_billing():
             nonlocal calls, billing
             billing = request_billing(model_costs, baseline['model_id'] if baseline else None)
@@ -550,15 +588,32 @@ def create_app(directory=None):
             return billing
 
         def executor(prompt, model, **kwargs):
+            # Recheck immediately before every call, including fallback and
+            # escalation, in case an administrator changed policy mid-request.
+            current_team = next((item for item in store.teams() if item.id == team.id), None)
+            if not current_team or not current_team.enabled:
+                raise HTTPException(403, 'Team access is disabled')
+            with Session(store.engine) as session:
+                current_application = session.get(Application, application.id)
+            if not current_application or not current_application.enabled:
+                raise HTTPException(403, 'Application access is disabled')
+            current_settings = effective_settings(store, current_team, current_application)
+            if model.id not in {item['id'] for item in catalog(store, current_settings) if item['eligible']}:
+                raise HTTPException(403, 'Model is no longer eligible for this application')
             attempted.append(model.id)
             value = execute(prompt, model, api_key=credential, **kwargs)
-            cost = token_cost(value.usage.prompt_tokens, value.usage.completion_tokens,
-                              model.cost_per_m_input, model.cost_per_m_output)
+            reported = value.usage.provider_cost
+            has_reported_cost = (value.usage.cost_basis == 'provider_reported' and reported is not None
+                                 and isfinite(reported) and reported >= 0)
+            cost = (reported if has_reported_cost else
+                    token_cost(value.usage.prompt_tokens, value.usage.completion_tokens,
+                               model.cost_per_m_input, model.cost_per_m_output))
             model_costs.append((model.id, cost))
             value = replace(value, usage=replace(value.usage,
                 input_cost=float(token_cost(value.usage.prompt_tokens, 0, model.cost_per_m_input, 0)),
                 output_cost=float(token_cost(0, value.usage.completion_tokens, 0, model.cost_per_m_output)),
-                total_cost=float(cost), service_fee=0.0, cost_basis='calculated'))
+                total_cost=float(cost), service_fee=0.0,
+                cost_basis='provider_reported' if has_reported_cost else 'estimate'))
             calls.append(value)
             return value
         try:
@@ -567,7 +622,8 @@ def create_app(directory=None):
                                           app.state.table, 0, 0)
             selected_pool = eligible
             if request.model is not None:
-                selected_pool = [m for m in eligible if m.id == request.model]
+                model_id = resolve_model_id(request.model, app.state.models)
+                selected_pool = [m for m in eligible if m.id == model_id]
                 if not selected_pool:
                     raise HTTPException(403, 'Requested model is not eligible for this application')
             credential = store.credential()
@@ -578,11 +634,15 @@ def create_app(directory=None):
             finalize_billing()
             for attempt, call in zip((a for a in result.attempts if a.check != 'error'), calls):
                 attempt.cost_usd = call.usage.total_cost
-            result = DemoGenerateResponse(**result.model_dump(exclude={'response', 'total_cost_usd'}),
-                response=calls[-1], total_cost_usd=billing['total_cost_usd'], billing=billing)
+            result = DemoGenerateResponse(**result.model_dump(exclude={'response', 'total_cost_usd', 'cost_basis'}),
+                response=calls[-1], total_cost_usd=billing['total_cost_usd'], cost_basis=cost_basis(), billing=billing,
+                lambda_source=lambda_source, lam_locked=lam_locked,
+                eligible_models=[m.id.rsplit('/', 1)[-1] for m in eligible],
+                attempted_models=[m.rsplit('/', 1)[-1] for m in attempted])
             response.headers['X-Lonn-Request-ID'] = request_id
             response.headers['X-Lonn-Lambda-Source'] = lambda_source
-            return result
+            response.headers['X-Lonn-Effective-Lambda'] = str(settings['lam'])
+            return public_routing(result)
         except HTTPException as exc:
             failure = exc.status_code
             raise
@@ -593,8 +653,9 @@ def create_app(directory=None):
             if billing is None:
                 finalize_billing()
             # No prompt, output, raw provider errors or credentials stored in telemetry.
-            detail = {'settings': settings, 'lambda_source': lambda_source, 'selection': 'direct' if request.model else 'routed', 'team_id': team.id, 'attempted_models': attempted,
-                      'cost_basis': 'calculated',
+            detail = {'settings': settings, 'lambda_source': lambda_source, 'lam_locked': lam_locked,
+                      'selection': 'direct' if request.model else 'routed', 'team_id': team.id, 'attempted_models': attempted,
+                      'cost_basis': cost_basis(),
                       'billing': billing,
                       'attempt_costs': [dict(model=c.model.id, cost=c.usage.total_cost, basis=c.usage.cost_basis,
                                              input_tokens=c.usage.prompt_tokens, output_tokens=c.usage.completion_tokens,

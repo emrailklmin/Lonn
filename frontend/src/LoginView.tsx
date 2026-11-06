@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Leaf, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Button } from "./components/ui/button";
+import { LonnLogo } from "./components/LonnLogo";
 import { api } from "./types";
 const personas = [
   {
@@ -31,8 +32,8 @@ export function LoginView({ onLogin }: { onLogin: () => Promise<void> }) {
   return (
     <div className="welcome">
       <div className="welcome-card">
-        <Leaf size={36} />
-        <p className="eyebrow">LÖNN AI / LOCAL DEMO</p>
+        <LonnLogo className="login-logo" />
+        <p className="eyebrow">ROUTING INFRASTRUCTURE · LOCAL DEMO</p>
         <h1>
           Your intelligence.
           <br />

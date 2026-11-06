@@ -31,7 +31,7 @@ class ApiTests(unittest.TestCase):
         table = build_table(rows(self.model.id, 9, 10, 0.01) + rows(self.cheap.id, 3, 10, 0.0001))
         self.signal = TaskSignal({"code_function": 1.0})
         self.stack.enter_context(patch("lonn.api.load_model_pool", return_value=[self.model, self.cheap]))
-        self.stack.enter_context(patch("lonn.api.RoutingTable.load", return_value=table))
+        self.stack.enter_context(patch("lonn.api.load_runtime_table", return_value=table))
         self.classify = self.stack.enter_context(patch("lonn.api.TaskClassifier.classify", return_value=self.signal))
         self.execute = self.stack.enter_context(patch("lonn.api.execute", return_value=ModelResponse(
             "Answer", self.model, TokenUsage(10, 20, 30, .00001, .00004, .00005), 15, "stop")))
@@ -62,8 +62,25 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result["lam"], 20.0)
         self.assertEqual([e["model_id"] for e in result["estimates"]], [m["id"] for m in result["models"]])
         strong = result["estimates"][0]
-        self.assertEqual((strong["expected_accuracy"], strong["expected_cost_usd"]), (0.9, 0.01))
+        self.assertAlmostEqual(strong["expected_accuracy"], 0.9)
+        self.assertAlmostEqual(strong["expected_cost_usd"], 0.01)
         self.assertAlmostEqual(strong["score"], 0.9 - 20 * 0.01)
+
+    def test_full_ranking_keeps_generation_fallback_limited_to_five(self):
+        from dataclasses import replace
+        pool = [replace(self.model, id=f'nvidia_nim/test/model-{index}') for index in range(8)]
+        self.client.app.state.models = pool
+        self.client.app.state.table = build_table([
+            row for index, model in enumerate(pool) for row in rows(model.id, 9, 10, .001 * (index + 1))])
+        routed = self.client.post('/route', json={'prompt': 'code'}).json()
+        self.assertEqual(len(routed['models']), 8)
+        self.assertEqual(len(routed['estimates']), 8)
+        self.execute.side_effect = RuntimeError('simulated outage')
+        response = self.client.post('/generate', json={'prompt': 'code', 'verify': False})
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(self.execute.call_count, 5)
+        self.assertEqual([call.args[1].id for call in self.execute.call_args_list],
+                         [model['id'] for model in routed['models'][:5]])
 
     def test_supplied_signal_skips_classifier(self):
         response = self.client.post("/route", json={"prompt": "code", "signal": {
@@ -174,7 +191,7 @@ class ApiTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Invalid pool"):
                 with TestClient(create_app()):
                     pass
-        with patch("lonn.api.RoutingTable.load", side_effect=FileNotFoundError("routing_table.json")):
+        with patch("lonn.api.load_runtime_table", side_effect=FileNotFoundError("routing_table.json")):
             with self.assertRaises(FileNotFoundError):
                 with TestClient(create_app()):
                     pass

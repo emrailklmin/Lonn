@@ -1,0 +1,57 @@
+# Assumptions for the customer demo only; these are not provider guarantees.
+openrouter/anthropic/claude-sonnet-5.5:
+  regions: [north_america, europe, asia, oceania]
+  zero_data_retention: true
+  no_training: true
+  encryption: true
+  private_network: true
+  audit_logs: true
+openrouter/meta/muse-spark-1.3:
+  regions: [north_america, asia]
+  zero_data_retention: false
+  no_training: false
+  encryption: true
+  private_network: false
+  audit_logs: false
+openrouter/google/gemini-3.8-flash:
+  regions: [north_america, south_america, europe, asia, africa, oceania]
+  zero_data_retention: true
+  no_training: true
+  encryption: true
+  private_network: true
+  audit_logs: true
+openrouter/deepseek/deepseek-v4-pro:
+  regions: [north_america, europe, asia, oceania]
+  zero_data_retention: true
+  no_training: true
+  encryption: true
+  private_network: true
+  audit_logs: true
+openrouter/deepseek/deepseek-v4.1-flash:
+  regions: [north_america, europe, asia, oceania]
+  zero_data_retention: true
+  no_training: true
+  encryption: true
+  private_network: true
+  audit_logs: true
+openrouter/z-ai/glm-5.3-flash:
+  regions: [europe, asia]
+  zero_data_retention: true
+  no_training: true
+  encryption: true
+  private_network: false
+  audit_logs: false
+openrouter/openai/gpt-oss-120b:
+  regions: [north_america, south_america, europe, asia, africa, oceania]
+  zero_data_retention: true
+  no_training: true
+  encryption: true
+  private_network: true
+  audit_logs: true
+openrouter/openai/gpt-oss-20b:
+  regions: [north_america, south_america, europe, asia, africa, oceania]
+  zero_data_retention: true
+  no_training: true
+  encryption: true
+  private_network: true
+  audit_logs: true

@@ -7,14 +7,13 @@ Issue #19, branch `prototype3.0`. A router that decides from **task type**, **co
 1. **Routing table** (`src/lonn/routing_table.py`, `config/routing_table.json`). For each task type (`config/task_types.yaml`, `docs/task_types.md`), each difficulty level and each pool model, it holds the accuracy and the mean billed cost per request from the answer bank. That cost includes reasoning tokens. A difficulty cell is shrunk towards its task type's average with 5 pseudo-answers, so a small cell cannot swing the choice on its own.
 2. **Expected outcome per model** (`src/lonn/task_router.py`). The classifier's output is a `TaskSignal`: a probability per task type, plus a complexity in [0, 1] or `None`.
    - **Mix:** expected accuracy and cost are a probability-weighted mix of the task types' rows, so an uncertain classification blends smoothly.
-   - **Unmeasured types:** probability on summarization, other and similar types uses the `global` row, the mean over all measured types.
+   - **Prototype 4.0 runtime:** `load_runtime_table()` overlays the six supplied task aptitudes and derives `other` as each model's mean over the other 14 scores. Their cost estimates reuse each model's global benchmark cost. All eight measured task rows stay intact. `RoutingTable.load()` remains the measured-only loader for benchmark tooling; production uses the runtime loader. Every nonzero classifier probability across all 15 categories contributes to the weighted score.
    - **Complexity** (`use_complexity=True`, **off by default**, see the results): moves the row from the `easy` cell (0) through `medium` (0.5) to `hard` (1), linearly. `None`, or a task type without difficulty levels, uses the task type's average.
-3. **Choice:** the model with the highest `accuracy − λ · cost_usd`. λ (default 20) is how many accuracy points one USD per request is worth; higher means cheaper. `mode='threshold'` instead picks the cheapest model with expected accuracy ≥ τ.
+3. **Choice:** maximize `λ · accuracy − (1 − λ) · cost_usd / scale`, where the scale is one shared maximum benchmark cost across models and task categories. λ ranges from 0 (cost only) to 1 (quality only); its default is 0.50. `mode='threshold'` instead picks the cheapest model with expected accuracy ≥ τ.
 
-**Defaults (decision 2026-10-22): λ 20, complexity off.** That point beats the current router on both pass rate and cost. Complexity stays available and is switched on once a complexity signal improves the cross-fitted curve.
+Complexity remains off by default. The customer portal uses the same 0–1 λ and shows all eligible models in the ranking; generation retains its five-candidate fallback limit. The router never calls an API and does not rank models missing from the table.
 
-The router never calls an API. Models missing from the table are not ranked.
-
+The evaluation results below are historical: their λ is the former raw cost penalty, not the current 0–1 quality preference.
 ```bash
 python3 scripts/benchmark/build_routing_table.py      # rebuild config/routing_table.json from the bank
 python3 scripts/benchmark/eval_task_router.py --name task-true-utility       # defaults; sweep covers both complexity settings
@@ -36,7 +35,7 @@ python3 scripts/benchmark/eval_task_router.py --name task-true-cascade --cascade
 
 Answers that pass are correct 87.7% of the time. The examples read from the prompt match LiveCodeBench's public tests exactly for all 120 questions. The code check needs the macOS sandbox (`src/lonn/code_sandbox.py`, shared with the benchmark graders); elsewhere it is skipped.
 
-**Escalation rule** (`escalation_target`): a failed answer is almost never right, so a second call is worth making when the best other model's own score, `accuracy − λ·cost`, is positive. At a high λ it often is not, and the first answer is returned as it is. There is at most one escalation. The response lists every attempt, its check result and its cost; `verify: false` turns the check off.
+**Escalation rule** (`escalation_target`): a failed answer is almost never right, so a second call is worth making when the best other model's current λ-weighted score is positive. At a low λ it may not be, and the first answer is returned as it is. There is at most one escalation. The response lists every attempt, its check result and its cost; `verify: false` turns the check off.
 
 Replayed on the answer bank (`scripts/benchmark/answer_checks.py` stores every saved answer's check result in `results/benchmark_checks/answer_checks.jsonl`; `eval_task_router.py --cascade`, cross-fitted 5×5, Pareto frontier):
 
@@ -47,7 +46,7 @@ Replayed on the answer bank (`scripts/benchmark/answer_checks.py` stores every s
 
 - **Equal or better at every budget,** by up to +1.9 points.
 - **6–8% of requests are escalated,** and only those take longer (two calls).
-- At λ 20 the cascade passes 85.9% at 1.62 USD, so to keep today's cost, raise λ.
+- Under the historical objective at λ 20 the cascade passes 85.9% at 1.62 USD, so to keep today's cost, raise λ.
 
 ## Evaluation: cross-fitted, with the truth as classifier
 
@@ -65,7 +64,7 @@ The signal is the truth, so these numbers are an upper bound for a classifier: t
 | Policy | Pass | Cost | Most-chosen model |
 |---|---:|---:|---|
 | Current router (stock Laya, alpha 0.5) | 78.1% | 1.10 USD | flash, 94% |
-| **Task router, λ 20, without complexity (default)** | **84.1%** | **0.93 USD** | 42% |
+| **Task router, λ 20, without complexity** | **84.1%** | **0.93 USD** | 42% |
 | Task router, λ 20, with complexity | 84.5% | 1.19 USD | flash, 47% |
 | Task router, λ 30, with complexity | 82.9% | 0.90 USD | 42% |
 | Task router, λ 10, without complexity | 87.3% | 2.88 USD | 35% |

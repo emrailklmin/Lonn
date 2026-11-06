@@ -2,8 +2,7 @@
 
 Routing uses the task-type router (issue #19, docs/task_router.md): the task
 classifier gives a probability per task type, and the router picks the model
-with the highest expected accuracy minus ``lam`` times its expected cost per
-request, from the routing table measured on the benchmark.
+with the highest ``lam * quality - (1-lam) * normalized benchmark cost``. The routing table combines measured and user-supplied task scores.
 
 `/generate` checks the answer before returning it (lonn.answer_check: cut off,
 empty, or code that fails the prompt's worked examples). If it fails and a second
@@ -13,6 +12,7 @@ Run: python3 -m uvicorn lonn.api:app --app-dir src --host 127.0.0.1
 """
 
 from contextlib import asynccontextmanager
+from dataclasses import replace
 import logging
 from math import fsum, isclose
 from threading import Lock
@@ -20,12 +20,12 @@ from time import perf_counter
 from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .answer_check import check_answer
 from .executor import execute
 from .model_pool import load_model_pool
-from .routing_table import RoutingTable
+from .routing_table import load_runtime_table
 from .schemas import Model, ModelResponse, TaskSignal
 from .task_classifier import TaskClassifier
 from .task_router import DEFAULT_LAMBDA, FALLBACK_LIMIT, escalation_target, estimate, rank_models
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 UnitScore = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False, strict=True)]
-Lambda = Annotated[float, Field(ge=0, le=100000, allow_inf_nan=False, strict=True)]
+Lambda = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False, strict=True)]
 KNOWN_TASK_TYPES = frozenset(t.id for t in load_task_types())
 
 
@@ -63,6 +63,7 @@ class RouteRequest(BaseModel):
     prompt: str = Field(min_length=1, strict=True)
     lam: Lambda = DEFAULT_LAMBDA
     signal: SignalInput | None = None
+    router: Literal['router1.0'] | None = None
 
     @field_validator("prompt")
     @classmethod
@@ -73,14 +74,21 @@ class RouteRequest(BaseModel):
 
 
 class GenerateRequest(RouteRequest):
+    model: str | None = Field(default=None, min_length=1, max_length=300)
     max_tokens: int = Field(default=4096, gt=0, strict=True)
     timeout: float = Field(default=120, gt=0, le=600, allow_inf_nan=False, strict=True)
     verify: bool = Field(default=True, strict=True)  # check the answer and escalate once if it fails
 
+    @model_validator(mode='after')
+    def exclusive_selection(self):
+        if self.router is not None and self.model is not None:
+            raise ValueError('router and model are mutually exclusive')
+        return self
+
 
 class CandidateEstimate(BaseModel):
     model_id: str
-    expected_accuracy: float
+    expected_accuracy: float = Field(description="Probability-weighted task quality; may include supplied estimates.")
     expected_cost_usd: float
     score: float
 
@@ -119,12 +127,44 @@ class GenerateResponse(BaseModel):
     total_latency_ms: float
 
 
+def resolve_model_id(name: str, models: list[Model]) -> str:
+    """Resolve against the entire pool before applying eligibility restrictions."""
+    exact = [model.id for model in models if model.id == name]
+    matches = exact or [model.id for model in models if model.id.rsplit('/', 1)[-1] == name]
+    if len(matches) > 1:
+        raise HTTPException(422, 'Ambiguous model name; use a full model ID')
+    if not matches:
+        raise HTTPException(403, 'Requested model is not eligible for this application')
+    return matches[0]
+
+
+def public_model(model: Model) -> Model:
+    return replace(model, id=model.id.rsplit('/', 1)[-1])
+
+
+def public_routing(result):
+    """Shorten IDs in an independent response copy, never in routing or billing."""
+    result = result.model_copy(deep=True)
+    if isinstance(result, RouteResponse):
+        result.models = [public_model(model) for model in result.models]
+    else:
+        result.model = public_model(result.model)
+        result.response = replace(result.response, model=public_model(result.response.model))
+        for attempt in result.attempts:
+            attempt.model_id = attempt.model_id.rsplit('/', 1)[-1]
+    for estimate in result.estimates:
+        estimate.model_id = estimate.model_id.rsplit('/', 1)[-1]
+    return result
+
+
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         # Fail startup on invalid configuration; freeze the pool and table for this run.
         app.state.models = load_model_pool()
-        app.state.table = RoutingTable.load()
+        app.state.table = load_runtime_table()
+        for model in app.state.models:
+            model.task_aptitudes = app.state.table.model_aptitudes(model.id)
         app.state.classifier = TaskClassifier()  # The embedder loads on first use.
         app.state.classifier_lock = Lock()
         yield
@@ -138,7 +178,7 @@ def create_app() -> FastAPI:
 
     @app.get("/models", response_model=list[Model])
     def models():
-        return app.state.models
+        return [public_model(model) for model in app.state.models]
 
     def route_request(request: RouteRequest, pool=None) -> RouteResponse:
         pool = app.state.models if pool is None else pool
@@ -151,18 +191,19 @@ def create_app() -> FastAPI:
                 # Protect lazy model loading and inference across worker threads.
                 with app.state.classifier_lock:
                     signal = app.state.classifier.classify(request.prompt)
+            # Expose every eligible candidate; generation retains its five-call fallback cap.
             ranked = rank_models(signal, app.state.table, pool, lam=request.lam,
-                                 limit=FALLBACK_LIMIT)
-            by_id = {e.model.id: e for e in estimate(signal, app.state.table, pool, request.lam)}
+                                 limit=max(1, len(pool)))
+            by_id = {e.model.id: e for e in estimate(signal, app.state.table, pool, lam=request.lam)}
         except Exception as exc:
             logger.warning("Prompt analysis or routing failed (source=%s error=%s)", source, type(exc).__name__)
             raise HTTPException(503, "Prompt analysis or routing failed. Check server dependencies and "
                                      "the routing configuration.") from None
         return RouteResponse(
             models=ranked,
-            estimates=[CandidateEstimate(model_id=m.id, expected_accuracy=round(by_id[m.id].accuracy, 4),
-                                         expected_cost_usd=round(by_id[m.id].cost_usd, 8),
-                                         score=round(by_id[m.id].score, 4)) for m in ranked],
+            estimates=[CandidateEstimate(model_id=m.id, expected_accuracy=by_id[m.id].accuracy,
+                                         expected_cost_usd=by_id[m.id].cost_usd,
+                                         score=by_id[m.id].score) for m in ranked],
             signal=signal, lam=request.lam, analysis_source=source,
             routing_latency_ms=(perf_counter() - started) * 1000,
         )
@@ -170,12 +211,16 @@ def create_app() -> FastAPI:
     @app.post("/route", response_model=RouteResponse)
     def route(request: RouteRequest):
         """Classify the prompt and rank models without calling a provider."""
-        return route_request(request)
+        return public_routing(route_request(request))
 
     @app.post("/generate", response_model=GenerateResponse)
     def generate(request: GenerateRequest):
         """Try up to five ranked models, falling back when execution fails."""
-        return generate_request(request)
+        pool = app.state.models
+        if request.model is not None:
+            model_id = resolve_model_id(request.model, pool)
+            pool = [model for model in pool if model.id == model_id]
+        return public_routing(generate_request(request, pool))
 
     def generate_request(request, pool=None, executor=None):
         pool = app.state.models if pool is None else pool
@@ -183,7 +228,7 @@ def create_app() -> FastAPI:
         started = perf_counter()
         routed = route_request(request, pool)
         eligible_models = [
-            model for model in routed.models
+            model for model in routed.models[:FALLBACK_LIMIT]
             if request.max_tokens < model.context_window
         ]
         if not eligible_models:
@@ -222,7 +267,7 @@ def create_app() -> FastAPI:
             result = check_answer(request.prompt, response.content, response.finish_reason)
             attempts[0].check = "ok" if result.ok else result.reason
             target = None if result.ok else escalation_target(
-                routed.signal, app.state.table, pool, request.lam, selected_model)
+                routed.signal, app.state.table, pool, None, selected_model, lam=request.lam)
             if target is not None and request.max_tokens < target.context_window:
                 try:
                     second = executor(request.prompt, target, timeout=request.timeout, max_tokens=request.max_tokens)

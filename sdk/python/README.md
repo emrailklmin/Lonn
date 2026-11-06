@@ -23,7 +23,7 @@ for this implementation. You can also distribute a wheel built with
 from lonnrouter import LonnRouter
 
 with LonnRouter(base_url="http://192.168.1.42:8000") as router:
-    result = router.generate("Explain binary search", lam=20)
+    result = router.generate("Explain binary search", lam=0.50)
     print(result.content)
     print(result.model.id)
     print(result.usage.total_tokens, result.usage.total_cost)
@@ -43,10 +43,9 @@ worth its expected cost, that model answers instead: `result.escalated`,
 `result.attempts` and `result.total_cost_usd` show what happened and what it cost.
 Pass `verify=False` to skip the check.
 
-`lam` (lambda) defaults to 20: how many accuracy points one USD per request is
-worth. 0 picks the model with the best expected accuracy; higher values pick
-cheaper models. `result.estimates` lists the expected accuracy and cost per
-request of each ranked candidate, from the server's measured routing table. The returned
+`lam` (lambda) defaults to 0.50 and ranges from 0 (cost only) to 1
+(quality only). It weights expected aptitude against normalized benchmark cost.
+`result.estimates` lists each ranked candidate's expected aptitude and cost. The returned
 `model` contains the selected model's metadata. `usage` reports tokens and
 estimated costs. `finish_reason == "length"` signals a truncated response and
 may accompany empty content. The complete wire response is available through
@@ -58,7 +57,7 @@ may accompany empty content. The complete wire response is available through
 from lonnrouter import LonnRouter, Signal
 
 with LonnRouter() as router:
-    selection = router.route("Write a sorting function", lam=40)
+    selection = router.route("Write a sorting function", lam=0.65)
     print(selection.model.id, selection.routing_latency_ms)
 
     # Isolate the router from classifier inference for repeatable benchmarks.
@@ -84,7 +83,7 @@ from lonnrouter import AsyncLonnRouter
 
 async def main():
     async with AsyncLonnRouter(base_url="http://192.168.1.42:8000") as router:
-        result = await router.generate("Explain binary search", lam=20)
+        result = await router.generate("Explain binary search", lam=0.50)
         print(result.content)
 
 asyncio.run(main())
@@ -167,7 +166,7 @@ argument. Application keys cannot select another application. The async client
 supports the same `application` argument. Set `LONN_APPLICATION` as an
 alternative. The local server resolves enforced λ in organization → team → project → application order;
 otherwise an explicit request `lam` overrides the saved user preference, followed by
-unlocked application and project defaults and finally 0.20.
+unlocked application and project defaults and finally 0.50.
 
 ## Model discovery and direct generation (customer demo API)
 

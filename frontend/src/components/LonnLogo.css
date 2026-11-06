@@ -1,0 +1,8 @@
+.lonn-brand { display: inline-flex; align-items: center; gap: 6px; line-height: 1; color: #123b25; white-space: nowrap; }
+.lonn-brand-mark { position: relative; display: inline-flex; width: 51px; aspect-ratio: 1.89; overflow: hidden; flex: 0 0 auto; align-items: center; justify-content: center; }
+.lonn-brand-mark img { display: block; width: 136.6%; max-width: none; height: auto; flex: 0 0 136.6%; transform: translateX(-2%); }
+.lonn-brand-word { font-size: 25px; font-weight: 650; letter-spacing: -1.2px; }
+.lonn-brand-word > span { margin-left: 4px; font-size: .7em; font-weight: 500; letter-spacing: -.4px; color: #009a70; }
+.lonn-brand-inverse { color: #f4f9ee; }
+.lonn-brand-inverse .lonn-brand-word > span { color: #d7e9d6; }
+.lonn-brand-inverse .lonn-brand-mark img { filter: brightness(0) invert(1); }

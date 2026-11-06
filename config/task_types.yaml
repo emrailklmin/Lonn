@@ -6,8 +6,8 @@
 #
 # measured: true  -> the type has anchor datasets in the answer bank, so the
 #                    router gets an accuracy/cost row per model from them.
-# measured: false -> no answers yet; the router uses its fallback default. The
-#                    classifier still learns the type so traffic can be counted.
+# measured: false -> no benchmark answers yet; the router uses supplied or
+#                    derived scores while the classifier learns the type.
 #
 # anchors:  benchmark datasets (keys in data/benchmark/manifest.json) whose
 #           answer-bank results form the routing table. `subjects` limits an
@@ -172,7 +172,7 @@ task_types:
           English non-fiction domains (academic, law, education), which ask for
           the same kind of long professional document.
 
-  # Not measured yet: the router uses its fallback default for these.
+  # Not measured yet: use the supplied scores, or the derived mean for `other`.
   - id: summarization
     measured: false
     description: >-
@@ -227,8 +227,8 @@ task_types:
       arguments, or decide that none fits.
     note: >-
       BFCL data exists in the benchmark, but tool calling is deferred
-      (decision 2026-10-12), so there are no answers to route on yet. In
-      production this is also signalled by the request containing tools.
+      (decision 2026-10-12), so there are no answers to route on yet. The router
+      uses supplied estimates; the current executor accepts text only.
     training:
       - source: gorilla-llm/Berkeley-Function-Calling-Leaderboard
         status: available

@@ -21,11 +21,18 @@ def _base_url(value: str | None) -> str:
     return str(url).rstrip("/")
 
 
-DEFAULT_LAMBDA = 20.0  # Accuracy points one USD per request is worth; higher picks cheaper models.
+DEFAULT_LAMBDA = 0.5  # 0 = cost only; 1 = quality only.
 
 
-def _payload(prompt: str, lam: float | None, signal: Signal | dict | None) -> dict:
+def _payload(prompt: str, lam: float | None, signal: Signal | dict | None,
+             router: str | None = None, model: str | None = None) -> dict:
+    if router is not None and model is not None:
+        raise ValueError("router and model are mutually exclusive")
     payload = {"prompt": prompt}
+    if router is not None:
+        payload["router"] = router
+    if model is not None:
+        payload["model"] = model
     if lam is not None:
         payload["lam"] = lam
     if signal is not None:
@@ -72,16 +79,14 @@ class LonnRouter:
             raise LonnConnectionError("Could not reach Lonn; check base_url and server connectivity") from None
         return _parse(response, result_type)
 
-    def route(self, prompt: str, *, lam: float | None = None,
+    def route(self, prompt: str, *, lam: float | None = None, router: str | None = None,
               signal: Signal | dict | None = None) -> RouteResult:
-        return self._request("POST", "route", RouteResult, json=_payload(prompt, lam, signal))
+        return self._request("POST", "route", RouteResult, json=_payload(prompt, lam, signal, router))
 
-    def generate(self, prompt: str, *, lam: float | None = None,
+    def generate(self, prompt: str, *, lam: float | None = None, router: str | None = None,
                  signal: Signal | dict | None = None, model: str | None = None, max_tokens: int = 4096,
                  provider_timeout: float = 120, verify: bool = True) -> GenerateResult:
-        payload = _payload(prompt, lam, signal)
-        if model is not None:
-            payload["model"] = model
+        payload = _payload(prompt, lam, signal, router, model)
         payload.update(max_tokens=max_tokens, timeout=provider_timeout, verify=verify)
         return self._request("POST", "generate", GenerateResult, json=payload)
 
@@ -132,16 +137,14 @@ class AsyncLonnRouter:
             raise LonnConnectionError("Could not reach Lonn; check base_url and server connectivity") from None
         return _parse(response, result_type)
 
-    async def route(self, prompt: str, *, lam: float | None = None,
+    async def route(self, prompt: str, *, lam: float | None = None, router: str | None = None,
                     signal: Signal | dict | None = None) -> RouteResult:
-        return await self._request("POST", "route", RouteResult, json=_payload(prompt, lam, signal))
+        return await self._request("POST", "route", RouteResult, json=_payload(prompt, lam, signal, router))
 
-    async def generate(self, prompt: str, *, lam: float | None = None,
+    async def generate(self, prompt: str, *, lam: float | None = None, router: str | None = None,
                        signal: Signal | dict | None = None, model: str | None = None, max_tokens: int = 4096,
                        provider_timeout: float = 120, verify: bool = True) -> GenerateResult:
-        payload = _payload(prompt, lam, signal)
-        if model is not None:
-            payload["model"] = model
+        payload = _payload(prompt, lam, signal, router, model)
         payload.update(max_tokens=max_tokens, timeout=provider_timeout, verify=verify)
         return await self._request("POST", "generate", GenerateResult, json=payload)
 

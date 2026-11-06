@@ -1,3 +1,7 @@
+// Literal router units from the existing benchmark's default and sweep range.
+export const DEFAULT_LAMBDA = 0.5;
+export const MAX_LAMBDA = 1;
+
 export function LambdaSlider({
   id,
   value,
@@ -11,6 +15,9 @@ export function LambdaSlider({
   disabled?: boolean;
   label?: string;
 }) {
+  // Normalize only the drawing coordinates; the input sends λ without conversion.
+  const position = value / MAX_LAMBDA;
+  const suggested = DEFAULT_LAMBDA / MAX_LAMBDA;
   return (
     <div className="curve-slider">
       <svg viewBox="0 0 400 170" preserveAspectRatio="none" aria-hidden="true">
@@ -25,14 +32,14 @@ export function LambdaSlider({
         />
         <circle
           className="curve-elbow"
-          cx="92"
-          cy={145 - (115 * Math.log1p(6)) / Math.log1p(30)}
+          cx={20 + 360 * suggested}
+          cy={145 - (115 * Math.log1p(30 * suggested)) / Math.log1p(30)}
           r="4"
         />
         <circle
           className="curve-handle"
-          cx={20 + 360 * value}
-          cy={145 - (115 * Math.log1p(30 * value)) / Math.log1p(30)}
+          cx={20 + 360 * position}
+          cy={145 - (115 * Math.log1p(30 * position)) / Math.log1p(30)}
           r="8"
         />
       </svg>
@@ -42,8 +49,8 @@ export function LambdaSlider({
         aria-valuetext={`λ ${value}`}
         type="range"
         min="0"
-        max="1"
-        step="any"
+        max={MAX_LAMBDA}
+        step="0.01"
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}

@@ -22,7 +22,7 @@ def main():
         store = Store()
         store.reset()
         store.engine.dispose()
-        print('Demo reset to 64 seeded requests and default settings. Customer key rotated. Provider credential retained.')
+        print('Demo reset to 72,000 seeded requests and default settings. Customer key rotated. Provider credential retained.')
         return
     if args.command == 'prepare':
         from lonn.task_classifier import TaskClassifier

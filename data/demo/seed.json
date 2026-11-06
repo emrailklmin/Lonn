@@ -1,13 +1,25 @@
 {
   "id": "demo-nordic",
   "name": "Nordic Studio",
-  "start": "2026-10-20T08:00:00+00:00",
-  "request_count": 64,
+  "window_days": 30,
+  "request_count": 3600,
+  "traffic_multiplier": 20,
+  "token_multiplier": 1.88,
   "tasks": [
     "math_problem",
     "code_function",
+    "code_algorithmic",
+    "science_expert",
+    "knowledge_quantitative",
+    "instruction_following",
+    "business_writing",
+    "summarization",
+    "translation",
+    "information_extraction",
     "creative_writing",
-    "knowledge_recall"
+    "knowledge_recall",
+    "conversation",
+    "tool_calling"
   ],
   "random_seed": 20261105,
   "teams": [
@@ -48,6 +60,24 @@
       "password": "LonnDemo2026!"
     },
     {
+      "id": "user-support",
+      "name": "Kim Dahl",
+      "email": "kim@nordic.demo",
+      "role": "enterprise_user",
+      "customer_id": "demo-nordic",
+      "team_id": "team-support",
+      "password": "LonnDemo2026!"
+    },
+    {
+      "id": "user-content",
+      "name": "Avery Holm",
+      "email": "avery@nordic.demo",
+      "role": "enterprise_user",
+      "customer_id": "demo-nordic",
+      "team_id": "team-content",
+      "password": "LonnDemo2026!"
+    },
+    {
       "id": "user-private",
       "name": "Sam Berg",
       "email": "sam@personal.demo",
@@ -58,9 +88,6 @@
     }
   ],
   "task_weights": [
-    15,
-    50,
-    10,
-    25
+    10, 18, 10, 3, 5, 8, 6, 10, 5, 6, 4, 8, 4, 3
   ]
 }

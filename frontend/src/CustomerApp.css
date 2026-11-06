@@ -967,3 +967,214 @@
     display: flex;
   }
 }
+
+/* The integration and runtime panels share the left side of the workspace. */
+.customer-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #1d2926;
+  border-right: 1px solid #14221c;
+}
+.customer-left[hidden] { display: none; }
+.customer-left .customer-editor { flex: 1 1 53%; border-right: 0; }
+.customer-left .customer-editor-note { display: none; }
+.runtime-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 47%;
+  min-height: 150px;
+  overflow: hidden;
+  color: #bdcec0;
+  background: #202f29;
+  border-top: 1px solid #3a4b40;
+}
+.runtime-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 15px 20px;
+  color: #9bafa0;
+  font-size: 9px;
+  letter-spacing: 1.1px;
+}
+.runtime-heading > span { display: inline-flex; align-items: center; gap: 8px; }
+.runtime-status { font-size: 8px; letter-spacing: .8px; color: #819589; }
+.runtime-status i { width: 5px; height: 5px; border-radius: 50%; background: #86a289; }
+.runtime-status.is-active i { background: #c0d29d; animation: customer-pulse 1.2s infinite; }
+.runtime-empty { padding: 6px 20px; color: #81968a; font-size: 11px; line-height: 1.7; }
+.runtime-flow { padding: 2px 20px 18px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #46564d transparent; }
+.runtime-step { display: flex; gap: 11px; min-width: 0; position: relative; padding-bottom: 16px; }
+.runtime-step:not(:last-child)::after { content: ""; position: absolute; left: 7px; top: 16px; bottom: 0; border-left: 1px solid #41554a; }
+.runtime-step > div { flex: 1; min-width: 0; }
+.runtime-marker { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; border: 1px solid #759077; color: #b4cdaa; background: #263b30; z-index: 1; font-size: 10px; }
+.runtime-step strong { display: block; color: #c9d9ca; font-size: 10px; font-weight: 550; line-height: 15px; }
+.runtime-step small { display: block; color: #8ca296; font-size: 10px; margin-top: 4px; line-height: 1.5; overflow-wrap: anywhere; }
+.runtime-waiting .runtime-marker svg { animation: customer-spin 1.5s linear infinite; }
+.runtime-error small { color: #dda997; }
+.runtime-count { margin-left: 4px; color: #8ea795; font-weight: 400; }
+.runtime-topics { margin-top: 7px; display: grid; gap: 6px; }
+.runtime-topic { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; color: #9db2a3; font-size: 9px; text-transform: capitalize; }
+.runtime-topic b, .runtime-ranking b { color: #aec0ae; font-weight: 500; font-variant-numeric: tabular-nums; }
+.runtime-topic > i { grid-column: 1 / -1; height: 3px; background: #374a3e; border-radius: 3px; overflow: hidden; }
+.runtime-topic > i > em { display: block; height: 100%; background: #9eb994; border-radius: inherit; }
+.runtime-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.runtime-chips span { border: 1px solid #405647; background: #2b4033; border-radius: 5px; padding: 3px 6px; color: #abc0a9; font-size: 9px; overflow-wrap: anywhere; }
+.runtime-selected { display: flex; width: fit-content; align-items: center; gap: 10px; margin-top: 6px; padding: 6px 9px; border: 1px solid #668267; border-radius: 6px; background: #324d39; color: #d3e7c7; font-size: 10px; overflow-wrap: anywhere; }
+.runtime-selected.is-generating { border-color: #9eb994; background: #3a5840; }
+.runtime-selected.is-generating svg { animation: customer-spin 1.5s linear infinite; }
+.runtime-ranking { margin-top: 8px; max-width: 260px; color: #8da395; font-size: 9px; }
+.runtime-ranking > span { display: block; margin-bottom: 3px; }
+.runtime-ranking > div { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.runtime-reveal { animation: runtime-appear .3s ease both; }
+@keyframes runtime-appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .runtime-reveal, .runtime-waiting .runtime-marker svg, .runtime-status.is-active i, .runtime-selected.is-generating svg { animation: none; } }
+@media (max-width: 720px) {
+  .customer-left { flex: 0 0 260px; flex-direction: column; border-right: 0; }
+  .customer-left .customer-editor { flex: 1 1 50%; min-height: 0; }
+  .runtime-panel { flex: 1 1 50%; min-height: 0; }
+  .runtime-heading { padding: 10px 12px; }
+  .runtime-flow { padding: 0 12px 12px; }
+  .runtime-empty { padding: 4px 12px; }
+}
+
+/* Two distinct surfaces: Lönn's routing infrastructure and the customer app. */
+.customer {
+  background: #e9eee7;
+  padding: 24px 32px 32px;
+  color: #173629;
+}
+.customer-window {
+  max-width: 1480px;
+  height: calc(100dvh - 56px);
+  min-height: 620px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.customer .customer-titlebar {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(340px, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 64px;
+  height: 115px;
+  padding: 0 24px 24px;
+  border: 0;
+}
+.customer-masthead-routing, .customer-masthead-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.customer-masthead-routing a { display: inline-flex; align-items: center; }
+.customer-masthead-routing a > * { max-width: 250px; }
+.customer-masthead-app > div { display: flex; align-items: center; gap: 10px; color: #173b29; }
+.customer-masthead-app strong { font-size: 26px; font-weight: 600; letter-spacing: -.7px; }
+.customer-masthead-app svg { color: #5d826a; }
+.customer-masthead-routing > span, .customer-masthead-app > span {
+  color: #597866;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-align: center;
+}
+.customer-workspace-link { position: absolute; right: 0; top: 0; }
+.customer-body { grid-template-columns: minmax(340px, 1fr) minmax(0, 1fr); gap: 54px; }
+.customer-left {
+  border: 1px solid #173f2a;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #173d2c;
+  box-shadow: 0 12px 35px #1f402119;
+}
+.customer-left .customer-editor { background: #173d2c; }
+.customer-editor-top { padding: 18px 24px 12px; }
+.customer-editor-top > :first-child { max-width: 180px; }
+.customer-infrastructure-heading { padding: 5px 24px 0; }
+.customer-infrastructure-heading > span { display: block; padding: 10px 0 12px; border-bottom: 1px solid #446451; color: #d9e8d6; font-size: 10px; letter-spacing: 1.3px; font-weight: 600; }
+.customer-infrastructure-heading strong { display: flex; align-items: center; gap: 10px; padding-top: 14px; color: #f1f6ef; font-size: 12px; font-weight: 550; }
+.customer-infrastructure-heading strong svg { color: #a8c3a0; }
+.customer-infrastructure-heading small { display: block; margin: 5px 0 7px 25px; color: #a6bdab; font-size: 10px; }
+.customer-file-tab { border-color: #385a46; }
+.customer-file-tab > span:first-child { background: #204632; border-color: #5b8064; }
+.customer-code-tools { padding-top: 10px; }
+.customer .customer-code { padding-top: 2px; padding-bottom: 12px; line-height: 1.75; }
+.customer-code-line { min-height: 20px; }
+.customer-editor-status { border-color: #385a46; }
+.runtime-panel { background: #173d2c; border-color: #42644d; }
+.runtime-heading { color: #e0ebdc; font-size: 10px; }
+.customer-chat {
+  border: 1px solid #d3ded1;
+  border-radius: 22px;
+  background: #fcfdf9;
+  overflow: hidden;
+  box-shadow: 0 12px 35px #1f402111;
+}
+.customer-chat-top { margin: 0 26px; padding: 20px 0 16px; border-bottom: 1px solid #dce4da; }
+.customer-chat-title, .customer-chat-title > span { color: #1d3b29; font-size: 16px; font-weight: 600; }
+.customer-chat-title svg { color: #668c70; }
+.customer-chat-scroll { padding: 24px 38px; }
+.customer-empty { max-width: 480px; }
+.customer-empty h1 { color: #203e2b; }
+.customer-empty > p:not(.customer-kicker) { max-width: 400px; font-size: 13px; }
+.customer-assistant-mark { background: #e7efe4; border-color: #d6e2d2; }
+.customer-compose-area { padding-bottom: 26px; }
+.customer-composer { border-color: #cad8c8; }
+@media (max-width: 1000px) {
+  .customer { padding: 16px; }
+  .customer-window { height: calc(100dvh - 32px); }
+  .customer .customer-titlebar { height: 100px; gap: 24px; padding-bottom: 18px; }
+  .customer-body { gap: 24px; grid-template-columns: minmax(290px, 1fr) minmax(0, 1fr); }
+  .customer-masthead-routing a > * { max-width: 200px; }
+  .customer-masthead-app strong { font-size: 20px; }
+}
+@media (max-width: 720px) {
+  .customer { padding: 12px; }
+  .customer-window { height: auto; min-height: calc(100dvh - 24px); }
+  .customer .customer-titlebar { height: auto; min-height: 90px; padding: 18px 0 14px; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .customer-masthead-routing a > * { max-width: 130px; }
+  .customer-masthead-app strong { font-size: 16px; }
+  .customer-masthead-app svg { width: 20px; }
+  .customer-masthead-routing > span, .customer-masthead-app > span { font-size: 7px; letter-spacing: .6px; }
+  .customer-workspace-link { font-size: 9px; }
+  .customer-body { gap: 12px; }
+  .customer-left { flex: 0 0 320px; border: 1px solid #173f2a; border-radius: 16px; }
+  .customer-left .customer-editor { flex: 1 1 58%; }
+  .customer-infrastructure-heading { padding: 0 16px; }
+  .customer-infrastructure-heading > span { padding: 5px 0; }
+  .customer-infrastructure-heading strong { padding-top: 6px; }
+  .customer-infrastructure-heading small { margin-bottom: 0; }
+  .customer-chat { flex: 1; min-height: 460px; border-radius: 16px; }
+  .customer-chat-top { margin: 0 18px; padding: 10px 0; }
+}
+@media (min-width: 721px) {
+  .customer-left .customer-editor { flex-basis: 64%; }
+  .customer-left .runtime-panel { flex-basis: 36%; }
+  .customer-editor-top { padding-top: 12px; padding-bottom: 6px; }
+  .customer-infrastructure-heading > span { padding: 7px 0 9px; }
+  .customer-infrastructure-heading strong { padding-top: 9px; }
+  .customer-file-tab > span:first-child { padding: 8px 20px; }
+  .customer-code-tools { padding-top: 7px; padding-bottom: 4px; }
+  .customer-editor-status { padding-top: 5px; padding-bottom: 5px; }
+}
+.customer-masthead-routing .lonn-brand-mark { width: 67px; }
+.customer-masthead-routing .lonn-brand-word { font-size: 32px; }
+.customer-editor-top .lonn-brand-mark { width: 56px; }
+.customer-editor-top .lonn-brand-word { font-size: 27px; }
+@media (min-width: 721px) and (max-height: 850px) {
+  .customer-empty .customer-assistant-mark { width: 48px; height: 48px; margin-bottom: 12px; }
+  .customer .customer-kicker { margin-bottom: 8px; }
+  .customer-empty h1 { margin-bottom: 8px; font-size: clamp(30px, 2.8vw, 40px); }
+  .customer-suggestions { margin-top: 14px; }
+}
+@media (max-width: 720px) {
+  .customer-masthead-routing .lonn-brand-mark { width: 42px; }
+  .customer-masthead-routing .lonn-brand-word { font-size: 20px; }
+}

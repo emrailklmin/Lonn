@@ -5,22 +5,108 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'sdk/python/src'))
 from fastapi.testclient import TestClient
 from lonn.demo.api import create_app
+from lonn.demo.seed import history as generate_seed_history
 from lonn.demo.store import Store
 from lonn.schemas import ModelResponse, TokenUsage
 from lonnrouter import LonnRouter, AsyncLonnRouter
 import httpx
 
 
+class SeedHistoryTests(unittest.TestCase):
+    def test_pricing_ratios_use_existing_benchmark_totals(self):
+        from decimal import Decimal
+        from lonn.demo.pricing import BENCHMARK_COSTS
+        root = Path(__file__).resolve().parents[1]
+        summary = json.loads((root / 'results/router_eval/task-true-cascade/summary.json').read_text(),
+                             parse_float=Decimal)
+        expected = {model: result['cost_usd'] for model, result in summary['policies']['models'].items()
+                    if result['questions'] == 690}
+        self.assertEqual(BENCHMARK_COSTS, expected)
+        self.assertEqual(len(expected), 8)
+
+    def test_reset_recreates_full_seed_in_a_disposable_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = Store(directory)
+            try:
+                self.assertEqual(len(store.history()), 3600)
+                store.reset()
+                rows = store.history()
+                self.assertEqual(len(rows), 3600)
+                self.assertTrue(all(row['source'] == 'seeded' for row in rows))
+            finally:
+                store.engine.dispose()
+
+    def test_full_seed_uses_router_and_consistent_billing_over_30_days(self):
+        import yaml
+        from lonn.demo.policy import DEMO_SECURITY
+        from lonn.demo.pricing import charge
+        from lonn.model_pool import DEFAULT_POOL, load_model_pool
+        from lonn.routing_table import load_runtime_table
+        from lonn.schemas import TaskSignal
+        from lonn.task_router import rank_models
+
+        root = Path(__file__).resolve().parents[1]
+        seed = json.loads((root / 'data/demo/seed.json').read_text())
+        entries = [entry for entry in yaml.safe_load(DEFAULT_POOL.read_text())
+                   if entry['active'] and entry['id'] in DEMO_SECURITY]
+        now = datetime(2026, 11, 5, 12, 0, tzinfo=timezone.utc)
+        rows = list(generate_seed_history(seed, entries, now=now))
+        self.assertEqual(len(rows), 3600)
+        self.assertEqual(rows, list(generate_seed_history(seed, entries, now=now)))
+        self.assertEqual(len({row['model'] for row in rows}), 8)
+        self.assertEqual(len({row['team_id'] for row in rows}), 3)
+        self.assertEqual(len({row['project_id'] for row in rows}), 3)
+        self.assertEqual(len({row['application_id'] for row in rows}), 3)
+        self.assertGreaterEqual(len({row['user_id'] for row in rows}), 4)
+        days = Counter(datetime.fromisoformat(row['timestamp']).date() for row in rows)
+        weekdays = [count for day, count in days.items() if day.weekday() < 5]
+        weekends = [count for day, count in days.items() if day.weekday() >= 5]
+        self.assertGreater(sum(weekdays) / len(weekdays), 2 * sum(weekends) / len(weekends))
+        self.assertGreater(max(weekdays), 1.5 * sum(weekdays) / len(weekdays))
+        pool = load_model_pool()
+        by_id = {model.id: model for model in pool}
+        table = load_runtime_table()
+        ranked_cache = {}
+        for row in rows:
+            timestamp = datetime.fromisoformat(row['timestamp'])
+            self.assertTrue(now - timedelta(days=30) <= timestamp < now)
+            detail = json.loads(row['details'])
+            self.assertTrue(detail['synthetic'])
+            self.assertEqual(row['source'], 'seeded')
+            self.assertEqual(detail['cost_basis'], 'estimate')
+            eligible = tuple(detail['baseline']['eligible_model_ids'])
+            key = (detail['task'], detail['lam'], eligible)
+            if key not in ranked_cache:
+                ranked_cache[key] = rank_models(TaskSignal({detail['task']: 1.0}), table,
+                                                [by_id[item] for item in eligible], lam=detail['lam'])
+            attempted = detail['attempted_models']
+            self.assertEqual(attempted, [m.id for m in ranked_cache[key][:len(attempted)]])
+            self.assertEqual(row['model'], attempted[-1])
+            model = by_id[row['model']]
+            bill = charge(row['input_tokens'], row['output_tokens'], model.cost_per_m_input,
+                          model.cost_per_m_output, model_id=model.id,
+                          top_model_id=detail['baseline']['model_id'])
+            self.assertEqual(detail['billing'], bill)
+            self.assertEqual(row['cost_usd'], bill['total_cost_usd'])
+
+
 class DemoTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
+        # Most API tests need a small fixture; the full 30-day seed is checked separately.
+        seed_patch = patch('lonn.demo.store.history', side_effect=lambda seed, entries:
+                           generate_seed_history(dict(seed, request_count=64), entries))
+        seed_patch.start()
+        self.addCleanup(seed_patch.stop)
         self.app = create_app(self.temp.name)
         self.client = TestClient(self.app).__enter__()
         self.addCleanup(self.client.__exit__, None, None, None)
@@ -40,6 +126,241 @@ class DemoTests(unittest.TestCase):
         result = self.client.put('/api/provider', json={'key': 'upstream-secret-for-test'})
         self.assertEqual(result.status_code, 200, result.text)
 
+    def test_catalog_profiles_match_router_and_preserve_score_provenance(self):
+        from dataclasses import asdict
+        from lonn.routing_table import RoutingTable, load_supplied_aptitudes
+        from lonn.task_types import load_task_types
+
+        measured = RoutingTable.load()
+        supplied = load_supplied_aptitudes()
+        task_ids = {task.id for task in load_task_types()}
+        catalog = self.client.get('/api/catalog').json()
+        profiles = {entry['id']: entry for entry in catalog}
+        for model in self.app.state.models:
+            profile = profiles[model.id]['task_aptitudes']
+            self.assertEqual(set(profile), task_ids)
+            self.assertEqual(profile, {key: asdict(value) for key, value in model.task_aptitudes.items()})
+            self.assertEqual(sum(item['source'] == 'measured' for item in profile.values()), 8)
+            self.assertEqual(sum(item['source'] == 'supplied' for item in profile.values()), 6)
+            for task in measured.task_types:
+                stat = measured.cell(task)[model.id]
+                self.assertEqual(profile[task]['score'], stat.accuracy)
+                self.assertEqual(profile[task]['sample_size'], stat.n)
+            for task, score in supplied[model.id].items():
+                self.assertEqual(profile[task]['score'], score)
+                self.assertEqual(profile[task]['cost_source'], 'global_benchmark')
+                self.assertEqual(profile[task]['cost_usd'], measured.global_row[model.id].cost_usd)
+            self.assertEqual(profile['other']['source'], 'derived')
+            self.assertAlmostEqual(profile['other']['score'],
+                                   sum(item['score'] for task, item in profile.items() if task != 'other') / 14)
+        for model in catalog:
+            if model['id'] not in self.app.state.table.global_row:
+                self.assertEqual(model['task_aptitudes'], {})
+                self.assertFalse(model['eligible'])
+
+    def test_supplied_creative_writing_score_drives_customer_route(self):
+        route = self.client.post('/route', headers=self.headers, json={
+            'prompt': 'Write a story', 'lam': 0.0,
+            'signal': {'task_scores': {'creative_writing': 1.0}},
+        })
+        self.assertEqual(route.status_code, 200, route.text)
+        result = route.json()
+        selected = result['models'][0]
+        self.assertEqual(selected['id'], 'openrouter/anthropic/claude-sonnet-5.5')
+        self.assertEqual(selected['task_aptitudes']['creative_writing']['score'], 0.985)
+        self.assertEqual(selected['task_aptitudes']['creative_writing']['source'], 'supplied')
+        self.assertEqual(result['estimates'][0]['expected_accuracy'], 0.985)
+
+    def test_classifier_distribution_weights_all_15_tasks_for_all_eight_models(self):
+        from lonn.schemas import TaskSignal
+        from lonn.task_types import load_task_types
+        tasks = load_task_types()
+        scores = {task.id: (index + 1) / 120 for index, task in enumerate(tasks)}
+        self.assertEqual(len(tasks), 15)
+        self.assertEqual(set(self.app.state.table.task_types), set(scores))
+        with patch.object(self.app.state.classifier, 'classify', return_value=TaskSignal(scores)) as classify:
+            response = self.client.post('/route', headers=self.headers, json={'prompt': 'Mixed task', 'lam': 20.0})
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        classify.assert_called_once_with('Mixed task')
+        self.assertEqual(result['signal']['task_scores'], scores)
+        self.assertEqual(len(result['models']), 8)
+        self.assertEqual(len(result['estimates']), 8)
+        self.assertEqual([model['id'] for model in result['models']],
+                         [item['model_id'] for item in result['estimates']])
+        self.assertEqual([item['score'] for item in result['estimates']],
+                         sorted((item['score'] for item in result['estimates']), reverse=True))
+        for item in result['estimates']:
+            model_id = item['model_id']
+            quality = sum(probability * self.app.state.table.cell(task)[model_id].accuracy
+                          for task, probability in scores.items())
+            cost = sum(probability * self.app.state.table.cell(task)[model_id].cost_usd
+                       for task, probability in scores.items())
+            self.assertAlmostEqual(item['expected_accuracy'], quality)
+            self.assertAlmostEqual(item['expected_cost_usd'], cost)
+            self.assertAlmostEqual(item['score'], quality - 20 * cost)
+
+    def test_effective_lambda_metadata_uses_the_request_policy_snapshot(self):
+        self.credential()
+        self.client.put('/api/settings', json=dict(self.account['settings'], lam=20.0, enforce_lam=True))
+        def policy_changes_during_call(prompt, model, **kwargs):
+            self.app.state.store.settings(dict(self.account['settings'], lam=80.0, enforce_lam=False))
+            return self.answer(prompt, model, **kwargs)
+        with patch('lonn.demo.api.execute', side_effect=policy_changes_during_call):
+            response = self.generate(lam=1.0, verify=False)
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual((result['lam'], result['lambda_source'], result['lambda_locked']),
+                         (20.0, 'organization', True))
+        row = next(row for row in self.client.get('/api/usage').json() if row['source'] == 'live')
+        self.assertEqual((row['details']['settings']['lam'], row['details']['lambda_source'],
+                          row['details']['lambda_locked']), (20.0, 'organization', True))
+
+    def test_demo_catalog_has_eight_models_with_the_supplied_security_matrix(self):
+        from lonn.demo.policy import REGIONS
+        full = list(REGIONS)
+        regional = ['north_america', 'europe', 'asia', 'oceania']
+        expected = {
+            'openrouter/anthropic/claude-sonnet-5.5': (regional, [True, True, True, True, True]),
+            'openrouter/meta/muse-spark-1.3': (['north_america', 'asia'], [False, False, True, False, False]),
+            'openrouter/google/gemini-3.8-flash': (full, [True, True, True, True, True]),
+            'openrouter/deepseek/deepseek-v4-pro': (regional, [True, True, True, True, True]),
+            'openrouter/deepseek/deepseek-v4.1-flash': (regional, [True, True, True, True, True]),
+            'openrouter/z-ai/glm-5.3-flash': (['europe', 'asia'], [True, True, True, False, False]),
+            'openrouter/openai/gpt-oss-120b': (full, [True, True, True, True, True]),
+            'openrouter/openai/gpt-oss-20b': (full, [True, True, True, True, True]),
+        }
+        capabilities = ['zero_data_retention', 'no_training', 'encryption', 'private_network', 'audit_logs']
+        catalog = self.client.get('/api/catalog').json()
+        self.assertEqual({item['id'] for item in catalog}, set(expected))
+        for item in catalog:
+            regions, flags = expected[item['id']]
+            self.assertEqual(item['security']['regions'], regions)
+            self.assertEqual([item['security'][key] for key in capabilities], flags)
+            self.assertEqual(item['matching_regions'], regions)
+            self.assertTrue(item['eligible'])
+            self.assertIn('Demo assumptions', item['privacy_status'])
+
+    def test_account_endpoint_uses_the_current_portal_origin(self):
+        response = self.client.get('/api/account', headers={'Host': '127.0.0.1:8765'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['endpoint'], 'http://127.0.0.1:8765')
+
+    def test_security_region_selection_persists_and_filters_every_capability(self):
+        from lonn.demo.policy import REGIONS
+        base = self.account['settings']
+        original = self.client.get('/api/catalog').json()
+        for region in REGIONS:
+            self.assertEqual(self.client.put('/api/settings', json=dict(base, allowed_regions=[region])).status_code, 200)
+            catalog = self.client.get('/api/catalog').json()
+            self.assertEqual({item['id'] for item in catalog if item['eligible']},
+                             {item['id'] for item in original if region in item['security']['regions']})
+            for item in catalog:
+                self.assertEqual(item['matching_regions'], [region] if item['eligible'] else [])
+        for setting, capability in [('require_zdr', 'zero_data_retention'), ('forbid_training', 'no_training'),
+                                    ('require_encryption', 'encryption'), ('require_private_network', 'private_network'),
+                                    ('require_audit_logs', 'audit_logs')]:
+            self.assertEqual(self.client.put('/api/settings', json=dict(base, **{setting: True})).status_code, 200)
+            catalog = self.client.get('/api/catalog').json()
+            self.assertEqual({item['id'] for item in catalog if item['eligible']},
+                             {item['id'] for item in original if item['security'][capability]})
+        settings = dict(base, allowed_regions=['europe', 'africa'], require_private_network=True)
+        self.assertEqual(self.client.put('/api/settings', json=settings).status_code, 200)
+        reopened = Store(self.temp.name)
+        self.assertEqual(reopened.settings()['allowed_regions'], ['europe', 'africa'])
+        self.assertTrue(reopened.settings()['require_private_network'])
+        reopened.engine.dispose()
+        catalog = self.client.get('/api/catalog').json()
+        claude = next(item for item in catalog if 'claude-sonnet' in item['id'])
+        self.assertEqual(claude['matching_regions'], ['europe'])
+        self.assertTrue(all(item['security']['private_network'] for item in catalog if item['eligible']))
+        self.assertEqual(self.client.put('/api/settings', json=dict(base, allowed_regions=['antarctica'])).status_code, 422)
+        self.assertEqual(self.client.put('/api/settings', json=dict(base, allowed_regions=['asia', 'asia'])).status_code, 422)
+
+    def test_policy_exclusions_are_distinct_from_manual_model_disabling(self):
+        base = self.account['settings']
+        claude = 'openrouter/anthropic/claude-sonnet-5.5'
+        muse = 'openrouter/meta/muse-spark-1.3'
+        settings = dict(base, require_zdr=True, disabled_models=[claude])
+        self.assertEqual(self.client.put('/api/settings', json=settings).status_code, 200)
+        catalog = {item['id']: item for item in self.client.get('/api/catalog').json()}
+        self.assertFalse(catalog[muse]['policy_eligible'])
+        self.assertIn('Zero data retention not supported in demo metadata', catalog[muse]['policy_exclusion_reasons'])
+        self.assertFalse(catalog[claude]['eligible'])
+        self.assertTrue(catalog[claude]['policy_eligible'])
+        self.assertEqual(self.client.put('/api/settings', json=dict(settings, require_zdr=False)).status_code, 200)
+        catalog = {item['id']: item for item in self.client.get('/api/catalog').json()}
+        self.assertTrue(catalog[muse]['policy_eligible'])
+        self.assertTrue(catalog[muse]['eligible'])
+        self.assertFalse(catalog[claude]['eligible'])
+
+    def test_security_precedes_lambda_direct_selection_and_fallback(self):
+        self.credential()
+        settings = dict(self.account['settings'], allowed_regions=['africa'], require_zdr=True,
+                        forbid_training=True, require_encryption=True,
+                        require_private_network=True, require_audit_logs=True)
+        self.assertEqual(self.client.put('/api/settings', json=settings).status_code, 200)
+        allowed = {item['id'] for item in self.client.get('/api/catalog').json() if item['eligible']}
+        self.assertEqual(allowed, {'openrouter/google/gemini-3.8-flash',
+                                   'openrouter/openai/gpt-oss-120b', 'openrouter/openai/gpt-oss-20b'})
+        for lam in (0.0, 1.0):
+            response = self.client.post('/route', headers=self.headers,
+                                        json={'prompt': 'Solve 2 + 2', 'lam': lam, 'signal': self.request['signal']})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertTrue({model['id'] for model in response.json()['models']} <= allowed)
+        with patch('lonn.demo.api.execute') as execute:
+            response = self.generate(model='openrouter/anthropic/claude-sonnet-5.5', lam=0.0)
+            self.assertEqual(response.status_code, 403)
+            execute.assert_not_called()
+        called = []
+        def fail_first(prompt, model, **kwargs):
+            called.append(model.id)
+            if len(called) == 1:
+                raise RuntimeError('test fallback')
+            return self.answer(prompt, model, **kwargs)
+        with patch('lonn.demo.api.execute', side_effect=fail_first):
+            response = self.generate(lam=0.0)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertGreaterEqual(len(called), 2)
+        self.assertTrue(set(called) <= allowed)
+        self.assertEqual(self.client.put('/api/settings', json=dict(settings, allowed_regions=[])).status_code, 200)
+        with patch('lonn.demo.api.execute') as execute:
+            response = self.generate()
+            self.assertEqual(response.status_code, 422)
+            self.assertIn('No eligible models', response.text)
+            execute.assert_not_called()
+
+    def test_legacy_national_region_restrictions_remain_fail_closed(self):
+        from sqlmodel import Session
+        from lonn.demo.store import Account
+        store = self.app.state.store
+        for legacy in ('EU', 'US'):
+            with Session(store.engine) as session:
+                account = session.get(Account, store.customer_id)
+                old = dict(self.account['settings'], region=legacy)
+                old.pop('allowed_regions')
+                account.settings = json.dumps(old)
+                session.add(account)
+                session.commit()
+            self.assertEqual(store.settings()['allowed_regions'], [])
+            self.assertFalse(any(item['eligible'] for item in self.client.get('/api/catalog').json()))
+
+    def test_fallback_rechecks_security_after_a_policy_change(self):
+        self.credential()
+        calls = []
+        def change_policy_after_first_attempt(prompt, model, **kwargs):
+            calls.append(model.id)
+            if len(calls) == 1:
+                self.app.state.store.settings(dict(self.account['settings'], allowed_regions=['africa']))
+                raise RuntimeError('test fallback after policy change')
+            return self.answer(prompt, model, **kwargs)
+        with patch('lonn.demo.api.execute', side_effect=change_policy_after_first_attempt):
+            response = self.generate(lam=0.0)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertGreaterEqual(len(calls), 2)
+        allowed = {item['id'] for item in self.client.get('/api/catalog').json() if item['eligible']}
+        self.assertTrue(set(calls[1:]) <= allowed)
+
     def test_account_seed_persistence_reset(self):
         self.assertEqual(len(self.client.get('/api/usage').json()), 64)
         settings = dict(self.account['settings'], lam=0.71)
@@ -50,7 +371,7 @@ class DemoTests(unittest.TestCase):
         self.credential()
         reopened.reset()
         self.assertEqual(len(reopened.history()), 64)
-        self.assertEqual(reopened.settings()['lam'], 0.2)
+        self.assertEqual(reopened.settings()['lam'], 20.0)
         self.assertNotEqual(reopened.account().api_key, self.account['api_key'])
         self.assertEqual(reopened.credential(), 'upstream-secret-for-test')
         reopened.engine.dispose()
@@ -88,7 +409,7 @@ class DemoTests(unittest.TestCase):
         reopened = Store(self.temp.name)
         after = self.client.get('/api/usage').json()
         self.assertEqual(next(r for r in after if r['id'] == live['id']), historical)
-        self.assertEqual(next(r for r in after if r['id'] == 'seed-000')['details']['billing']['service_fee_basis'], 'estimated_savings_v1')
+        self.assertEqual(next(r for r in after if r['id'] == 'seed-000')['details']['billing']['service_fee_basis'], 'estimated_savings_v2')
         self.assertEqual(len(after), 65)
         self.assertEqual(reopened.account().api_key, self.account['api_key'])
         self.assertEqual(reopened.credential(), 'upstream-secret-for-test')
@@ -102,10 +423,12 @@ class DemoTests(unittest.TestCase):
         table = self.app.state.table
         for row in self.client.get('/api/usage').json():
             signal = TaskSignal(row['details']['signal']['task_scores'])
-            ranked = rank_models(signal, table, pool, lam=0.2)
-            expected = ranked[0] if row['status'] == 'success' else ranked[-1]
+            eligible = set(row['details']['baseline']['eligible_model_ids'])
+            ranked = rank_models(signal, table, [m for m in pool if m.id in eligible], lam=row['details']['lam'])
+            attempted = row['details']['attempted_models']
+            self.assertEqual(attempted, [model.id for model in ranked[:len(attempted)]])
+            expected = ranked[len(attempted) - 1]
             self.assertEqual(row['model'], expected.id)
-            self.assertEqual(row['details']['lam'], 0.2)
             bill = charge(row['input_tokens'], row['output_tokens'], expected.cost_per_m_input, expected.cost_per_m_output,
                           model_id=expected.id, top_model_id=row['details']['baseline']['model_id'])
             self.assertAlmostEqual(row['cost_usd'], bill['total_cost_usd'])
@@ -127,8 +450,8 @@ class DemoTests(unittest.TestCase):
         self.client.post('/api/demo/logout')
         self.assertEqual(self.client.get('/api/account').status_code, 401)
 
-    def test_settings_override_sdk_lambda_and_unknown_privacy_fails_closed(self):
-        for name, value in [('require_zdr', True), ('forbid_training', True), ('region', 'EU'), ('max_retention_days', 0)]:
+    def test_settings_override_sdk_lambda_and_unsatisfied_policy_fails_closed(self):
+        for name, value in [('allowed_regions', []), ('max_retention_days', 0)]:
             settings = dict(self.account['settings'], **{name: value})
             self.client.put('/api/settings', json=settings)
             with patch('lonn.demo.api.execute') as execute:
@@ -146,7 +469,9 @@ class DemoTests(unittest.TestCase):
             with LonnRouter(base_url='http://testserver', api_key=self.account['api_key'], application='engineering-app', http_client=self.client) as sdk:
                 result = sdk.generate('Solve 2 + 2', signal=self.request['signal'], verify=False)
                 self.assertEqual(result.content, '4')
-                self.assertEqual(result.billing.service_fee_basis, 'estimated_savings_v1')
+                self.assertEqual((result.lam, result.lambda_source, result.lambda_locked), (20.0, 'default', False))
+                self.assertEqual(len(result.estimates), 8)
+                self.assertEqual(result.billing.service_fee_basis, 'estimated_savings_v2')
                 self.assertEqual(result.total_cost_usd, result.billing.total_cost_usd)
             self.assertEqual(execute.call_args.kwargs['api_key'], 'upstream-secret-for-test')
         history = self.client.get('/api/usage').json()
@@ -209,14 +534,19 @@ class DemoTests(unittest.TestCase):
         top = 'openrouter/anthropic/claude-sonnet-5.5'
         bill = charge(1_000_000, 500_000, 2, 10, model_id=selected, top_model_id=top)
         self.assertEqual(bill['model_cost_usd'], 7)
-        self.assertAlmostEqual(bill['estimated_top_model_cost_usd'], 7 * 7.57 / .19)
-        self.assertAlmostEqual(bill['service_fee_usd'], .2 * (7 * 7.57 / .19 - 7))
+        expected_top = 7 * float(BENCHMARK_COSTS[top] / BENCHMARK_COSTS[selected])
+        self.assertAlmostEqual(bill['estimated_top_model_cost_usd'], expected_top)
+        self.assertAlmostEqual(bill['estimated_savings_usd'], expected_top - 7)
+        self.assertAlmostEqual(bill['service_fee_usd'], .2 * (expected_top - 7))
+        self.assertAlmostEqual(bill['estimated_customer_savings_usd'], .8 * (expected_top - 7))
         self.assertAlmostEqual(bill['total_cost_usd'], 7 + bill['service_fee_usd'])
         for costs, baseline in [([(top, 7)], top), ([(top, 7)], selected), ([(selected, 0)], top)]:
-            self.assertEqual(request_billing(costs, baseline)['service_fee_usd'], 0)
+            no_savings = request_billing(costs, baseline)
+            self.assertEqual(no_savings['estimated_savings_usd'], 0)
+            self.assertEqual(no_savings['service_fee_usd'], 0)
         # Clamp once after summing: positive savings on one attempt cannot hide an overall loss.
         mixed = request_billing([(selected, .001), (top, 10)], 'openrouter/meta/muse-spark-1.3')
-        self.assertLess(mixed['estimated_savings_usd'], 0)
+        self.assertEqual(mixed['estimated_savings_usd'], 0)
         self.assertEqual(mixed['service_fee_usd'], 0)
         for costs, baseline in [([('unknown', 7)], top), ([(selected, 7)], 'unknown')]:
             unknown = request_billing(costs, baseline)
@@ -231,21 +561,56 @@ class DemoTests(unittest.TestCase):
             result = self.generate(model=selected).json()
         row = next(r for r in self.client.get('/api/usage').json() if r['source'] == 'live')
         self.assertNotEqual(row['details']['baseline']['model_id'], selected)
-        model = result['model']
-        expected = charge(10, 20, model['cost_per_m_input'], model['cost_per_m_output'],
-                          model_id=selected, top_model_id=row['details']['baseline']['model_id'])
+        expected = request_billing([(selected, 99)], row['details']['baseline']['model_id'])
         self.assertEqual(result['billing'], expected)
         self.assertEqual(row['details']['billing'], expected)
         self.assertEqual(result['total_cost_usd'], expected['total_cost_usd'])
-        self.assertEqual(result['cost_basis'], 'calculated')
+        self.assertEqual(result['cost_basis'], 'provider_reported')
         self.assertEqual(result['response']['usage']['provider_cost'], 99)
         self.assertEqual(result['response']['usage']['service_fee'], expected['service_fee_usd'])
+        def free(prompt, model, **kwargs):
+            return ModelResponse('4', model, TokenUsage(10, 20, 30, .1, .2, 0,
+                                 'provider_reported', provider_cost=0), 15, 'stop')
+        with patch('lonn.demo.api.execute', side_effect=free):
+            zero = self.generate(model=selected).json()
+        self.assertEqual(zero['cost_basis'], 'provider_reported')
+        self.assertEqual(zero['billing']['model_cost_usd'], 0)
+        self.assertEqual(zero['billing']['service_fee_usd'], 0)
         # Missing benchmark data never invents a fee, even for otherwise valid requests.
         with patch.dict(BENCHMARK_COSTS, {}, clear=True), patch('lonn.demo.api.execute', side_effect=billed):
             unknown = self.generate(model=selected).json()
         self.assertIsNone(unknown['billing']['estimated_top_model_cost_usd'])
         self.assertEqual(unknown['billing']['service_fee_usd'], 0)
         self.assertEqual(unknown['total_cost_usd'], unknown['billing']['model_cost_usd'])
+
+    def test_escalation_combines_reported_and_estimated_costs_without_double_fee(self):
+        from lonn.demo.pricing import request_billing
+        self.credential()
+        allowed = [m['id'] for m in self.client.get('/api/catalog').json() if m['eligible']][:2]
+        all_models = [m['id'] for m in self.client.get('/api/catalog').json()]
+        self.client.put('/api/settings', json=dict(self.account['settings'],
+                        disabled_models=[model for model in all_models if model not in allowed]))
+        def respond(prompt, model, **kwargs):
+            if not calls:
+                usage = TokenUsage(10, 20, 30, .1, .2, .01, 'provider_reported', provider_cost=.01)
+            else:
+                usage = TokenUsage(10, 20, 30, .1, .2, .3)
+            calls.append(model.id)
+            return ModelResponse('', model, usage, 20, 'length')
+        calls = []
+        with patch('lonn.demo.api.execute', side_effect=respond):
+            response = self.generate(verify=True).json()
+        row = next(r for r in self.client.get('/api/usage').json() if r['source'] == 'live')
+        attempts = row['details']['attempt_costs']
+        self.assertEqual([attempt['basis'] for attempt in attempts], ['provider_reported', 'estimate'])
+        self.assertEqual(response['cost_basis'], 'mixed')
+        self.assertEqual(attempts[0]['model_cost_usd'], .01)
+        expected = request_billing([(attempt['model'], attempt['model_cost_usd']) for attempt in attempts],
+                                   row['details']['baseline']['model_id'])
+        self.assertEqual(row['details']['billing'], expected)
+        self.assertEqual(response['billing'], expected)
+        self.assertAlmostEqual(sum(attempt['service_fee'] for attempt in attempts), expected['service_fee_usd'])
+        self.assertAlmostEqual(sum(attempt['cost'] for attempt in attempts), expected['total_cost_usd'])
 
     def login_as(self, email):
         self.client.post('/api/demo/logout')
@@ -294,7 +659,7 @@ class DemoTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/usage').json(),[])
         self.assertEqual(len(self.client.get('/api/teams').json()),1)
         self.assertEqual(self.client.put('/api/settings',json=dict(personal['settings'],lam=0.31)).status_code,200)
-        self.assertEqual(self.app.state.store.settings()['lam'],0.2)
+        self.assertEqual(self.app.state.store.settings()['lam'],20.0)
         self.assertEqual(self.client.post('/generate',headers={'Authorization':'Bearer '+personal['api_key'], 'X-Lonn-Application':'personal-app'},json=self.request).status_code,503)
         self.assertEqual(len(self.client.get('/api/usage').json()),1)
         self.login_as('admin@nordic.demo')
@@ -370,23 +735,32 @@ class DemoTests(unittest.TestCase):
     def test_literal_lambda_is_validated_and_reaches_router_unchanged(self):
         from lonn.task_router import rank_models
         self.credential()
-        for value in (0.0, 0.2, 1.0):
+        for value in (0.0, 0.2, 1.0, 20.0, 80.0, 160.0):
             self.assertEqual(self.client.put('/api/settings', json=dict(self.account['settings'],lam=value,enforce_lam=True)).status_code, 200)
             with patch('lonn.api.rank_models', wraps=rank_models) as rank, patch('lonn.demo.api.execute', side_effect=self.answer):
                 result = self.generate(lam=0.99)
                 self.assertEqual(result.status_code, 200, result.text)
                 self.assertEqual(result.json()['lam'], value)
+                self.assertEqual(result.json()['lambda_source'], 'organization')
+                self.assertTrue(result.json()['lambda_locked'])
+                self.assertEqual(float(result.headers['X-Lonn-Effective-Lambda']), value)
                 self.assertEqual(rank.call_args.kwargs['lam'], value)
-        self.assertEqual(self.client.put('/api/settings',json=dict(self.account['settings'],lam=1.01)).status_code,422)
+        self.assertEqual(self.client.put('/api/settings',json=dict(self.account['settings'],lam=160.01)).status_code,422)
         self.assertEqual(self.client.put('/api/settings',json=dict(self.account['settings'],lam=-0.01)).status_code,422)
 
     def test_legacy_lambda_migration_preserves_in_range_values(self):
+        from sqlmodel import Session
+        from lonn.demo.store import Account
         store = self.app.state.store
-        store.settings(dict(store.settings(), lam=20.0))
+        with Session(store.engine) as session:
+            account = session.get(Account, store.customer_id)
+            account.settings = json.dumps(dict(store.settings(), lam=20.0))
+            session.add(account)
+            session.commit()
         personal = store.for_account('demo-personal')
         personal.settings(dict(personal.settings(),lam=0.75))
         store.migrate_lambda()
-        self.assertEqual(store.settings()['lam'],0.2)
+        self.assertEqual(store.settings()['lam'],20.0)
         self.assertEqual(personal.settings()['lam'],0.75)
 
     def test_enterprise_hierarchy_key_access_lambda_precedence_and_attribution(self):
@@ -431,7 +805,7 @@ class DemoTests(unittest.TestCase):
         other.put('/api/applications/'+application['id']+'/lambda',json={'lam':None})
         self.assertEqual(other.get('/api/applications/'+application['id']+'/lambda').json()['source'],'user')
         other.put('/api/preference',json={'lam':None})
-        self.assertEqual(other.get('/api/applications/'+application['id']+'/lambda').json(),{'lam':0.2,'source':'default','locked':False})
+        self.assertEqual(other.get('/api/applications/'+application['id']+'/lambda').json(),{'lam':20.0,'source':'default','locked':False})
         self.assertEqual(other.put('/api/teams/team-engineering/lambda',json={'lam':0.4}).status_code,403)
         self.assertEqual(other.put('/api/applications/app-team-engineering/lambda',json={'lam':0.4}).status_code,403)
         memberships['application_ids'].remove(application['id']);memberships['application_admin_ids']=[]
@@ -455,7 +829,7 @@ class DemoTests(unittest.TestCase):
             'key_type': 'personal', 'lam': 0.35, 'source': 'user', 'locked': False})
         app = self.client.get('/connection', headers=app_headers).json()
         self.assertEqual((app['key_type'], app['lam'], app['source'], app['locked']),
-                         ('application', 0.2, 'default', False))
+                         ('application', 20.0, 'default', False))
         self.assertEqual(self.client.put('/api/projects/project-team-engineering/lambda',
                                         json={'lam': 0.47, 'lock': True}).status_code, 200)
         for headers in (self.headers, app_headers):
@@ -498,8 +872,8 @@ class DemoTests(unittest.TestCase):
             self.assertEqual(self.client.put(project_url,json={'lam':None,'lock':False}).status_code,200)
             self.assertEqual(self.generate().json()['lam'],0.654321)
             self.assertEqual(self.client.put(app_url,json={'lam':None,'lock':False}).status_code,200)
-            self.assertEqual(self.generate().json()['lam'],0.2)
-            self.assertEqual(self.client.put(project_url,json={'lam':1.001,'lock':True}).status_code,422)
+            self.assertEqual(self.generate().json()['lam'],20.0)
+            self.assertEqual(self.client.put(project_url,json={'lam':160.001,'lock':True}).status_code,422)
             self.assertEqual(self.client.put(project_url,json={'lam':0.0,'lock':True}).status_code,200)
             self.assertEqual(self.generate(lam=0.9).json()['lam'],0.0)
             # Team and organization policies lock the controls and win at runtime.
@@ -533,7 +907,8 @@ class DemoTests(unittest.TestCase):
             settings = dict(self.account['settings'], require_zdr=True)
             self.assertEqual(self.client.put('/api/settings', json=settings).status_code, 200)
             self.assertEqual({m.id for m in configured}, {m.id for m in sdk.model_pool()})
-            self.assertEqual(sdk.models(), [])
+            self.assertEqual({m.id for m in sdk.models()},
+                             {m.id for m in configured if 'muse-spark-1.3' not in m.id})
             disabled = configured[0].id
             self.client.put('/api/settings', json=dict(settings, disabled_models=[disabled]))
             self.assertNotIn(disabled, [m.id for m in sdk.model_pool()])
@@ -541,7 +916,7 @@ class DemoTests(unittest.TestCase):
     def test_guide_direct_model_never_bypasses_policy_or_falls_back(self):
         self.credential()
         available = self.client.get('/models', headers=self.headers).json()
-        chosen = available[-1]['id']
+        chosen = next(m['id'] for m in available if 'muse-spark-1.3' in m['id'])
         with patch('lonn.demo.api.execute', side_effect=self.answer) as execute:
             with LonnRouter(base_url='http://testserver', api_key=self.account['api_key'],
                             application='engineering-app', http_client=self.client) as sdk:
@@ -566,7 +941,7 @@ class DemoTests(unittest.TestCase):
             execute.assert_not_called()
         self.client.put('/api/settings', json=dict(self.account['settings'], require_zdr=True))
         with patch('lonn.demo.api.execute') as execute:
-            self.assertEqual(self.generate(model=chosen).status_code, 422)
+            self.assertEqual(self.generate(model=chosen).status_code, 403)
             execute.assert_not_called()
 
     def test_guide_lambda_request_and_administrator_lock(self):
@@ -578,11 +953,11 @@ class DemoTests(unittest.TestCase):
                 self.assertEqual(result.lam, 0.43)
                 self.client.put('/api/settings', json=dict(self.account['settings'], lam=0.8, enforce_lam=True))
                 self.assertEqual(sdk.generate('Solve 2 + 2', lam=0.43, signal=self.request['signal']).lam, 0.8)
-                self.assertEqual(self.generate(lam=1.01).status_code, 422)
+                self.assertEqual(self.generate(lam=160.01).status_code, 422)
         rows = [r for r in self.client.get('/api/usage').json() if r['source']=='live']
         self.assertEqual({r['details']['lambda_source'] for r in rows}, {'request','organization'})
         self.client.put('/api/settings', json=dict(self.account['settings'], enforce_lam=False))
-        self.assertEqual(self.generate(lam=1.01).status_code, 422)
+        self.assertEqual(self.generate(lam=160.01).status_code, 422)
 
     def test_async_sdk_auth(self):
         self.credential()

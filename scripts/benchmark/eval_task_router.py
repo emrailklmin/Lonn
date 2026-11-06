@@ -33,7 +33,7 @@ from benchmark.results import RESULTS_DIR, ResultBank  # noqa: E402
 from lonn.model_pool import load_model_pool  # noqa: E402
 from lonn.routing_table import build_table  # noqa: E402
 from lonn.schemas import TaskSignal  # noqa: E402
-from lonn.task_router import (DEFAULT_LAMBDA, ESCALATION_FACTOR, LEVEL_POSITION, escalation_target,  # noqa: E402
+from lonn.task_router import (LEGACY_COST_WEIGHT as DEFAULT_LAMBDA, ESCALATION_FACTOR, LEVEL_POSITION, escalation_target,  # noqa: E402
                               rank_models)
 from lonn.task_types import difficulty_for_record, load_task_types, task_for_record  # noqa: E402
 
@@ -140,11 +140,13 @@ def crossfit(questions, pool, bank, settings, folds=5, repeats=10, smoothing=5.0
                 for q in test:
                     signal = signal_for(q, signals)
                     rank_kwargs = {k: v for k, v in kwargs.items() if k != 'cascade'}
+                    if 'lam' in rank_kwargs:
+                        rank_kwargs['cost_weight'] = rank_kwargs.pop('lam')
                     ranking = rank_models(signal, table, pool, limit=ev.FALLBACK_LIMIT, **rank_kwargs)
                     d = decide(q, ranking, bank)
                     if kwargs.get('cascade') and d['chosen'] is not None:
                         first = next(m for m in pool if m.id == d['chosen'])
-                        target = escalation_target(signal, table, pool, rank_kwargs.get('lam', DEFAULT_LAMBDA), first,
+                        target = escalation_target(signal, table, pool, rank_kwargs.get('cost_weight', DEFAULT_LAMBDA), first,
                                                    factor=escalation_factor,
                                                    use_complexity=rank_kwargs.get('use_complexity', False))
                         d = cascade(q, d, target, bank, checks or {})

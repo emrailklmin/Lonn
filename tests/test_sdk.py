@@ -25,7 +25,7 @@ def fake_inference(stack):
     table = build_table([{"task": "code_function", "difficulty": None, "model_id": model.id,
                           "correct": True, "cost_usd": 0.001}])
     stack.enter_context(patch("lonn.api.load_model_pool", return_value=[model]))
-    stack.enter_context(patch("lonn.api.RoutingTable.load", return_value=table))
+    stack.enter_context(patch("lonn.api.load_runtime_table", return_value=table))
     score = stack.enter_context(patch("lonn.api.TaskClassifier.classify",
                                      return_value=TaskSignal({"code_function": 1.0})))
     execute = stack.enter_context(patch("lonn.api.execute", return_value=ModelResponse(

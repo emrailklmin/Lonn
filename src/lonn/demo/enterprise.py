@@ -2,6 +2,7 @@
 import secrets
 from uuid import uuid4
 from sqlmodel import Field, SQLModel, Session, select
+from lonn.task_router import DEFAULT_LAMBDA
 
 
 class Project(SQLModel, table=True):
@@ -22,6 +23,7 @@ class Application(SQLModel, table=True):
     enforced_lam: float | None = None
     lam_locked: bool = True  # Existing enforced_lam values were always locked.
     enabled: bool = True
+    security_overrides: str = '{}'
 
 
 class TeamMember(SQLModel, table=True):
@@ -92,4 +94,4 @@ def lambda_state(store, team, project=None, app=None, user=None):
         return {'lam': app.enforced_lam, 'source': 'application', 'locked': False}
     if project and project.configured_lam is not None:
         return {'lam': project.configured_lam, 'source': 'project', 'locked': False}
-    return {'lam': 0.20, 'source': 'default', 'locked': False}
+    return {'lam': DEFAULT_LAMBDA, 'source': 'default', 'locked': False}

@@ -67,6 +67,8 @@ test("saved estimates remain frozen, including unknown baselines", () => {
   };
   saved.model = "unknown/future-model";
   assert.equal(benchmarkTopCost(saved), 7.57);
+  saved.details.billing.service_fee_basis = "estimated_savings_v2";
+  assert.equal(benchmarkTopCost(saved), 7.57);
   saved.details.billing.estimated_top_model_cost_usd = null;
   assert.equal(benchmarkTopCost(saved), null);
 });
@@ -105,11 +107,19 @@ test("historical escalations scale each completed model's provider costs", () =>
   escalated.details.attempt_costs[0].model = "unknown/model";
   assert.equal(benchmarkTopCost(escalated), null);
 });
-test("preserves negative savings and has no percentage for a zero baseline", () => {
+test("clamps savings per request and subtracts the fee once", () => {
   const negative = cumulativeSpending([row("01", 7.57, claude, flash)]);
-  approx(negative.savings, -6.4);
+  approx(negative.savings, 0);
   approx(negative.fee, 0);
-  approx(negative.netSavings, -6.4);
+  approx(negative.netSavings, 0);
+  const mixed = cumulativeSpending([
+    row("01", 7.57, claude, flash),
+    row("02", 1.17, flash, claude, 1.28),
+  ]);
+  approx(mixed.savings, 6.4);
+  approx(mixed.netSavings, 5.12);
+  approx(mixed.actual, 10.02);
+  approx(mixed.data[1].netSavings, 5.12);
   assert.equal(
     cumulativeSpending([row("01", 0, flash, claude)]).savingsPercent,
     null,
