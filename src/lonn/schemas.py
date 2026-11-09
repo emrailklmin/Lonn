@@ -3,6 +3,13 @@
 from dataclasses import dataclass
 from enum import Enum
 
+# Supported LiteLLM providers and the environment variable holding each key.
+# A model ID starts with its provider: "<provider>/<publisher>/<model>".
+PROVIDER_API_KEYS = {
+    "nvidia_nim": "NVIDIA_NIM_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+}
+
 
 class TopicCategory(str, Enum):
     CODING = "coding"
@@ -15,6 +22,20 @@ class TopicCategory(str, Enum):
 class ComplexityResult:
     complexity: float
     topic_scores: dict[TopicCategory, float]
+
+
+@dataclass
+class TaskSignal:
+    """Classifier output for the task-type router (issue #19).
+
+    ``task_scores`` is a probability distribution over task-type IDs from
+    ``config/task_types.yaml``. ``complexity`` is in [0, 1], where 0, 0.5 and
+    1 mean the easy, medium and hard end of the task type; ``None`` means
+    unknown, so the router uses the task type's average.
+    """
+
+    task_scores: dict[str, float]
+    complexity: float | None = None
 
 
 @dataclass

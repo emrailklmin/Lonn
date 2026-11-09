@@ -1,0 +1,855 @@
+{
+  "policies": {
+    "router": {
+      "questions": 690,
+      "passes": 541,
+      "pass_rate": 0.7841,
+      "cost_usd": 1.146962,
+      "cost_per_pass_usd": 0.00212,
+      "mean_latency_ms": 22263
+    },
+    "oracle": {
+      "questions": 690,
+      "passes": 649,
+      "pass_rate": 0.9406,
+      "cost_usd": 1.076653,
+      "cost_per_pass_usd": 0.001659,
+      "mean_latency_ms": 31689
+    },
+    "best_fixed": {
+      "model": "openrouter/anthropic/claude-sonnet-5.5",
+      "questions": 690,
+      "passes": 608,
+      "pass_rate": 0.8812,
+      "cost_usd": 7.581904,
+      "cost_per_pass_usd": 0.01247,
+      "mean_latency_ms": 18707
+    },
+    "cheapest": {
+      "model": "openrouter/openai/gpt-oss-20b",
+      "questions": 690,
+      "passes": 483,
+      "pass_rate": 0.7,
+      "cost_usd": 0.184515,
+      "cost_per_pass_usd": 0.000382,
+      "mean_latency_ms": 43602
+    },
+    "random": {
+      "questions": 690,
+      "passes": 542.875,
+      "pass_rate": 0.7868,
+      "cost_usd": 3.18189,
+      "cost_per_pass_usd": 0.005861,
+      "mean_latency_ms": 31865
+    },
+    "models": {
+      "openrouter/anthropic/claude-sonnet-5.5": {
+        "questions": 690,
+        "passes": 608,
+        "pass_rate": 0.8812,
+        "cost_usd": 7.581904,
+        "cost_per_pass_usd": 0.01247,
+        "mean_latency_ms": 18707
+      },
+      "openrouter/meta/muse-spark-1.3": {
+        "questions": 690,
+        "passes": 583,
+        "pass_rate": 0.8449,
+        "cost_usd": 7.369296,
+        "cost_per_pass_usd": 0.01264,
+        "mean_latency_ms": 31050
+      },
+      "openrouter/google/gemini-3.8-flash": {
+        "questions": 690,
+        "passes": 589,
+        "pass_rate": 0.8536,
+        "cost_usd": 4.516873,
+        "cost_per_pass_usd": 0.007669,
+        "mean_latency_ms": 13834
+      },
+      "openrouter/z-ai/glm-5.3-flash": {
+        "questions": 690,
+        "passes": 494,
+        "pass_rate": 0.7159,
+        "cost_usd": 0.370168,
+        "cost_per_pass_usd": 0.000749,
+        "mean_latency_ms": 32174
+      },
+      "openrouter/deepseek/deepseek-v4.1-flash": {
+        "questions": 690,
+        "passes": 542,
+        "pass_rate": 0.7855,
+        "cost_usd": 1.161362,
+        "cost_per_pass_usd": 0.002143,
+        "mean_latency_ms": 21786
+      },
+      "openrouter/deepseek/deepseek-v4-pro": {
+        "questions": 690,
+        "passes": 521,
+        "pass_rate": 0.7551,
+        "cost_usd": 3.983827,
+        "cost_per_pass_usd": 0.007647,
+        "mean_latency_ms": 45299
+      },
+      "openrouter/openai/gpt-oss-120b": {
+        "questions": 690,
+        "passes": 523,
+        "pass_rate": 0.758,
+        "cost_usd": 0.287177,
+        "cost_per_pass_usd": 0.000549,
+        "mean_latency_ms": 48468
+      },
+      "openrouter/openai/gpt-oss-20b": {
+        "questions": 690,
+        "passes": 483,
+        "pass_rate": 0.7,
+        "cost_usd": 0.184515,
+        "cost_per_pass_usd": 0.000382,
+        "mean_latency_ms": 43602
+      }
+    },
+    "quality_fallback_hypothetical": {
+      "questions": 690,
+      "passes": 611,
+      "pass_rate": 0.8855,
+      "cost_usd": 2.675808,
+      "cost_per_pass_usd": 0.004379,
+      "mean_latency_ms": 84977
+    }
+  },
+  "fallbacks_used": 0,
+  "unanswered": 0,
+  "by_category": {
+    "router": {
+      "coding": {
+        "questions": 200,
+        "passes": 149,
+        "pass_rate": 0.745,
+        "cost_usd": 0.413853,
+        "cost_per_pass_usd": 0.002778,
+        "mean_latency_ms": 25203
+      },
+      "general_knowledge": {
+        "questions": 200,
+        "passes": 163,
+        "pass_rate": 0.815,
+        "cost_usd": 0.258168,
+        "cost_per_pass_usd": 0.001584,
+        "mean_latency_ms": 14458
+      },
+      "math": {
+        "questions": 150,
+        "passes": 147,
+        "pass_rate": 0.98,
+        "cost_usd": 0.092498,
+        "cost_per_pass_usd": 0.000629,
+        "mean_latency_ms": 7391
+      },
+      "writing": {
+        "questions": 140,
+        "passes": 82,
+        "pass_rate": 0.5857,
+        "cost_usd": 0.382442,
+        "cost_per_pass_usd": 0.004664,
+        "mean_latency_ms": 45148
+      }
+    },
+    "oracle": {
+      "coding": {
+        "questions": 200,
+        "passes": 187,
+        "pass_rate": 0.935,
+        "cost_usd": 0.425505,
+        "cost_per_pass_usd": 0.002275,
+        "mean_latency_ms": 41656
+      },
+      "general_knowledge": {
+        "questions": 200,
+        "passes": 189,
+        "pass_rate": 0.945,
+        "cost_usd": 0.114741,
+        "cost_per_pass_usd": 0.000607,
+        "mean_latency_ms": 17728
+      },
+      "math": {
+        "questions": 150,
+        "passes": 150,
+        "pass_rate": 1.0,
+        "cost_usd": 0.039719,
+        "cost_per_pass_usd": 0.000265,
+        "mean_latency_ms": 22966
+      },
+      "writing": {
+        "questions": 140,
+        "passes": 123,
+        "pass_rate": 0.8786,
+        "cost_usd": 0.496688,
+        "cost_per_pass_usd": 0.004038,
+        "mean_latency_ms": 46742
+      }
+    },
+    "best_fixed": {
+      "coding": {
+        "questions": 200,
+        "passes": 179,
+        "pass_rate": 0.895,
+        "cost_usd": 1.978088,
+        "cost_per_pass_usd": 0.011051,
+        "mean_latency_ms": 16563
+      },
+      "general_knowledge": {
+        "questions": 200,
+        "passes": 174,
+        "pass_rate": 0.87,
+        "cost_usd": 0.837094,
+        "cost_per_pass_usd": 0.004811,
+        "mean_latency_ms": 14016
+      },
+      "math": {
+        "questions": 150,
+        "passes": 150,
+        "pass_rate": 1.0,
+        "cost_usd": 0.499318,
+        "cost_per_pass_usd": 0.003329,
+        "mean_latency_ms": 18770
+      },
+      "writing": {
+        "questions": 140,
+        "passes": 105,
+        "pass_rate": 0.75,
+        "cost_usd": 4.267404,
+        "cost_per_pass_usd": 0.040642,
+        "mean_latency_ms": 28405
+      }
+    },
+    "cheapest": {
+      "coding": {
+        "questions": 200,
+        "passes": 148,
+        "pass_rate": 0.74,
+        "cost_usd": 0.071688,
+        "cost_per_pass_usd": 0.000484,
+        "mean_latency_ms": 53273
+      },
+      "general_knowledge": {
+        "questions": 200,
+        "passes": 144,
+        "pass_rate": 0.72,
+        "cost_usd": 0.030313,
+        "cost_per_pass_usd": 0.000211,
+        "mean_latency_ms": 30394
+      },
+      "math": {
+        "questions": 150,
+        "passes": 137,
+        "pass_rate": 0.9133,
+        "cost_usd": 0.022629,
+        "cost_per_pass_usd": 0.000165,
+        "mean_latency_ms": 30960
+      },
+      "writing": {
+        "questions": 140,
+        "passes": 54,
+        "pass_rate": 0.3857,
+        "cost_usd": 0.059884,
+        "cost_per_pass_usd": 0.001109,
+        "mean_latency_ms": 62200
+      }
+    },
+    "random": {
+      "coding": {
+        "questions": 200,
+        "passes": 149.125,
+        "pass_rate": 0.7456,
+        "cost_usd": 1.211838,
+        "cost_per_pass_usd": 0.008126,
+        "mean_latency_ms": 38417
+      },
+      "general_knowledge": {
+        "questions": 200,
+        "passes": 161.875,
+        "pass_rate": 0.8094,
+        "cost_usd": 0.504332,
+        "cost_per_pass_usd": 0.003116,
+        "mean_latency_ms": 20924
+      },
+      "math": {
+        "questions": 150,
+        "passes": 144.5,
+        "pass_rate": 0.9633,
+        "cost_usd": 0.30751,
+        "cost_per_pass_usd": 0.002128,
+        "mean_latency_ms": 20949
+      },
+      "writing": {
+        "questions": 140,
+        "passes": 87.375,
+        "pass_rate": 0.6241,
+        "cost_usd": 1.158211,
+        "cost_per_pass_usd": 0.013256,
+        "mean_latency_ms": 49832
+      }
+    }
+  },
+  "by_dataset": {
+    "router": {
+      "arc_challenge": {
+        "questions": 30,
+        "passes": 29,
+        "pass_rate": 0.9667,
+        "cost_usd": 0.012035,
+        "cost_per_pass_usd": 0.000415,
+        "mean_latency_ms": 3967
+      },
+      "gpqa_diamond": {
+        "questions": 50,
+        "passes": 32,
+        "pass_rate": 0.64,
+        "cost_usd": 0.149596,
+        "cost_per_pass_usd": 0.004675,
+        "mean_latency_ms": 31964
+      },
+      "humaneval_plus": {
+        "questions": 40,
+        "passes": 40,
+        "pass_rate": 1.0,
+        "cost_usd": 0.017452,
+        "cost_per_pass_usd": 0.000436,
+        "mean_latency_ms": 6685
+      },
+      "ifeval": {
+        "questions": 80,
+        "passes": 70,
+        "pass_rate": 0.875,
+        "cost_usd": 0.153021,
+        "cost_per_pass_usd": 0.002186,
+        "mean_latency_ms": 51164
+      },
+      "livecodebench": {
+        "questions": 120,
+        "passes": 73,
+        "pass_rate": 0.6083,
+        "cost_usd": 0.384797,
+        "cost_per_pass_usd": 0.005271,
+        "mean_latency_ms": 38807
+      },
+      "math500": {
+        "questions": 150,
+        "passes": 147,
+        "pass_rate": 0.98,
+        "cost_usd": 0.092498,
+        "cost_per_pass_usd": 0.000629,
+        "mean_latency_ms": 7391
+      },
+      "mbpp_plus": {
+        "questions": 40,
+        "passes": 36,
+        "pass_rate": 0.9,
+        "cost_usd": 0.011604,
+        "cost_per_pass_usd": 0.000322,
+        "mean_latency_ms": 2909
+      },
+      "mmlu_pro": {
+        "questions": 120,
+        "passes": 102,
+        "pass_rate": 0.85,
+        "cost_usd": 0.096537,
+        "cost_per_pass_usd": 0.000946,
+        "mean_latency_ms": 9787
+      },
+      "writingbench_business": {
+        "questions": 60,
+        "passes": 12,
+        "pass_rate": 0.2,
+        "cost_usd": 0.229422,
+        "cost_per_pass_usd": 0.019118,
+        "mean_latency_ms": 37128
+      }
+    },
+    "oracle": {
+      "arc_challenge": {
+        "questions": 30,
+        "passes": 30,
+        "pass_rate": 1.0,
+        "cost_usd": 0.000621,
+        "cost_per_pass_usd": 2.1e-05,
+        "mean_latency_ms": 11300
+      },
+      "gpqa_diamond": {
+        "questions": 50,
+        "passes": 47,
+        "pass_rate": 0.94,
+        "cost_usd": 0.077494,
+        "cost_per_pass_usd": 0.001649,
+        "mean_latency_ms": 38065
+      },
+      "humaneval_plus": {
+        "questions": 40,
+        "passes": 40,
+        "pass_rate": 1.0,
+        "cost_usd": 0.002435,
+        "cost_per_pass_usd": 6.1e-05,
+        "mean_latency_ms": 11097
+      },
+      "ifeval": {
+        "questions": 80,
+        "passes": 78,
+        "pass_rate": 0.975,
+        "cost_usd": 0.013772,
+        "cost_per_pass_usd": 0.000177,
+        "mean_latency_ms": 24659
+      },
+      "livecodebench": {
+        "questions": 120,
+        "passes": 110,
+        "pass_rate": 0.9167,
+        "cost_usd": 0.417323,
+        "cost_per_pass_usd": 0.003794,
+        "mean_latency_ms": 61943
+      },
+      "math500": {
+        "questions": 150,
+        "passes": 150,
+        "pass_rate": 1.0,
+        "cost_usd": 0.039719,
+        "cost_per_pass_usd": 0.000265,
+        "mean_latency_ms": 22966
+      },
+      "mbpp_plus": {
+        "questions": 40,
+        "passes": 37,
+        "pass_rate": 0.925,
+        "cost_usd": 0.005748,
+        "cost_per_pass_usd": 0.000155,
+        "mean_latency_ms": 11357
+      },
+      "mmlu_pro": {
+        "questions": 120,
+        "passes": 112,
+        "pass_rate": 0.9333,
+        "cost_usd": 0.036626,
+        "cost_per_pass_usd": 0.000327,
+        "mean_latency_ms": 10861
+      },
+      "writingbench_business": {
+        "questions": 60,
+        "passes": 45,
+        "pass_rate": 0.75,
+        "cost_usd": 0.482916,
+        "cost_per_pass_usd": 0.010731,
+        "mean_latency_ms": 76187
+      }
+    },
+    "best_fixed": {
+      "arc_challenge": {
+        "questions": 30,
+        "passes": 30,
+        "pass_rate": 1.0,
+        "cost_usd": 0.045046,
+        "cost_per_pass_usd": 0.001502,
+        "mean_latency_ms": 3981
+      },
+      "gpqa_diamond": {
+        "questions": 50,
+        "passes": 42,
+        "pass_rate": 0.84,
+        "cost_usd": 0.406608,
+        "cost_per_pass_usd": 0.009681,
+        "mean_latency_ms": 18115
+      },
+      "humaneval_plus": {
+        "questions": 40,
+        "passes": 39,
+        "pass_rate": 0.975,
+        "cost_usd": 0.099908,
+        "cost_per_pass_usd": 0.002562,
+        "mean_latency_ms": 7481
+      },
+      "ifeval": {
+        "questions": 80,
+        "passes": 76,
+        "pass_rate": 0.95,
+        "cost_usd": 1.028224,
+        "cost_per_pass_usd": 0.013529,
+        "mean_latency_ms": 18227
+      },
+      "livecodebench": {
+        "questions": 120,
+        "passes": 107,
+        "pass_rate": 0.8917,
+        "cost_usd": 1.815034,
+        "cost_per_pass_usd": 0.016963,
+        "mean_latency_ms": 19764
+      },
+      "math500": {
+        "questions": 150,
+        "passes": 150,
+        "pass_rate": 1.0,
+        "cost_usd": 0.499318,
+        "cost_per_pass_usd": 0.003329,
+        "mean_latency_ms": 18770
+      },
+      "mbpp_plus": {
+        "questions": 40,
+        "passes": 33,
+        "pass_rate": 0.825,
+        "cost_usd": 0.063146,
+        "cost_per_pass_usd": 0.001914,
+        "mean_latency_ms": 16043
+      },
+      "mmlu_pro": {
+        "questions": 120,
+        "passes": 102,
+        "pass_rate": 0.85,
+        "cost_usd": 0.38544,
+        "cost_per_pass_usd": 0.003779,
+        "mean_latency_ms": 14817
+      },
+      "writingbench_business": {
+        "questions": 60,
+        "passes": 29,
+        "pass_rate": 0.4833,
+        "cost_usd": 3.23918,
+        "cost_per_pass_usd": 0.111696,
+        "mean_latency_ms": 41976
+      }
+    },
+    "cheapest": {
+      "arc_challenge": {
+        "questions": 30,
+        "passes": 29,
+        "pass_rate": 0.9667,
+        "cost_usd": 0.00056,
+        "cost_per_pass_usd": 1.9e-05,
+        "mean_latency_ms": 5243
+      },
+      "gpqa_diamond": {
+        "questions": 50,
+        "passes": 29,
+        "pass_rate": 0.58,
+        "cost_usd": 0.017214,
+        "cost_per_pass_usd": 0.000594,
+        "mean_latency_ms": 70129
+      },
+      "humaneval_plus": {
+        "questions": 40,
+        "passes": 38,
+        "pass_rate": 0.95,
+        "cost_usd": 0.002883,
+        "cost_per_pass_usd": 7.6e-05,
+        "mean_latency_ms": 14218
+      },
+      "ifeval": {
+        "questions": 80,
+        "passes": 53,
+        "pass_rate": 0.6625,
+        "cost_usd": 0.033933,
+        "cost_per_pass_usd": 0.00064,
+        "mean_latency_ms": 46737
+      },
+      "livecodebench": {
+        "questions": 120,
+        "passes": 75,
+        "pass_rate": 0.625,
+        "cost_usd": 0.06602,
+        "cost_per_pass_usd": 0.00088,
+        "mean_latency_ms": 79495
+      },
+      "math500": {
+        "questions": 150,
+        "passes": 137,
+        "pass_rate": 0.9133,
+        "cost_usd": 0.022629,
+        "cost_per_pass_usd": 0.000165,
+        "mean_latency_ms": 30960
+      },
+      "mbpp_plus": {
+        "questions": 40,
+        "passes": 35,
+        "pass_rate": 0.875,
+        "cost_usd": 0.002785,
+        "cost_per_pass_usd": 8e-05,
+        "mean_latency_ms": 13662
+      },
+      "mmlu_pro": {
+        "questions": 120,
+        "passes": 86,
+        "pass_rate": 0.7167,
+        "cost_usd": 0.012538,
+        "cost_per_pass_usd": 0.000146,
+        "mean_latency_ms": 20125
+      },
+      "writingbench_business": {
+        "questions": 60,
+        "passes": 1,
+        "pass_rate": 0.0167,
+        "cost_usd": 0.025952,
+        "cost_per_pass_usd": 0.025952,
+        "mean_latency_ms": 82819
+      }
+    },
+    "random": {
+      "arc_challenge": {
+        "questions": 30,
+        "passes": 29.625,
+        "pass_rate": 0.9875,
+        "cost_usd": 0.024444,
+        "cost_per_pass_usd": 0.000825,
+        "mean_latency_ms": 5359
+      },
+      "gpqa_diamond": {
+        "questions": 50,
+        "passes": 34.625,
+        "pass_rate": 0.6925,
+        "cost_usd": 0.248578,
+        "cost_per_pass_usd": 0.007179,
+        "mean_latency_ms": 44009
+      },
+      "humaneval_plus": {
+        "questions": 40,
+        "passes": 38.875,
+        "pass_rate": 0.9719,
+        "cost_usd": 0.069508,
+        "cost_per_pass_usd": 0.001788,
+        "mean_latency_ms": 11384
+      },
+      "ifeval": {
+        "questions": 80,
+        "passes": 70.125,
+        "pass_rate": 0.8766,
+        "cost_usd": 0.346024,
+        "cost_per_pass_usd": 0.004934,
+        "mean_latency_ms": 34058
+      },
+      "livecodebench": {
+        "questions": 120,
+        "passes": 76.0,
+        "pass_rate": 0.6333,
+        "cost_usd": 1.08206,
+        "cost_per_pass_usd": 0.014238,
+        "mean_latency_ms": 56324
+      },
+      "math500": {
+        "questions": 150,
+        "passes": 144.5,
+        "pass_rate": 0.9633,
+        "cost_usd": 0.30751,
+        "cost_per_pass_usd": 0.002128,
+        "mean_latency_ms": 20949
+      },
+      "mbpp_plus": {
+        "questions": 40,
+        "passes": 34.25,
+        "pass_rate": 0.8562,
+        "cost_usd": 0.060269,
+        "cost_per_pass_usd": 0.00176,
+        "mean_latency_ms": 11728
+      },
+      "mmlu_pro": {
+        "questions": 120,
+        "passes": 97.625,
+        "pass_rate": 0.8135,
+        "cost_usd": 0.23131,
+        "cost_per_pass_usd": 0.002369,
+        "mean_latency_ms": 15196
+      },
+      "writingbench_business": {
+        "questions": 60,
+        "passes": 17.25,
+        "pass_rate": 0.2875,
+        "cost_usd": 0.812187,
+        "cost_per_pass_usd": 0.047083,
+        "mean_latency_ms": 70863
+      }
+    }
+  },
+  "by_difficulty": {
+    "router": {
+      "easy": {
+        "questions": 180,
+        "passes": 175,
+        "pass_rate": 0.9722,
+        "cost_usd": 0.062029,
+        "cost_per_pass_usd": 0.000354,
+        "mean_latency_ms": 4478
+      },
+      "hard": {
+        "questions": 180,
+        "passes": 122,
+        "pass_rate": 0.6778,
+        "cost_usd": 0.475794,
+        "cost_per_pass_usd": 0.0039,
+        "mean_latency_ms": 27360
+      },
+      "medium": {
+        "questions": 330,
+        "passes": 244,
+        "pass_rate": 0.7394,
+        "cost_usd": 0.609138,
+        "cost_per_pass_usd": 0.002496,
+        "mean_latency_ms": 29184
+      }
+    },
+    "oracle": {
+      "easy": {
+        "questions": 180,
+        "passes": 177,
+        "pass_rate": 0.9833,
+        "cost_usd": 0.012,
+        "cost_per_pass_usd": 6.8e-05,
+        "mean_latency_ms": 10651
+      },
+      "hard": {
+        "questions": 180,
+        "passes": 169,
+        "pass_rate": 0.9389,
+        "cost_usd": 0.456166,
+        "cost_per_pass_usd": 0.002699,
+        "mean_latency_ms": 52758
+      },
+      "medium": {
+        "questions": 330,
+        "passes": 303,
+        "pass_rate": 0.9182,
+        "cost_usd": 0.608487,
+        "cost_per_pass_usd": 0.002008,
+        "mean_latency_ms": 31673
+      }
+    },
+    "best_fixed": {
+      "easy": {
+        "questions": 180,
+        "passes": 172,
+        "pass_rate": 0.9556,
+        "cost_usd": 0.359864,
+        "cost_per_pass_usd": 0.002092,
+        "mean_latency_ms": 10333
+      },
+      "hard": {
+        "questions": 180,
+        "passes": 162,
+        "pass_rate": 0.9,
+        "cost_usd": 2.10669,
+        "cost_per_pass_usd": 0.013004,
+        "mean_latency_ms": 21840
+      },
+      "medium": {
+        "questions": 330,
+        "passes": 274,
+        "pass_rate": 0.8303,
+        "cost_usd": 5.11535,
+        "cost_per_pass_usd": 0.018669,
+        "mean_latency_ms": 21567
+      }
+    },
+    "cheapest": {
+      "easy": {
+        "questions": 180,
+        "passes": 171,
+        "pass_rate": 0.95,
+        "cost_usd": 0.011963,
+        "cost_per_pass_usd": 7e-05,
+        "mean_latency_ms": 13021
+      },
+      "hard": {
+        "questions": 180,
+        "passes": 116,
+        "pass_rate": 0.6444,
+        "cost_usd": 0.077715,
+        "cost_per_pass_usd": 0.00067,
+        "mean_latency_ms": 77951
+      },
+      "medium": {
+        "questions": 330,
+        "passes": 196,
+        "pass_rate": 0.5939,
+        "cost_usd": 0.094837,
+        "cost_per_pass_usd": 0.000484,
+        "mean_latency_ms": 41547
+      }
+    },
+    "random": {
+      "easy": {
+        "questions": 180,
+        "passes": 172.125,
+        "pass_rate": 0.9563,
+        "cost_usd": 0.247065,
+        "cost_per_pass_usd": 0.001435,
+        "mean_latency_ms": 10380
+      },
+      "hard": {
+        "questions": 180,
+        "passes": 128.625,
+        "pass_rate": 0.7146,
+        "cost_usd": 1.170364,
+        "cost_per_pass_usd": 0.009099,
+        "mean_latency_ms": 48062
+      },
+      "medium": {
+        "questions": 330,
+        "passes": 242.125,
+        "pass_rate": 0.7337,
+        "cost_usd": 1.76446,
+        "cost_per_pass_usd": 0.007287,
+        "mean_latency_ms": 34749
+      }
+    }
+  },
+  "alpha_sweep": [
+    {
+      "alpha": 0.0,
+      "pass_rate": 0.7,
+      "cost_usd": 0.184515
+    },
+    {
+      "alpha": 0.1,
+      "pass_rate": 0.7,
+      "cost_usd": 0.184515
+    },
+    {
+      "alpha": 0.2,
+      "pass_rate": 0.7072,
+      "cost_usd": 0.195867
+    },
+    {
+      "alpha": 0.3,
+      "pass_rate": 0.7275,
+      "cost_usd": 0.554343
+    },
+    {
+      "alpha": 0.4,
+      "pass_rate": 0.7754,
+      "cost_usd": 0.972425
+    },
+    {
+      "alpha": 0.5,
+      "pass_rate": 0.7841,
+      "cost_usd": 1.146962
+    },
+    {
+      "alpha": 0.6,
+      "pass_rate": 0.7855,
+      "cost_usd": 1.161071
+    },
+    {
+      "alpha": 0.7,
+      "pass_rate": 0.7855,
+      "cost_usd": 1.161362
+    },
+    {
+      "alpha": 0.8,
+      "pass_rate": 0.7855,
+      "cost_usd": 1.161362
+    },
+    {
+      "alpha": 0.9,
+      "pass_rate": 0.7855,
+      "cost_usd": 1.167745
+    },
+    {
+      "alpha": 1.0,
+      "pass_rate": 0.8435,
+      "cost_usd": 5.751202
+    }
+  ]
+}

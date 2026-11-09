@@ -1,0 +1,256 @@
+# Task types for the prototype3.0 router (issue #19). See docs/task_types.md.
+#
+# Each task type is one class the classifier chooses between. `description` is
+# also the criterion text for Laya's Choice question, so write it for real user
+# prompts, not for benchmark formats.
+#
+# measured: true  -> the type has anchor datasets in the answer bank, so the
+#                    router gets an accuracy/cost row per model from them.
+# measured: false -> no answers yet; the router uses its fallback default. The
+#                    classifier still learns the type so traffic can be counted.
+#
+# anchors:  benchmark datasets (keys in data/benchmark/manifest.json) whose
+#           answer-bank results form the routing table. `subjects` limits an
+#           anchor to those `subject` values.
+# training: where classifier training prompts come from (built by
+#           scripts/build_task_data.py, see docs/task_data.md). Benchmark-sampled
+#           questions are always excluded, by source ID and by normalized text.
+#           status: available = already on disk from build_data.py;
+#                   streamed = read from Hugging Face into memory (pinned in the
+#                   builder's HF table), nothing kept on disk.
+# difficulty: how a training row's difficulty label is derived, if at all.
+
+version: 1
+
+task_types:
+  - id: math_problem
+    measured: true
+    description: >-
+      Solve a mathematics problem with a definite answer: algebra, geometry,
+      number theory, counting and probability, precalculus or calculus.
+    anchors:
+      - dataset: math500
+    training:
+      - source: HuggingFaceH4/MATH-500
+        status: available
+        note: 350 rows not sampled into the benchmark.
+      - source: EleutherAI/hendrycks_math train and test splits
+        status: streamed
+        note: >-
+          About 7,500 train and 5,000 test problems. MATH-500 is a subset of
+          the test split, so exclude its 150 sampled problems by source ID.
+    difficulty:
+      field: level_label
+      map: {Level 1: easy, Level 2: easy, Level 3: medium, Level 4: hard, Level 5: hard}
+
+  - id: code_function
+    measured: true
+    description: >-
+      Write a short, self-contained function from a natural-language
+      description, possibly with an example or a signature.
+    anchors:
+      - dataset: humaneval_plus
+      - dataset: mbpp_plus
+    training:
+      - source: evalplus/humanevalplus
+        status: available
+        note: 124 rows not sampled.
+      - source: evalplus/mbppplus
+        status: available
+        note: 338 rows not sampled.
+      - source: google-research-datasets/mbpp (full)
+        status: streamed
+        note: >-
+          About 974 problems. MBPP+ is built from MBPP, so exclude the sampled
+          MBPP+ task IDs.
+
+  - id: code_algorithmic
+    measured: true
+    description: >-
+      Solve an algorithmic or competitive-programming problem: a full program
+      or class with input/output format, constraints and efficiency limits.
+    anchors:
+      - dataset: livecodebench
+    training:
+      - source: livecodebench/code_generation_lite test6.jsonl
+        status: available
+        note: Only 55 rows not sampled.
+      - source: livecodebench/code_generation_lite test.jsonl to test5.jsonl
+        status: streamed
+        note: >-
+          Releases v1 to v5, about 880 problems from older contests (2023-05
+          to 2024-12). Licence on the card is unspecified; internal use only.
+    difficulty:
+      field: difficulty
+      map: {easy: easy, medium: medium, hard: hard}
+
+  - id: science_expert
+    measured: true
+    description: >-
+      Answer a graduate-level question in physics, chemistry or biology that
+      needs expert reasoning, not just recall.
+    anchors:
+      - dataset: gpqa_diamond
+    training:
+      - source: Idavidrein/gpqa gpqa_diamond.csv
+        status: available
+        note: 148 rows not sampled.
+      - source: Idavidrein/gpqa gpqa_extended.csv
+        status: streamed
+        note: >-
+          Extended (546) contains diamond; the sampled 50 are excluded. Gated:
+          built only with --include-gpqa into data/task_data/restricted/, never
+          committed or uploaded.
+
+  - id: knowledge_quantitative
+    measured: true
+    description: >-
+      Answer a question in a professional or academic field that needs a
+      calculation or quantitative reasoning, such as finance, economics,
+      physics, chemistry, engineering or computer science.
+    anchors:
+      - dataset: mmlu_pro
+        subjects: [math, physics, chemistry, engineering, business, economics, computer science]
+    training:
+      - source: TIGER-Lab/MMLU-Pro
+        status: available
+        note: Rows with the listed subjects, minus the 59 sampled.
+
+  - id: knowledge_recall
+    measured: true
+    description: >-
+      Answer a factual or conceptual question that mainly needs knowledge and
+      reasoning about it, such as law, history, health, biology, psychology,
+      philosophy or everyday science.
+    anchors:
+      - dataset: mmlu_pro
+        subjects: [biology, health, history, law, other, philosophy, psychology]
+      - dataset: arc_challenge
+    training:
+      - source: TIGER-Lab/MMLU-Pro
+        status: available
+        note: Rows with the listed subjects, minus the 61 sampled.
+      - source: allenai/ai2_arc ARC-Challenge test
+        status: available
+        note: 1,142 rows not sampled.
+      - source: allenai/ai2_arc ARC-Challenge train and validation
+        status: streamed
+        note: About 1,418 rows.
+      - source: databricks/databricks-dolly-15k (open_qa)
+        status: streamed
+        note: Plain human-written questions without options; no difficulty label.
+    difficulty:
+      by_dataset: {arc_challenge: easy, mmlu_pro: medium}
+
+  - id: instruction_following
+    measured: true
+    description: >-
+      Write a response that must follow explicit, checkable constraints on
+      format, length, structure, wording or style.
+    anchors:
+      - dataset: ifeval
+    training:
+      - source: google/IFEval
+        status: available
+        note: 461 rows not sampled.
+      - source: allenai/RLVR-IFeval
+        status: streamed
+        note: About 15,000 prompts with IFEval-style constraints (ODC-BY).
+
+  - id: business_writing
+    measured: true
+    description: >-
+      Write a longer professional document for work, such as a report, plan,
+      proposal, marketing copy or business email.
+    anchors:
+      - dataset: writingbench_business
+    training:
+      - source: X-PLUG/WritingBench
+        status: available
+        note: >-
+          129 English business and marketing rows not sampled, plus the other
+          English non-fiction domains (academic, law, education), which ask for
+          the same kind of long professional document.
+
+  # Not measured yet: the router uses its fallback default for these.
+  - id: summarization
+    measured: false
+    description: >-
+      Summarize, condense or explain the main points of a text the user
+      provides.
+    training:
+      - source: databricks/databricks-dolly-15k (summarization)
+        status: streamed
+
+  - id: translation
+    measured: false
+    description: Translate text from one language to another.
+    training:
+      - source: databricks/databricks-dolly-15k (open_qa and general_qa answers)
+        status: streamed
+        note: >-
+          Synthetic: an English Dolly answer wrapped in one of several
+          translation requests to a randomly chosen language.
+
+  - id: information_extraction
+    measured: false
+    description: >-
+      Pull specific facts, fields or structured data out of a text the user
+      provides, or reformat it into a table, list or JSON.
+    training:
+      - source: databricks/databricks-dolly-15k (information_extraction, closed_qa)
+        status: streamed
+
+  - id: creative_writing
+    measured: false
+    description: >-
+      Write fiction, poetry, lyrics, jokes or other creative text.
+    training:
+      - source: databricks/databricks-dolly-15k (creative_writing)
+        status: streamed
+      - source: X-PLUG/WritingBench (Literature & Arts, English)
+        status: available
+
+  - id: conversation
+    measured: false
+    description: >-
+      Chat, give advice or an opinion, brainstorm, or answer a casual question
+      that has no single correct answer.
+    training:
+      - source: databricks/databricks-dolly-15k (brainstorming, general_qa)
+        status: streamed
+
+  - id: tool_calling
+    measured: false
+    description: >-
+      Choose and call one or more provided tools or functions with the right
+      arguments, or decide that none fits.
+    note: >-
+      BFCL data exists in the benchmark, but tool calling is deferred
+      (decision 2026-10-12), so there are no answers to route on yet. In
+      production this is also signalled by the request containing tools.
+    training:
+      - source: gorilla-llm/Berkeley-Function-Calling-Leaderboard
+        status: available
+        note: BFCL v3 simple, multiple, parallel and irrelevance, minus the 160 sampled.
+
+  - id: other
+    measured: false
+    description: Anything that does not fit one of the other task types.
+    training:
+      - source: databricks/databricks-dolly-15k (classification)
+        status: streamed
+
+# Rules for building classifier training data (decision Q21, 2026-10-22).
+training_rules:
+  exclude_benchmark_sample: true   # never train on the 690 (or 850) sampled questions
+  format_variants:
+    # Benchmark items carry formats real users rarely send. Train on both the
+    # benchmark rendering and a plain variant, so the classifier learns the
+    # task rather than the format.
+    - id: as_benchmark
+      description: The user message as scripts/benchmark/templates.user_message renders it.
+    - id: plain
+      description: >-
+        The same question without multiple-choice options, answer-format lines
+        or test-harness boilerplate.

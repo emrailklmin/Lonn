@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import sys
 import types
 import unittest
@@ -30,30 +31,33 @@ class FakeAgent:
 
 
 class FakeLaya:
-    """Stands in for laya.Router, returning canned answers per question.
+    """Stands in for laya.Router, answering every question it is asked.
 
     Each question takes 10 tokens of a 30-token window, leaving 12 prompt
     tokens after the scorer's margin.
     """
 
-    def __init__(self, category_answer, complexity_score):
+    def __init__(self, category_answer, complexity_probability):
         self.category_answer = category_answer
-        self.complexity_score = complexity_score
+        self.complexity_probability = complexity_probability
         self.seen = []
 
-    def route(self, text, question):
+    def route(self, text, questions):
         return types.SimpleNamespace(model="english")
 
     def load(self, name):
         return FakeAgent()
 
-    def predict(self, text, question, model=None):
+    def predict(self, text, questions, model=None):
         self.seen.append(text)
         state_tokens = len(text.split())
         usage = {"input_tokens": min(30, 10 + state_tokens), "state_tokens": state_tokens}
-        if "category" in question:
-            return {"answers": {"category": self.category_answer}, "usage": usage}
-        return {"answers": {"complexity": {"score": self.complexity_score}}, "usage": usage}
+        answers = {}
+        if "category" in questions:
+            answers["category"] = self.category_answer
+        if "complexity" in questions:
+            answers["complexity"] = {"noul": self.complexity_probability}
+        return {"answers": answers, "usage": usage}
 
 
 def probs(**values):
@@ -61,8 +65,8 @@ def probs(**values):
 
 
 class ComplexityScorerTests(unittest.TestCase):
-    def score(self, category_answer, complexity_score=2.0, prompt="prompt"):
-        self.laya = FakeLaya(category_answer, complexity_score)
+    def score(self, category_answer, complexity_probability=0.5, prompt="prompt"):
+        self.laya = FakeLaya(category_answer, complexity_probability)
         return ComplexityScorer(self.laya).score_prompt(prompt)
 
     def test_returns_schema_result(self):
@@ -101,25 +105,29 @@ class ComplexityScorerTests(unittest.TestCase):
                 self.assertEqual(result.topic_scores[Topic.MATH_REASONING], 1.0)
                 self.assertEqual(fsum(result.topic_scores.values()), 1.0)
 
-    def test_complexity_is_mapped_and_clamped(self):
+    def test_complexity_is_hard_probability_clamped(self):
         answer = {"choice": "coding", "probabilities": probs(coding=1)}
-        for level, expected in [(0, 0.0), (1, 0.25), (4, 1.0), (-1, 0.0), (7, 1.0)]:
-            with self.subTest(level=level):
-                self.assertEqual(self.score(answer, level).complexity, expected)
+        for probability, expected in [(0.0, 0.0), (0.3, 0.3), (1.0, 1.0), (-0.2, 0.0), (1.5, 1.0)]:
+            with self.subTest(probability=probability):
+                self.assertEqual(self.score(answer, probability).complexity, expected)
         with self.assertRaises(ValueError):
             self.score(answer, float("nan"))
+
+    def test_both_questions_share_one_call(self):
+        self.score({"choice": "coding", "probabilities": probs(coding=1)})
+        self.assertEqual([t for t in self.laya.seen if t != "Hi"], ["prompt"])
 
     def test_short_prompt_is_sent_unchanged(self):
         prompt = " ".join(f"w{i}" for i in range(12))
         self.score({"choice": "coding", "probabilities": probs(coding=1)}, prompt=prompt)
-        self.assertEqual([t for t in self.laya.seen if t != "Hi"], [prompt, prompt])
+        self.assertEqual([t for t in self.laya.seen if t != "Hi"], [prompt])
 
     def test_long_prompt_keeps_start_and_end(self):
         prompt = " ".join(f"w{i}" for i in range(100))
         self.score({"choice": "coding", "probabilities": probs(coding=1)}, prompt=prompt)
         # 12-token budget: first int(12 * 0.35) = 4 words, last 8 words.
         expected = "w0 w1 w2 w3 ... " + " ".join(f"w{i}" for i in range(92, 100))
-        self.assertEqual([t for t in self.laya.seen if t != "Hi"], [expected, expected])
+        self.assertEqual([t for t in self.laya.seen if t != "Hi"], [expected])
 
     def test_output_is_accepted_by_router(self):
         # Awkward probabilities that would not sum to 1 if rounded.
@@ -128,6 +136,28 @@ class ComplexityScorerTests(unittest.TestCase):
             general_knowledge_extraction=1 / 13)}
         model = Model("m", "example", 1, 1, 128000, {Topic.CODING: 0.5})
         self.assertIs(select_model(self.score(answer), [model]), model)
+
+
+@unittest.skipUnless(importlib.util.find_spec("laya"), "laya is not installed")
+class LayaModelSelectionTests(unittest.TestCase):
+    def load(self, value):
+        from unittest import mock
+
+        from lonn import complexity
+
+        env = {} if value is None else {"LONN_LAYA_MODEL": value}
+        with mock.patch.dict("os.environ", env, clear=False), \
+                mock.patch("dotenv.load_dotenv"), mock.patch("laya.Router") as router:
+            if value is None:
+                os.environ.pop("LONN_LAYA_MODEL", None)
+            complexity._load_laya_router()
+        return router.call_args.kwargs["models"]
+
+    def test_default_uses_stock_checkpoints(self):
+        self.assertIsNone(self.load(None))
+
+    def test_env_replaces_english_checkpoint(self):
+        self.assertEqual(self.load(" someone/laya-lonn "), {"english": "someone/laya-lonn"})
 
 
 @unittest.skipUnless(importlib.util.find_spec("laya"), "laya is not installed")
@@ -148,6 +178,13 @@ class LiveLayaTests(unittest.TestCase):
         self.assertEqual(max(result.topic_scores, key=result.topic_scores.get), Topic.CODING)
         self.assertAlmostEqual(fsum(result.topic_scores.values()), 1.0, delta=1e-6)
         self.assertTrue(0 <= result.complexity <= 1)
+
+    def test_hard_prompt_scores_above_easy_prompt(self):
+        easy = self.scorer.score_prompt("What is the capital of France?")
+        hard = self.scorer.score_prompt(
+            "Prove that every planar graph is 5-colourable, then design and analyse an "
+            "algorithm that finds such a colouring in linear time.")
+        self.assertGreater(hard.complexity, easy.complexity)
 
 
 if __name__ == "__main__":

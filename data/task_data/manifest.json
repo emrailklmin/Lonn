@@ -1,0 +1,247 @@
+{
+ "version": 1,
+ "seed": 20261022,
+ "cap_per_type": 3000,
+ "validation_share": 0.1,
+ "built_from_commit": "ea667e6",
+ "sources": {
+  "math": {
+   "repo": "EleutherAI/hendrycks_math",
+   "revision": "21a5633",
+   "license": "MIT"
+  },
+  "mbpp": {
+   "repo": "google-research-datasets/mbpp",
+   "revision": "4bb6404",
+   "license": "CC-BY-4.0"
+  },
+  "arc": {
+   "repo": "allenai/ai2_arc",
+   "revision": "210d026",
+   "license": "CC-BY-SA-4.0"
+  },
+  "lcb": {
+   "repo": "livecodebench/code_generation_lite",
+   "revision": "0fe84c3",
+   "license": "CC (unspecified; internal use only)"
+  },
+  "rlvr_ifeval": {
+   "repo": "allenai/RLVR-IFeval",
+   "revision": "47c03c7",
+   "license": "ODC-BY"
+  },
+  "dolly": {
+   "repo": "databricks/databricks-dolly-15k",
+   "revision": "bdd27f4",
+   "license": "CC-BY-SA-3.0"
+  },
+  "gpqa": {
+   "repo": "Idavidrein/gpqa",
+   "revision": "83022ce",
+   "license": "CC-BY-4.0 (gated; do not publish in plain text)"
+  }
+ },
+ "benchmark_sources_on_disk": {
+  "bfcl_simple": {
+   "repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+   "revision": "61fc060",
+   "license": "Apache-2.0"
+  },
+  "bfcl_multiple": {
+   "repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+   "revision": "61fc060",
+   "license": "Apache-2.0"
+  },
+  "bfcl_parallel": {
+   "repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+   "revision": "61fc060",
+   "license": "Apache-2.0"
+  },
+  "bfcl_irrelevance": {
+   "repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+   "revision": "61fc060",
+   "license": "Apache-2.0"
+  },
+  "humaneval_plus": {
+   "repo": "evalplus/humanevalplus",
+   "revision": "d32357c",
+   "license": "Apache-2.0"
+  },
+  "mbpp_plus": {
+   "repo": "evalplus/mbppplus",
+   "revision": "b2d74c9",
+   "license": "Apache-2.0"
+  },
+  "livecodebench": {
+   "repo": "livecodebench/code_generation_lite",
+   "revision": "0fe84c3",
+   "license": "CC (unspecified)"
+  },
+  "mmlu_pro": {
+   "repo": "TIGER-Lab/MMLU-Pro",
+   "revision": "b189ec7",
+   "license": "MIT"
+  },
+  "gpqa_diamond": {
+   "repo": "Idavidrein/gpqa",
+   "revision": "83022ce",
+   "license": "CC-BY-4.0"
+  },
+  "arc_challenge": {
+   "repo": "allenai/ai2_arc",
+   "revision": "210d026",
+   "license": "CC-BY-SA-4.0"
+  },
+  "math500": {
+   "repo": "HuggingFaceH4/MATH-500",
+   "revision": "6e4ed1a",
+   "license": "MIT (upstream MATH; card has none)"
+  },
+  "ifeval": {
+   "repo": "google/IFEval",
+   "revision": "966cd89",
+   "license": "Apache-2.0"
+  },
+  "writingbench_business": {
+   "repo": "X-PLUG/WritingBench",
+   "revision": "ae2d517",
+   "license": "Apache-2.0"
+  }
+ },
+ "exclusions": {
+  "excluded_benchmark": 811,
+  "excluded_duplicate": 735,
+  "capped_business_writing": 0,
+  "capped_code_algorithmic": 0,
+  "capped_code_function": 0,
+  "capped_conversation": 851,
+  "capped_creative_writing": 0,
+  "capped_information_extraction": 260,
+  "capped_instruction_following": 12431,
+  "capped_knowledge_quantitative": 3706,
+  "capped_knowledge_recall": 8046,
+  "capped_math_problem": 9218,
+  "capped_other": 0,
+  "capped_summarization": 0,
+  "capped_tool_calling": 0,
+  "capped_translation": 692
+ },
+ "counts": {
+  "business_writing": {
+   "train_as_benchmark": 655,
+   "validation_as_benchmark": 73
+  },
+  "code_algorithmic": {
+   "train_as_benchmark": 858,
+   "train_plain": 846,
+   "validation_as_benchmark": 90,
+   "validation_plain": 89
+  },
+  "code_function": {
+   "train_as_benchmark": 1423,
+   "train_plain": 968,
+   "validation_as_benchmark": 150,
+   "validation_plain": 86
+  },
+  "conversation": {
+   "train_as_benchmark": 3079,
+   "validation_as_benchmark": 347
+  },
+  "creative_writing": {
+   "train_as_benchmark": 1108,
+   "validation_as_benchmark": 119
+  },
+  "information_extraction": {
+   "train_as_benchmark": 2713,
+   "validation_as_benchmark": 300
+  },
+  "instruction_following": {
+   "train_as_benchmark": 2853,
+   "validation_as_benchmark": 358
+  },
+  "knowledge_quantitative": {
+   "train_as_benchmark": 2773,
+   "train_plain": 2711,
+   "validation_as_benchmark": 293,
+   "validation_plain": 289
+  },
+  "knowledge_recall": {
+   "train_as_benchmark": 3219,
+   "train_plain": 1838,
+   "validation_as_benchmark": 353,
+   "validation_plain": 202
+  },
+  "math_problem": {
+   "train_as_benchmark": 2723,
+   "validation_as_benchmark": 322
+  },
+  "other": {
+   "train_as_benchmark": 2101,
+   "validation_as_benchmark": 231
+  },
+  "science_expert": {
+   "train_as_benchmark": 14,
+   "validation_as_benchmark": 1
+  },
+  "summarization": {
+   "train_as_benchmark": 1133,
+   "validation_as_benchmark": 123
+  },
+  "tool_calling": {
+   "train_as_benchmark": 803,
+   "validation_as_benchmark": 78
+  },
+  "translation": {
+   "train_as_benchmark": 2734,
+   "validation_as_benchmark": 319
+  }
+ },
+ "files": {
+  "train.parquet": {
+   "rows": 34552,
+   "sha256": "9f8bef69ae93381d90484aaf065975ee33ff6cfb2b3e11004281bb3bb0d644f2"
+  },
+  "validation.parquet": {
+   "rows": 3823,
+   "sha256": "0c35d7a2644305df5afa10cf25819569d10dad22c1b2c2145224d3c00e9f38b6"
+  }
+ },
+ "everyday": {
+  "source": "allenai/WildChat-1M@7d6490e (ODC-BY), first user turns",
+  "train_labeller": "deepseek/deepseek-v4.1-flash",
+  "train_prompts": 2971,
+  "eval_gold": "claude-sonnet-5.5 and gemini-3.8-flash agree, or a human decided (review.csv)",
+  "eval_prompts": 300,
+  "eval_counts": {
+   "code_function": 66,
+   "conversation": 57,
+   "knowledge_recall": 56,
+   "business_writing": 35,
+   "creative_writing": 33,
+   "other": 23,
+   "instruction_following": 11,
+   "knowledge_quantitative": 5,
+   "math_problem": 5,
+   "summarization": 4,
+   "information_extraction": 2,
+   "code_algorithmic": 1,
+   "translation": 1,
+   "science_expert": 1
+  },
+  "sha256": "163dbf7ae3ffc25774e355afe51acc93cb89aea93e7754c2460612e33c5f3c8f"
+ },
+ "restricted": {
+  "gpqa.parquet": {
+   "rows": 992,
+   "counts": {
+    "science_expert": {
+     "train_as_benchmark": 444,
+     "train_plain": 444,
+     "validation_as_benchmark": 52,
+     "validation_plain": 52
+    }
+   },
+   "sha256": "42921704d72939e6a4cd203e40dfab39e8fa37d821554bdab85a466c94b5d18a"
+  }
+ }
+}

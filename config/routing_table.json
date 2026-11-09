@@ -1,0 +1,754 @@
+{
+ "version": 1,
+ "metadata": {
+  "generated_by": "scripts/benchmark/build_routing_table.py (do not edit by hand)",
+  "built_at": "2026-10-22T13:57:26+00:00",
+  "git_commit": "499d13d",
+  "source": "results/benchmark",
+  "questions": 690,
+  "models": [
+   "openrouter/anthropic/claude-sonnet-5.5",
+   "openrouter/meta/muse-spark-1.3",
+   "openrouter/google/gemini-3.8-flash",
+   "openrouter/z-ai/glm-5.3-flash",
+   "openrouter/deepseek/deepseek-v4.1-flash",
+   "openrouter/deepseek/deepseek-v4-pro",
+   "openrouter/openai/gpt-oss-120b",
+   "openrouter/openai/gpt-oss-20b"
+  ],
+  "smoothing": 5.0,
+  "cost": "mean billed cost per request (OpenRouter), output budget 8192 tokens"
+ },
+ "cells": {
+  "business_writing": {
+   "all": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.483333,
+     "cost_usd": 0.05398633,
+     "n": 60
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.216667,
+     "cost_usd": 0.00848664,
+     "n": 60
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.2,
+     "cost_usd": 0.0038237,
+     "n": 60
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.4,
+     "cost_usd": 0.01805547,
+     "n": 60
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.533333,
+     "cost_usd": 0.02066804,
+     "n": 60
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.066667,
+     "cost_usd": 0.00128567,
+     "n": 60
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.016667,
+     "cost_usd": 0.00043253,
+     "n": 60
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.383333,
+     "cost_usd": 0.00155323,
+     "n": 60
+    }
+   }
+  },
+  "code_algorithmic": {
+   "all": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.891667,
+     "cost_usd": 0.01512528,
+     "n": 120
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.466667,
+     "cost_usd": 0.01843214,
+     "n": 120
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.608333,
+     "cost_usd": 0.00320664,
+     "n": 120
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.733333,
+     "cost_usd": 0.01255969,
+     "n": 120
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.625,
+     "cost_usd": 0.02042343,
+     "n": 120
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.7,
+     "cost_usd": 0.00076673,
+     "n": 120
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.625,
+     "cost_usd": 0.00055017,
+     "n": 120
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.416667,
+     "cost_usd": 0.00107327,
+     "n": 120
+    }
+   },
+   "hard": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.808333,
+     "cost_usd": 0.02593779,
+     "n": 50
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.187879,
+     "cost_usd": 0.0249721,
+     "n": 50
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.291667,
+     "cost_usd": 0.0049144,
+     "n": 50
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.557576,
+     "cost_usd": 0.01948331,
+     "n": 50
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.311364,
+     "cost_usd": 0.0305565,
+     "n": 50
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.572727,
+     "cost_usd": 0.00117124,
+     "n": 50
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.402273,
+     "cost_usd": 0.00083403,
+     "n": 50
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.074242,
+     "cost_usd": 0.00167442,
+     "n": 50
+    }
+   },
+   "easy": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.984524,
+     "cost_usd": 0.00419315,
+     "n": 30
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.895238,
+     "cost_usd": 0.00508479,
+     "n": 30
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.944048,
+     "cost_usd": 0.0007614,
+     "n": 30
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.933333,
+     "cost_usd": 0.00377161,
+     "n": 30
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.946429,
+     "cost_usd": 0.00644399,
+     "n": 30
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.928571,
+     "cost_usd": 0.00022246,
+     "n": 30
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.917857,
+     "cost_usd": 0.00015098,
+     "n": 30
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.916667,
+     "cost_usd": 0.00037231,
+     "n": 30
+    }
+   },
+   "medium": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.921296,
+     "cost_usd": 0.01041276,
+     "n": 40
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.474074,
+     "cost_usd": 0.02082012,
+     "n": 40
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.734259,
+     "cost_usd": 0.00302124,
+     "n": 40
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.792593,
+     "cost_usd": 0.01093267,
+     "n": 40
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.758333,
+     "cost_usd": 0.01891146,
+     "n": 40
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.677778,
+     "cost_usd": 0.00069565,
+     "n": 40
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.669444,
+     "cost_usd": 0.00051371,
+     "n": 40
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.446296,
+     "cost_usd": 0.00088372,
+     "n": 40
+    }
+   }
+  },
+  "code_function": {
+   "all": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.9,
+     "cost_usd": 0.00203817,
+     "n": 80
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.9,
+     "cost_usd": 0.00204893,
+     "n": 80
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.95,
+     "cost_usd": 0.0003632,
+     "n": 80
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.9125,
+     "cost_usd": 0.00293232,
+     "n": 80
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.9375,
+     "cost_usd": 0.00520064,
+     "n": 80
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.925,
+     "cost_usd": 0.00012692,
+     "n": 80
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.9125,
+     "cost_usd": 7.085e-05,
+     "n": 80
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.875,
+     "cost_usd": 0.00019669,
+     "n": 80
+    }
+   }
+  },
+  "instruction_following": {
+   "all": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.95,
+     "cost_usd": 0.0128528,
+     "n": 80
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.9375,
+     "cost_usd": 0.00214602,
+     "n": 80
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.8875,
+     "cost_usd": 0.00192943,
+     "n": 80
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.95,
+     "cost_usd": 0.00692197,
+     "n": 80
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.925,
+     "cost_usd": 0.00960676,
+     "n": 80
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.8625,
+     "cost_usd": 0.00036342,
+     "n": 80
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.6625,
+     "cost_usd": 0.00042416,
+     "n": 80
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.8375,
+     "cost_usd": 0.0003578,
+     "n": 80
+    }
+   }
+  },
+  "knowledge_quantitative": {
+   "all": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.949153,
+     "cost_usd": 0.00304698,
+     "n": 59
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.898305,
+     "cost_usd": 0.00209606,
+     "n": 59
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.932203,
+     "cost_usd": 0.00061836,
+     "n": 59
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.949153,
+     "cost_usd": 0.00213418,
+     "n": 59
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.949153,
+     "cost_usd": 0.00611649,
+     "n": 59
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.898305,
+     "cost_usd": 0.00013039,
+     "n": 59
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.79661,
+     "cost_usd": 0.00013593,
+     "n": 59
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.864407,
+     "cost_usd": 0.00026702,
+     "n": 59
+    }
+   }
+  },
+  "knowledge_recall": {
+   "all": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.835165,
+     "cost_usd": 0.0027551,
+     "n": 91
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.824176,
+     "cost_usd": 0.00168868,
+     "n": 91
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.824176,
+     "cost_usd": 0.00080703,
+     "n": 91
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.868132,
+     "cost_usd": 0.0017481,
+     "n": 91
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.888889,
+     "cost_usd": 0.00569942,
+     "n": 90
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.725275,
+     "cost_usd": 6.208e-05,
+     "n": 91
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.747253,
+     "cost_usd": 5.581e-05,
+     "n": 91
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.791209,
+     "cost_usd": 0.00029971,
+     "n": 91
+    }
+   },
+   "medium": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.76024,
+     "cost_usd": 0.0033249,
+     "n": 61
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.744256,
+     "cost_usd": 0.00225188,
+     "n": 61
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.759407,
+     "cost_usd": 0.00098656,
+     "n": 61
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.808192,
+     "cost_usd": 0.00221983,
+     "n": 61
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.837607,
+     "cost_usd": 0.00678107,
+     "n": 60
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.615551,
+     "cost_usd": 7.339e-05,
+     "n": 61
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.647519,
+     "cost_usd": 7.269e-05,
+     "n": 61
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.696304,
+     "cost_usd": 0.00042091,
+     "n": 61
+    }
+   },
+   "easy": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.976452,
+     "cost_usd": 0.00168061,
+     "n": 30
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.974882,
+     "cost_usd": 0.00062665,
+     "n": 30
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.946311,
+     "cost_usd": 0.00046848,
+     "n": 30
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.981162,
+     "cost_usd": 0.00085856,
+     "n": 30
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.984127,
+     "cost_usd": 0.00369065,
+     "n": 30
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.932182,
+     "cost_usd": 4.075e-05,
+     "n": 30
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.935322,
+     "cost_usd": 2.398e-05,
+     "n": 30
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.970173,
+     "cost_usd": 7.117e-05,
+     "n": 30
+    }
+   }
+  },
+  "math_problem": {
+   "all": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 1.0,
+     "cost_usd": 0.00332879,
+     "n": 150
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.973333,
+     "cost_usd": 0.00229764,
+     "n": 150
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.98,
+     "cost_usd": 0.00064439,
+     "n": 150
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.993333,
+     "cost_usd": 0.00396994,
+     "n": 150
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.986667,
+     "cost_usd": 0.00557807,
+     "n": 150
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.926667,
+     "cost_usd": 0.00032526,
+     "n": 150
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.913333,
+     "cost_usd": 0.00015086,
+     "n": 150
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.933333,
+     "cost_usd": 0.00010558,
+     "n": 150
+    }
+   },
+   "hard": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 1.0,
+     "cost_usd": 0.00430322,
+     "n": 80
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.951373,
+     "cost_usd": 0.00305571,
+     "n": 80
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.963529,
+     "cost_usd": 0.00093597,
+     "n": 80
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.987843,
+     "cost_usd": 0.00527671,
+     "n": 80
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.975686,
+     "cost_usd": 0.00671172,
+     "n": 80
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.901569,
+     "cost_usd": 0.0004367,
+     "n": 80
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.853725,
+     "cost_usd": 0.00021334,
+     "n": 80
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.890196,
+     "cost_usd": 0.00014979,
+     "n": 80
+    }
+   },
+   "medium": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 1.0,
+     "cost_usd": 0.00246291,
+     "n": 30
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.99619,
+     "cost_usd": 0.00199791,
+     "n": 30
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.997143,
+     "cost_usd": 0.00038483,
+     "n": 30
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.999048,
+     "cost_usd": 0.00292479,
+     "n": 30
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.998095,
+     "cost_usd": 0.00507367,
+     "n": 30
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.90381,
+     "cost_usd": 0.00024814,
+     "n": 30
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.959048,
+     "cost_usd": 8.007e-05,
+     "n": 30
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.990476,
+     "cost_usd": 7.326e-05,
+     "n": 30
+    }
+   },
+   "easy": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 1.0,
+     "cost_usd": 0.00216164,
+     "n": 40
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.997037,
+     "cost_usd": 0.00109884,
+     "n": 40
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.997778,
+     "cost_usd": 0.00029551,
+     "n": 40
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.999259,
+     "cost_usd": 0.00231449,
+     "n": 40
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.998519,
+     "cost_usd": 0.00382904,
+     "n": 40
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.991852,
+     "cost_usd": 0.00017473,
+     "n": 40
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.99037,
+     "cost_usd": 8.791e-05,
+     "n": 40
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.97037,
+     "cost_usd": 4.723e-05,
+     "n": 40
+    }
+   }
+  },
+  "science_expert": {
+   "all": {
+    "openrouter/anthropic/claude-sonnet-5.5": {
+     "accuracy": 0.84,
+     "cost_usd": 0.00813216,
+     "n": 50
+    },
+    "openrouter/deepseek/deepseek-v4-pro": {
+     "accuracy": 0.62,
+     "cost_usd": 0.00610386,
+     "n": 50
+    },
+    "openrouter/deepseek/deepseek-v4.1-flash": {
+     "accuracy": 0.66,
+     "cost_usd": 0.00314303,
+     "n": 50
+    },
+    "openrouter/google/gemini-3.8-flash": {
+     "accuracy": 0.88,
+     "cost_usd": 0.00515106,
+     "n": 50
+    },
+    "openrouter/meta/muse-spark-1.3": {
+     "accuracy": 0.86,
+     "cost_usd": 0.01566557,
+     "n": 50
+    },
+    "openrouter/openai/gpt-oss-120b": {
+     "accuracy": 0.68,
+     "cost_usd": 0.00033341,
+     "n": 50
+    },
+    "openrouter/openai/gpt-oss-20b": {
+     "accuracy": 0.58,
+     "cost_usd": 0.00034429,
+     "n": 50
+    },
+    "openrouter/z-ai/glm-5.3-flash": {
+     "accuracy": 0.42,
+     "cost_usd": 0.00089915,
+     "n": 50
+    }
+   }
+  }
+ },
+ "global": {
+  "openrouter/anthropic/claude-sonnet-5.5": {
+   "accuracy": 0.856165,
+   "cost_usd": 0.0126582,
+   "n": 690
+  },
+  "openrouter/deepseek/deepseek-v4-pro": {
+   "accuracy": 0.729581,
+   "cost_usd": 0.0054125,
+   "n": 690
+  },
+  "openrouter/deepseek/deepseek-v4.1-flash": {
+   "accuracy": 0.755277,
+   "cost_usd": 0.00181697,
+   "n": 690
+  },
+  "openrouter/google/gemini-3.8-flash": {
+   "accuracy": 0.835806,
+   "cost_usd": 0.00668409,
+   "n": 690
+  },
+  "openrouter/meta/muse-spark-1.3": {
+   "accuracy": 0.838193,
+   "cost_usd": 0.0111198,
+   "n": 689
+  },
+  "openrouter/openai/gpt-oss-120b": {
+   "accuracy": 0.723052,
+   "cost_usd": 0.00042424,
+   "n": 690
+  },
+  "openrouter/openai/gpt-oss-20b": {
+   "accuracy": 0.656733,
+   "cost_usd": 0.00027057,
+   "n": 690
+  },
+  "openrouter/z-ai/glm-5.3-flash": {
+   "accuracy": 0.690181,
+   "cost_usd": 0.00059406,
+   "n": 690
+  }
+ }
+}

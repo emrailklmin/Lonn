@@ -1,4 +1,40 @@
+# Local credentials and virtual environments
 .env
+.env.*
+!.env.example
 .venv/
+venv/
+
+# Python bytecode and tool caches
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# macOS metadata
+.DS_Store
+
+# Generated discovery and availability reports
+/reports/
+
+# Fine-tuned Laya checkpoints (published to Hugging Face, not git)
+/models/
+
+# Python SDK build artifacts
+*.egg-info/
+/sdk/python/build/
+/dist/
+
+# Benchmark source data and samples (build with scripts/benchmark/build_data.py;
+# only data/benchmark/manifest.json is committed)
+/data/benchmark/raw/
+/data/benchmark/prompts/
+
+# Task-type classifier data (build with scripts/build_task_data.py, shared on a
+# private HF dataset; only data/task_data/manifest.json is committed)
+/data/task_data/*
+!/data/task_data/manifest.json

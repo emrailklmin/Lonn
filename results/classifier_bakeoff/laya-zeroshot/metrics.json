@@ -1,0 +1,187 @@
+{
+ "candidate": "laya-zeroshot",
+ "train_rows": 32774,
+ "validation_rows": 3624,
+ "task_types": [
+  "math_problem",
+  "code_function",
+  "code_algorithmic",
+  "science_expert",
+  "knowledge_quantitative",
+  "knowledge_recall",
+  "instruction_following",
+  "business_writing",
+  "summarization",
+  "translation",
+  "information_extraction",
+  "creative_writing",
+  "conversation",
+  "tool_calling",
+  "other"
+ ],
+ "date": "2026-10-22",
+ "model": "convaiinnovations/laya (stock)",
+ "trained": false,
+ "accuracy": 0.3115,
+ "macro_f1": 0.2539,
+ "by_variant": {
+  "as_benchmark": {
+   "n": 2906,
+   "accuracy": 0.3076
+  },
+  "plain": {
+   "n": 718,
+   "accuracy": 0.3273
+  }
+ },
+ "long_prompts": {
+  "n": 369,
+  "accuracy": 0.4444
+ },
+ "per_type": {
+  "math_problem": {
+   "n": 315,
+   "recall": 0.4127,
+   "precision": 0.3725,
+   "f1": 0.3916
+  },
+  "code_function": {
+   "n": 172,
+   "recall": 0.7035,
+   "precision": 0.2054,
+   "f1": 0.318
+  },
+  "code_algorithmic": {
+   "n": 178,
+   "recall": 0.8708,
+   "precision": 0.3808,
+   "f1": 0.5299
+  },
+  "science_expert": {
+   "n": 104,
+   "recall": 0.4038,
+   "precision": 0.1037,
+   "f1": 0.165
+  },
+  "knowledge_quantitative": {
+   "n": 578,
+   "recall": 0.2612,
+   "precision": 0.4454,
+   "f1": 0.3293
+  },
+  "knowledge_recall": {
+   "n": 502,
+   "recall": 0.0319,
+   "precision": 0.2222,
+   "f1": 0.0557
+  },
+  "instruction_following": {
+   "n": 337,
+   "recall": 0.4125,
+   "precision": 0.6881,
+   "f1": 0.5158
+  },
+  "business_writing": {
+   "n": 43,
+   "recall": 0.6512,
+   "precision": 0.1167,
+   "f1": 0.1979
+  },
+  "summarization": {
+   "n": 120,
+   "recall": 0.05,
+   "precision": 0.2308,
+   "f1": 0.0822
+  },
+  "translation": {
+   "n": 316,
+   "recall": 0.8956,
+   "precision": 0.7753,
+   "f1": 0.8311
+  },
+  "information_extraction": {
+   "n": 297,
+   "recall": 0.0269,
+   "precision": 0.1429,
+   "f1": 0.0453
+  },
+  "creative_writing": {
+   "n": 75,
+   "recall": 0.3867,
+   "precision": 0.1568,
+   "f1": 0.2231
+  },
+  "conversation": {
+   "n": 298,
+   "recall": 0.0336,
+   "precision": 0.4348,
+   "f1": 0.0623
+  },
+  "tool_calling": {
+   "n": 78,
+   "recall": 0.0256,
+   "precision": 0.0256,
+   "f1": 0.0256
+  },
+  "other": {
+   "n": 211,
+   "recall": 0.0427,
+   "precision": 0.0312,
+   "f1": 0.0361
+  }
+ },
+ "top_confusions": [
+  {
+   "gold": "knowledge_recall",
+   "predicted": "science_expert",
+   "n": 165
+  },
+  {
+   "gold": "conversation",
+   "predicted": "code_function",
+   "n": 147
+  },
+  {
+   "gold": "knowledge_quantitative",
+   "predicted": "math_problem",
+   "n": 139
+  },
+  {
+   "gold": "knowledge_recall",
+   "predicted": "code_function",
+   "n": 110
+  },
+  {
+   "gold": "knowledge_quantitative",
+   "predicted": "other",
+   "n": 92
+  },
+  {
+   "gold": "math_problem",
+   "predicted": "code_algorithmic",
+   "n": 83
+  },
+  {
+   "gold": "other",
+   "predicted": "code_function",
+   "n": 74
+  },
+  {
+   "gold": "knowledge_recall",
+   "predicted": "other",
+   "n": 67
+  },
+  {
+   "gold": "information_extraction",
+   "predicted": "other",
+   "n": 65
+  },
+  {
+   "gold": "information_extraction",
+   "predicted": "science_expert",
+   "n": 64
+  }
+ ],
+ "latency_ms_per_prompt": 260.3,
+ "latency_device": "Laya default (MPS on this Mac)"
+}

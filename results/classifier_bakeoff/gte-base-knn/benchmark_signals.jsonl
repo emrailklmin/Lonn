@@ -1,0 +1,690 @@
+{"prompt_id": "humaneval_plus-001", "task_scores": {"code_function": 0.99253, "instruction_following": 0.00747}, "complexity": null}
+{"prompt_id": "humaneval_plus-002", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-003", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-004", "task_scores": {"code_function": 0.8280117198828011, "knowledge_recall": 0.07412925870741292, "translation": 0.04742952570474295, "conversation": 0.050429495705042945}, "complexity": null}
+{"prompt_id": "humaneval_plus-005", "task_scores": {"code_function": 0.90553, "instruction_following": 0.09447}, "complexity": null}
+{"prompt_id": "humaneval_plus-006", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-007", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-008", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-009", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-010", "task_scores": {"code_function": 0.98111, "instruction_following": 0.00623, "creative_writing": 0.01266}, "complexity": null}
+{"prompt_id": "humaneval_plus-011", "task_scores": {"code_function": 0.92266, "code_algorithmic": 0.07734}, "complexity": null}
+{"prompt_id": "humaneval_plus-012", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-013", "task_scores": {"code_function": 0.98193, "instruction_following": 0.00622, "creative_writing": 0.01185}, "complexity": null}
+{"prompt_id": "humaneval_plus-014", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-015", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-016", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-017", "task_scores": {"code_function": 0.78769, "knowledge_quantitative": 0.04309, "instruction_following": 0.02918, "tool_calling": 0.14004}, "complexity": null}
+{"prompt_id": "humaneval_plus-018", "task_scores": {"code_function": 0.51155, "code_algorithmic": 0.48845}, "complexity": null}
+{"prompt_id": "humaneval_plus-019", "task_scores": {"code_function": 0.95702, "instruction_following": 0.04298}, "complexity": null}
+{"prompt_id": "humaneval_plus-020", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-021", "task_scores": {"code_function": 0.8793, "instruction_following": 0.1207}, "complexity": null}
+{"prompt_id": "humaneval_plus-022", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-023", "task_scores": {"code_function": 0.9482, "knowledge_quantitative": 0.0518}, "complexity": null}
+{"prompt_id": "humaneval_plus-024", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-025", "task_scores": {"code_function": 0.94488, "instruction_following": 0.05512}, "complexity": null}
+{"prompt_id": "humaneval_plus-026", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-027", "task_scores": {"code_function": 0.94552, "code_algorithmic": 0.05448}, "complexity": null}
+{"prompt_id": "humaneval_plus-028", "task_scores": {"code_function": 0.83797, "code_algorithmic": 0.0915, "instruction_following": 0.07053}, "complexity": null}
+{"prompt_id": "humaneval_plus-029", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-030", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-031", "task_scores": {"code_function": 0.9782, "instruction_following": 0.0218}, "complexity": null}
+{"prompt_id": "humaneval_plus-032", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-033", "task_scores": {"code_function": 0.87617, "code_algorithmic": 0.07868, "conversation": 0.04515}, "complexity": null}
+{"prompt_id": "humaneval_plus-034", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-035", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-036", "task_scores": {"code_function": 0.79479, "code_algorithmic": 0.20521}, "complexity": null}
+{"prompt_id": "humaneval_plus-037", "task_scores": {"code_function": 0.95534, "translation": 0.04466}, "complexity": null}
+{"prompt_id": "humaneval_plus-038", "task_scores": {"code_function": 0.87758, "code_algorithmic": 0.12242}, "complexity": null}
+{"prompt_id": "humaneval_plus-039", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "humaneval_plus-040", "task_scores": {"code_function": 0.96806, "code_algorithmic": 0.03194}, "complexity": null}
+{"prompt_id": "mbpp_plus-001", "task_scores": {"math_problem": 0.05655, "code_function": 0.94345}, "complexity": null}
+{"prompt_id": "mbpp_plus-002", "task_scores": {"code_function": 0.98259, "code_algorithmic": 0.01741}, "complexity": null}
+{"prompt_id": "mbpp_plus-003", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-004", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-005", "task_scores": {"code_function": 0.99689, "instruction_following": 0.00311}, "complexity": null}
+{"prompt_id": "mbpp_plus-006", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-007", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-008", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-009", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-010", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-011", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-012", "task_scores": {"code_function": 0.89051, "knowledge_quantitative": 0.10949}, "complexity": null}
+{"prompt_id": "mbpp_plus-013", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-014", "task_scores": {"code_function": 0.97163, "code_algorithmic": 0.02837}, "complexity": null}
+{"prompt_id": "mbpp_plus-015", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-016", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-017", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-018", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-019", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-020", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-021", "task_scores": {"code_function": 0.9943, "conversation": 0.0057}, "complexity": null}
+{"prompt_id": "mbpp_plus-022", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-023", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-024", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-025", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-026", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-027", "task_scores": {"code_function": 0.98254, "conversation": 0.00607, "other": 0.01139}, "complexity": null}
+{"prompt_id": "mbpp_plus-028", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-029", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-030", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-031", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-032", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-033", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-034", "task_scores": {"code_function": 0.74767, "code_algorithmic": 0.25233}, "complexity": null}
+{"prompt_id": "mbpp_plus-035", "task_scores": {"math_problem": 0.21365, "code_function": 0.55325, "code_algorithmic": 0.04563, "knowledge_quantitative": 0.18747}, "complexity": null}
+{"prompt_id": "mbpp_plus-036", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-037", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-038", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-039", "task_scores": {"code_function": 1.0}, "complexity": null}
+{"prompt_id": "mbpp_plus-040", "task_scores": {"math_problem": 0.04443, "code_function": 0.95557}, "complexity": null}
+{"prompt_id": "livecodebench-001", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-002", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-003", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-004", "task_scores": {"code_function": 0.26109, "code_algorithmic": 0.73891}, "complexity": null}
+{"prompt_id": "livecodebench-005", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-006", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-007", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-008", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-009", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-010", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-011", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-012", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-013", "task_scores": {"code_algorithmic": 0.95075, "information_extraction": 0.04925}, "complexity": null}
+{"prompt_id": "livecodebench-014", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-015", "task_scores": {"code_function": 0.02293, "code_algorithmic": 0.97707}, "complexity": null}
+{"prompt_id": "livecodebench-016", "task_scores": {"code_function": 0.02842, "code_algorithmic": 0.97158}, "complexity": null}
+{"prompt_id": "livecodebench-017", "task_scores": {"code_function": 0.04414, "code_algorithmic": 0.95586}, "complexity": null}
+{"prompt_id": "livecodebench-018", "task_scores": {"math_problem": 0.12539, "code_function": 0.1166, "code_algorithmic": 0.75801}, "complexity": null}
+{"prompt_id": "livecodebench-019", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-020", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-021", "task_scores": {"code_function": 0.05829, "code_algorithmic": 0.94171}, "complexity": null}
+{"prompt_id": "livecodebench-022", "task_scores": {"code_function": 0.06987, "code_algorithmic": 0.91376, "instruction_following": 0.01637}, "complexity": null}
+{"prompt_id": "livecodebench-023", "task_scores": {"code_function": 0.35237, "code_algorithmic": 0.64763}, "complexity": null}
+{"prompt_id": "livecodebench-024", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-025", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-026", "task_scores": {"code_function": 0.13064, "code_algorithmic": 0.86936}, "complexity": null}
+{"prompt_id": "livecodebench-027", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-028", "task_scores": {"code_function": 0.05246, "code_algorithmic": 0.94754}, "complexity": null}
+{"prompt_id": "livecodebench-029", "task_scores": {"code_function": 0.13331, "code_algorithmic": 0.86669}, "complexity": null}
+{"prompt_id": "livecodebench-030", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-031", "task_scores": {"math_problem": 0.14556, "code_function": 0.39521, "code_algorithmic": 0.45923}, "complexity": null}
+{"prompt_id": "livecodebench-032", "task_scores": {"code_function": 0.03244, "code_algorithmic": 0.96756}, "complexity": null}
+{"prompt_id": "livecodebench-033", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-034", "task_scores": {"code_function": 0.36193, "code_algorithmic": 0.63807}, "complexity": null}
+{"prompt_id": "livecodebench-035", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-036", "task_scores": {"code_function": 0.03122, "code_algorithmic": 0.96878}, "complexity": null}
+{"prompt_id": "livecodebench-037", "task_scores": {"code_function": 0.03871, "code_algorithmic": 0.96129}, "complexity": null}
+{"prompt_id": "livecodebench-038", "task_scores": {"code_function": 0.04444, "code_algorithmic": 0.95556}, "complexity": null}
+{"prompt_id": "livecodebench-039", "task_scores": {"code_function": 0.03766, "code_algorithmic": 0.96234}, "complexity": null}
+{"prompt_id": "livecodebench-040", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-041", "task_scores": {"code_function": 0.10499, "code_algorithmic": 0.89501}, "complexity": null}
+{"prompt_id": "livecodebench-042", "task_scores": {"code_function": 0.10305, "code_algorithmic": 0.89695}, "complexity": null}
+{"prompt_id": "livecodebench-043", "task_scores": {"code_function": 0.05155, "code_algorithmic": 0.94845}, "complexity": null}
+{"prompt_id": "livecodebench-044", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-045", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-046", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-047", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-048", "task_scores": {"math_problem": 0.65116, "code_function": 0.15221, "code_algorithmic": 0.1156, "knowledge_quantitative": 0.08103}, "complexity": null}
+{"prompt_id": "livecodebench-049", "task_scores": {"code_function": 0.09419, "code_algorithmic": 0.90581}, "complexity": null}
+{"prompt_id": "livecodebench-050", "task_scores": {"code_function": 0.07899, "code_algorithmic": 0.92101}, "complexity": null}
+{"prompt_id": "livecodebench-051", "task_scores": {"code_function": 0.16674, "code_algorithmic": 0.83326}, "complexity": null}
+{"prompt_id": "livecodebench-052", "task_scores": {"code_function": 0.15532, "code_algorithmic": 0.84468}, "complexity": null}
+{"prompt_id": "livecodebench-053", "task_scores": {"code_function": 0.11453, "code_algorithmic": 0.7684, "knowledge_quantitative": 0.11707}, "complexity": null}
+{"prompt_id": "livecodebench-054", "task_scores": {"math_problem": 0.10961, "code_function": 0.07517, "code_algorithmic": 0.7809, "knowledge_quantitative": 0.03432}, "complexity": null}
+{"prompt_id": "livecodebench-055", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-056", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-057", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-058", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-059", "task_scores": {"code_function": 0.09507, "code_algorithmic": 0.90493}, "complexity": null}
+{"prompt_id": "livecodebench-060", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-061", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-062", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-063", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-064", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-065", "task_scores": {"code_function": 0.04826, "code_algorithmic": 0.95174}, "complexity": null}
+{"prompt_id": "livecodebench-066", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-067", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-068", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-069", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-070", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-071", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-072", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-073", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-074", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-075", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-076", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-077", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-078", "task_scores": {"code_function": 0.1839, "code_algorithmic": 0.8161}, "complexity": null}
+{"prompt_id": "livecodebench-079", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-080", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-081", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-082", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-083", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-084", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-085", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-086", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-087", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-088", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-089", "task_scores": {"code_algorithmic": 0.94899, "knowledge_quantitative": 0.05101}, "complexity": null}
+{"prompt_id": "livecodebench-090", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-091", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-092", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-093", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-094", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-095", "task_scores": {"code_function": 0.0777, "code_algorithmic": 0.9223}, "complexity": null}
+{"prompt_id": "livecodebench-096", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-097", "task_scores": {"code_function": 0.08488, "code_algorithmic": 0.91512}, "complexity": null}
+{"prompt_id": "livecodebench-098", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-099", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-100", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-101", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-102", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-103", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-104", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-105", "task_scores": {"math_problem": 0.2019, "code_algorithmic": 0.7981}, "complexity": null}
+{"prompt_id": "livecodebench-106", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-107", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-108", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-109", "task_scores": {"math_problem": 0.02575, "code_algorithmic": 0.97425}, "complexity": null}
+{"prompt_id": "livecodebench-110", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-111", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-112", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-113", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-114", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-115", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-116", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-117", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-118", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-119", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "livecodebench-120", "task_scores": {"code_algorithmic": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-001", "task_scores": {"math_problem": 0.15021150211502116, "code_algorithmic": 0.06568065680656807, "knowledge_quantitative": 0.5197151971519715, "knowledge_recall": 0.2102021020210202, "tool_calling": 0.054190541905419054}, "complexity": null}
+{"prompt_id": "mmlu_pro-002", "task_scores": {"math_problem": 0.12969870301296987, "knowledge_quantitative": 0.6760232397676023, "knowledge_recall": 0.0990690093099069, "instruction_following": 0.09520904790952091}, "complexity": null}
+{"prompt_id": "mmlu_pro-003", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-004", "task_scores": {"math_problem": 0.13009869901300986, "knowledge_quantitative": 0.4765852341476585, "knowledge_recall": 0.05715942840571594, "instruction_following": 0.33615663843361565}, "complexity": null}
+{"prompt_id": "mmlu_pro-005", "task_scores": {"knowledge_quantitative": 0.5716, "knowledge_recall": 0.37578, "conversation": 0.05262}, "complexity": null}
+{"prompt_id": "mmlu_pro-006", "task_scores": {"math_problem": 0.04139041390413904, "knowledge_quantitative": 0.8627886278862789, "knowledge_recall": 0.03998039980399804, "tool_calling": 0.05584055840558405}, "complexity": null}
+{"prompt_id": "mmlu_pro-007", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-008", "task_scores": {"knowledge_quantitative": 0.82771, "knowledge_recall": 0.17229}, "complexity": null}
+{"prompt_id": "mmlu_pro-009", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-010", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-011", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-012", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-013", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-014", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-015", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-016", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-017", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-018", "task_scores": {"knowledge_quantitative": 0.15635, "knowledge_recall": 0.84365}, "complexity": null}
+{"prompt_id": "mmlu_pro-019", "task_scores": {"knowledge_recall": 0.96358, "other": 0.03642}, "complexity": null}
+{"prompt_id": "mmlu_pro-020", "task_scores": {"knowledge_quantitative": 0.18151, "knowledge_recall": 0.81849}, "complexity": null}
+{"prompt_id": "mmlu_pro-021", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-022", "task_scores": {"knowledge_recall": 0.97706, "instruction_following": 0.02294}, "complexity": null}
+{"prompt_id": "mmlu_pro-023", "task_scores": {"science_expert": 0.03394, "knowledge_quantitative": 0.48168, "knowledge_recall": 0.43954, "conversation": 0.04484}, "complexity": null}
+{"prompt_id": "mmlu_pro-024", "task_scores": {"knowledge_quantitative": 0.53589, "knowledge_recall": 0.46411}, "complexity": null}
+{"prompt_id": "mmlu_pro-025", "task_scores": {"knowledge_quantitative": 0.43327, "knowledge_recall": 0.56673}, "complexity": null}
+{"prompt_id": "mmlu_pro-026", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-027", "task_scores": {"knowledge_quantitative": 0.30474, "knowledge_recall": 0.69526}, "complexity": null}
+{"prompt_id": "mmlu_pro-028", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-029", "task_scores": {"knowledge_quantitative": 0.06053, "knowledge_recall": 0.93947}, "complexity": null}
+{"prompt_id": "mmlu_pro-030", "task_scores": {"science_expert": 0.27418, "knowledge_recall": 0.72582}, "complexity": null}
+{"prompt_id": "mmlu_pro-031", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-032", "task_scores": {"science_expert": 0.43109, "knowledge_recall": 0.56891}, "complexity": null}
+{"prompt_id": "mmlu_pro-033", "task_scores": {"knowledge_quantitative": 0.14616, "knowledge_recall": 0.85384}, "complexity": null}
+{"prompt_id": "mmlu_pro-034", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-035", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-036", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-037", "task_scores": {"science_expert": 0.02469, "knowledge_quantitative": 0.93842, "knowledge_recall": 0.03689}, "complexity": null}
+{"prompt_id": "mmlu_pro-038", "task_scores": {"science_expert": 0.60093, "knowledge_quantitative": 0.35603, "knowledge_recall": 0.04304}, "complexity": null}
+{"prompt_id": "mmlu_pro-039", "task_scores": {"knowledge_quantitative": 0.8006, "knowledge_recall": 0.1994}, "complexity": null}
+{"prompt_id": "mmlu_pro-040", "task_scores": {"knowledge_quantitative": 0.3698363016369836, "knowledge_recall": 0.21428785712142878, "information_extraction": 0.21144788552114477, "conversation": 0.08617913820861792, "other": 0.11824881751182487}, "complexity": null}
+{"prompt_id": "mmlu_pro-041", "task_scores": {"science_expert": 0.05447, "knowledge_quantitative": 0.94553}, "complexity": null}
+{"prompt_id": "mmlu_pro-042", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-043", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-044", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-045", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-046", "task_scores": {"knowledge_recall": 0.9296, "instruction_following": 0.0704}, "complexity": null}
+{"prompt_id": "mmlu_pro-047", "task_scores": {"knowledge_recall": 0.96601, "information_extraction": 0.03399}, "complexity": null}
+{"prompt_id": "mmlu_pro-048", "task_scores": {"knowledge_quantitative": 0.2136, "knowledge_recall": 0.73596, "information_extraction": 0.05044}, "complexity": null}
+{"prompt_id": "mmlu_pro-049", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-050", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-051", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-052", "task_scores": {"knowledge_quantitative": 0.04161, "knowledge_recall": 0.95839}, "complexity": null}
+{"prompt_id": "mmlu_pro-053", "task_scores": {"knowledge_quantitative": 0.72293, "knowledge_recall": 0.27707}, "complexity": null}
+{"prompt_id": "mmlu_pro-054", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-055", "task_scores": {"knowledge_quantitative": 0.0846691533084669, "knowledge_recall": 0.87490125098749, "instruction_following": 0.016639833601663982, "other": 0.023789762102378972}, "complexity": null}
+{"prompt_id": "mmlu_pro-056", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-057", "task_scores": {"knowledge_quantitative": 0.43474, "knowledge_recall": 0.56526}, "complexity": null}
+{"prompt_id": "mmlu_pro-058", "task_scores": {"knowledge_quantitative": 0.32364, "knowledge_recall": 0.67636}, "complexity": null}
+{"prompt_id": "mmlu_pro-059", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-060", "task_scores": {"knowledge_quantitative": 0.04806048060480604, "knowledge_recall": 0.5825558255582556, "translation": 0.05322053220532205, "information_extraction": 0.1080510805108051, "conversation": 0.15582155821558213, "other": 0.05229052290522905}, "complexity": null}
+{"prompt_id": "mmlu_pro-061", "task_scores": {"science_expert": 0.7206372063720636, "knowledge_recall": 0.24634246342463423, "instruction_following": 0.033020330203302035}, "complexity": null}
+{"prompt_id": "mmlu_pro-062", "task_scores": {"knowledge_quantitative": 0.05634, "knowledge_recall": 0.89733, "conversation": 0.04633}, "complexity": null}
+{"prompt_id": "mmlu_pro-063", "task_scores": {"science_expert": 0.14232, "knowledge_recall": 0.85768}, "complexity": null}
+{"prompt_id": "mmlu_pro-064", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-065", "task_scores": {"knowledge_quantitative": 0.07197, "knowledge_recall": 0.92803}, "complexity": null}
+{"prompt_id": "mmlu_pro-066", "task_scores": {"science_expert": 0.11314, "knowledge_recall": 0.88686}, "complexity": null}
+{"prompt_id": "mmlu_pro-067", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-068", "task_scores": {"science_expert": 0.03916, "knowledge_quantitative": 0.27303, "knowledge_recall": 0.68781}, "complexity": null}
+{"prompt_id": "mmlu_pro-069", "task_scores": {"knowledge_quantitative": 0.79179, "knowledge_recall": 0.20821}, "complexity": null}
+{"prompt_id": "mmlu_pro-070", "task_scores": {"knowledge_quantitative": 0.97617, "knowledge_recall": 0.02383}, "complexity": null}
+{"prompt_id": "mmlu_pro-071", "task_scores": {"knowledge_quantitative": 0.97584, "knowledge_recall": 0.02416}, "complexity": null}
+{"prompt_id": "mmlu_pro-072", "task_scores": {"knowledge_quantitative": 0.94034, "knowledge_recall": 0.05966}, "complexity": null}
+{"prompt_id": "mmlu_pro-073", "task_scores": {"knowledge_quantitative": 0.95442, "conversation": 0.04558}, "complexity": null}
+{"prompt_id": "mmlu_pro-074", "task_scores": {"science_expert": 0.04451, "knowledge_quantitative": 0.95549}, "complexity": null}
+{"prompt_id": "mmlu_pro-075", "task_scores": {"knowledge_quantitative": 0.8731, "knowledge_recall": 0.1269}, "complexity": null}
+{"prompt_id": "mmlu_pro-076", "task_scores": {"knowledge_quantitative": 0.94684, "knowledge_recall": 0.05316}, "complexity": null}
+{"prompt_id": "mmlu_pro-077", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-078", "task_scores": {"knowledge_quantitative": 0.95137, "knowledge_recall": 0.04863}, "complexity": null}
+{"prompt_id": "mmlu_pro-079", "task_scores": {"math_problem": 0.20987, "knowledge_quantitative": 0.73048, "knowledge_recall": 0.05965}, "complexity": null}
+{"prompt_id": "mmlu_pro-080", "task_scores": {"math_problem": 0.1922780772192278, "science_expert": 0.08045919540804591, "knowledge_quantitative": 0.7272627273727262}, "complexity": null}
+{"prompt_id": "mmlu_pro-081", "task_scores": {"math_problem": 0.10637, "knowledge_quantitative": 0.89363}, "complexity": null}
+{"prompt_id": "mmlu_pro-082", "task_scores": {"math_problem": 0.16482, "knowledge_quantitative": 0.83518}, "complexity": null}
+{"prompt_id": "mmlu_pro-083", "task_scores": {"math_problem": 0.02951, "knowledge_quantitative": 0.97049}, "complexity": null}
+{"prompt_id": "mmlu_pro-084", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-085", "task_scores": {"math_problem": 0.19119, "knowledge_quantitative": 0.80881}, "complexity": null}
+{"prompt_id": "mmlu_pro-086", "task_scores": {"knowledge_quantitative": 0.62991, "knowledge_recall": 0.25744, "conversation": 0.11265}, "complexity": null}
+{"prompt_id": "mmlu_pro-087", "task_scores": {"science_expert": 0.13606, "knowledge_quantitative": 0.86394}, "complexity": null}
+{"prompt_id": "mmlu_pro-088", "task_scores": {"science_expert": 0.05267, "knowledge_quantitative": 0.53973, "knowledge_recall": 0.4076}, "complexity": null}
+{"prompt_id": "mmlu_pro-089", "task_scores": {"knowledge_quantitative": 0.52609, "knowledge_recall": 0.47391}, "complexity": null}
+{"prompt_id": "mmlu_pro-090", "task_scores": {"science_expert": 0.25987, "knowledge_quantitative": 0.74013}, "complexity": null}
+{"prompt_id": "mmlu_pro-091", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-092", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-093", "task_scores": {"science_expert": 0.04108, "knowledge_quantitative": 0.93114, "tool_calling": 0.02778}, "complexity": null}
+{"prompt_id": "mmlu_pro-094", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-095", "task_scores": {"math_problem": 0.1149, "science_expert": 0.16546, "knowledge_quantitative": 0.71964}, "complexity": null}
+{"prompt_id": "mmlu_pro-096", "task_scores": {"code_function": 0.26737, "knowledge_quantitative": 0.68058, "instruction_following": 0.05205}, "complexity": null}
+{"prompt_id": "mmlu_pro-097", "task_scores": {"knowledge_quantitative": 0.45791, "knowledge_recall": 0.54209}, "complexity": null}
+{"prompt_id": "mmlu_pro-098", "task_scores": {"science_expert": 0.00514, "knowledge_quantitative": 0.98652, "knowledge_recall": 0.00834}, "complexity": null}
+{"prompt_id": "mmlu_pro-099", "task_scores": {"math_problem": 0.006139938600613993, "code_algorithmic": 0.015589844101558984, "knowledge_quantitative": 0.978270217297827}, "complexity": null}
+{"prompt_id": "mmlu_pro-100", "task_scores": {"knowledge_quantitative": 0.91875, "knowledge_recall": 0.08125}, "complexity": null}
+{"prompt_id": "mmlu_pro-101", "task_scores": {"knowledge_quantitative": 0.96354, "knowledge_recall": 0.03646}, "complexity": null}
+{"prompt_id": "mmlu_pro-102", "task_scores": {"knowledge_quantitative": 0.72907, "knowledge_recall": 0.27093}, "complexity": null}
+{"prompt_id": "mmlu_pro-103", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-104", "task_scores": {"knowledge_quantitative": 0.0158, "knowledge_recall": 0.9842}, "complexity": null}
+{"prompt_id": "mmlu_pro-105", "task_scores": {"knowledge_recall": 0.94206, "translation": 0.05794}, "complexity": null}
+{"prompt_id": "mmlu_pro-106", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-107", "task_scores": {"code_algorithmic": 0.02303, "knowledge_recall": 0.97697}, "complexity": null}
+{"prompt_id": "mmlu_pro-108", "task_scores": {"knowledge_recall": 0.95434, "instruction_following": 0.04566}, "complexity": null}
+{"prompt_id": "mmlu_pro-109", "task_scores": {"knowledge_quantitative": 0.11062, "knowledge_recall": 0.88938}, "complexity": null}
+{"prompt_id": "mmlu_pro-110", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-111", "task_scores": {"knowledge_quantitative": 0.39574, "knowledge_recall": 0.60426}, "complexity": null}
+{"prompt_id": "mmlu_pro-112", "task_scores": {"code_function": 0.10415895841041589, "science_expert": 0.14016859831401685, "knowledge_quantitative": 0.5881241187588124, "knowledge_recall": 0.16754832451675483}, "complexity": null}
+{"prompt_id": "mmlu_pro-113", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-114", "task_scores": {"math_problem": 0.04986, "knowledge_quantitative": 0.95014}, "complexity": null}
+{"prompt_id": "mmlu_pro-115", "task_scores": {"math_problem": 0.11139, "knowledge_quantitative": 0.88861}, "complexity": null}
+{"prompt_id": "mmlu_pro-116", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-117", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-118", "task_scores": {"science_expert": 0.20515, "knowledge_quantitative": 0.79485}, "complexity": null}
+{"prompt_id": "mmlu_pro-119", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "mmlu_pro-120", "task_scores": {"math_problem": 0.06139, "knowledge_quantitative": 0.93861}, "complexity": null}
+{"prompt_id": "gpqa_diamond-001", "task_scores": {"science_expert": 0.14044140441404415, "knowledge_quantitative": 0.7945079450794509, "knowledge_recall": 0.06505065050650506}, "complexity": null}
+{"prompt_id": "gpqa_diamond-002", "task_scores": {"science_expert": 0.54319, "knowledge_recall": 0.45681}, "complexity": null}
+{"prompt_id": "gpqa_diamond-003", "task_scores": {"science_expert": 0.32152, "knowledge_quantitative": 0.67848}, "complexity": null}
+{"prompt_id": "gpqa_diamond-004", "task_scores": {"science_expert": 0.16265, "knowledge_quantitative": 0.83735}, "complexity": null}
+{"prompt_id": "gpqa_diamond-005", "task_scores": {"science_expert": 0.94082, "knowledge_quantitative": 0.05918}, "complexity": null}
+{"prompt_id": "gpqa_diamond-006", "task_scores": {"science_expert": 0.71707, "knowledge_quantitative": 0.17794, "knowledge_recall": 0.10499}, "complexity": null}
+{"prompt_id": "gpqa_diamond-007", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-008", "task_scores": {"science_expert": 0.8148581485814859, "knowledge_quantitative": 0.04152041520415205, "knowledge_recall": 0.0923509235092351, "instruction_following": 0.05127051270512706}, "complexity": null}
+{"prompt_id": "gpqa_diamond-009", "task_scores": {"science_expert": 0.32019, "knowledge_quantitative": 0.67981}, "complexity": null}
+{"prompt_id": "gpqa_diamond-010", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-011", "task_scores": {"science_expert": 0.51532, "knowledge_quantitative": 0.17088, "knowledge_recall": 0.3138}, "complexity": null}
+{"prompt_id": "gpqa_diamond-012", "task_scores": {"science_expert": 0.30817, "knowledge_recall": 0.69183}, "complexity": null}
+{"prompt_id": "gpqa_diamond-013", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-014", "task_scores": {"knowledge_quantitative": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-015", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-016", "task_scores": {"science_expert": 0.48974, "knowledge_quantitative": 0.51026}, "complexity": null}
+{"prompt_id": "gpqa_diamond-017", "task_scores": {"science_expert": 0.32952, "knowledge_quantitative": 0.67048}, "complexity": null}
+{"prompt_id": "gpqa_diamond-018", "task_scores": {"science_expert": 0.27668, "knowledge_quantitative": 0.66577, "knowledge_recall": 0.05755}, "complexity": null}
+{"prompt_id": "gpqa_diamond-019", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-020", "task_scores": {"science_expert": 0.72203, "knowledge_quantitative": 0.27797}, "complexity": null}
+{"prompt_id": "gpqa_diamond-021", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-022", "task_scores": {"science_expert": 0.2288, "knowledge_quantitative": 0.71275, "knowledge_recall": 0.05845}, "complexity": null}
+{"prompt_id": "gpqa_diamond-023", "task_scores": {"science_expert": 0.70485, "knowledge_recall": 0.29515}, "complexity": null}
+{"prompt_id": "gpqa_diamond-024", "task_scores": {"science_expert": 0.81032, "knowledge_recall": 0.18968}, "complexity": null}
+{"prompt_id": "gpqa_diamond-025", "task_scores": {"science_expert": 0.66771, "knowledge_quantitative": 0.33229}, "complexity": null}
+{"prompt_id": "gpqa_diamond-026", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-027", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-028", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-029", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-030", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-031", "task_scores": {"science_expert": 0.96415, "knowledge_quantitative": 0.03585}, "complexity": null}
+{"prompt_id": "gpqa_diamond-032", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-033", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-034", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-035", "task_scores": {"science_expert": 0.94832, "knowledge_quantitative": 0.05168}, "complexity": null}
+{"prompt_id": "gpqa_diamond-036", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-037", "task_scores": {"science_expert": 0.9551, "knowledge_quantitative": 0.0449}, "complexity": null}
+{"prompt_id": "gpqa_diamond-038", "task_scores": {"science_expert": 0.97762, "knowledge_quantitative": 0.02238}, "complexity": null}
+{"prompt_id": "gpqa_diamond-039", "task_scores": {"science_expert": 0.95012, "knowledge_quantitative": 0.01745, "knowledge_recall": 0.03243}, "complexity": null}
+{"prompt_id": "gpqa_diamond-040", "task_scores": {"science_expert": 0.94822, "knowledge_quantitative": 0.05178}, "complexity": null}
+{"prompt_id": "gpqa_diamond-041", "task_scores": {"science_expert": 0.29511, "knowledge_quantitative": 0.70489}, "complexity": null}
+{"prompt_id": "gpqa_diamond-042", "task_scores": {"science_expert": 0.59684, "knowledge_quantitative": 0.40316}, "complexity": null}
+{"prompt_id": "gpqa_diamond-043", "task_scores": {"science_expert": 0.90859, "knowledge_quantitative": 0.09141}, "complexity": null}
+{"prompt_id": "gpqa_diamond-044", "task_scores": {"science_expert": 0.33344, "knowledge_quantitative": 0.66656}, "complexity": null}
+{"prompt_id": "gpqa_diamond-045", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-046", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "gpqa_diamond-047", "task_scores": {"science_expert": 0.5605, "knowledge_quantitative": 0.4395}, "complexity": null}
+{"prompt_id": "gpqa_diamond-048", "task_scores": {"science_expert": 0.98132, "knowledge_quantitative": 0.01868}, "complexity": null}
+{"prompt_id": "gpqa_diamond-049", "task_scores": {"science_expert": 0.20193, "knowledge_quantitative": 0.79807}, "complexity": null}
+{"prompt_id": "gpqa_diamond-050", "task_scores": {"science_expert": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-001", "task_scores": {"knowledge_recall": 0.92444, "instruction_following": 0.07556}, "complexity": null}
+{"prompt_id": "arc_challenge-002", "task_scores": {"knowledge_quantitative": 0.17652, "knowledge_recall": 0.82348}, "complexity": null}
+{"prompt_id": "arc_challenge-003", "task_scores": {"knowledge_quantitative": 0.79911, "knowledge_recall": 0.20089}, "complexity": null}
+{"prompt_id": "arc_challenge-004", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-005", "task_scores": {"knowledge_quantitative": 0.0611, "knowledge_recall": 0.9389}, "complexity": null}
+{"prompt_id": "arc_challenge-006", "task_scores": {"knowledge_quantitative": 0.09031, "knowledge_recall": 0.90969}, "complexity": null}
+{"prompt_id": "arc_challenge-007", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-008", "task_scores": {"science_expert": 0.04478, "knowledge_recall": 0.95522}, "complexity": null}
+{"prompt_id": "arc_challenge-009", "task_scores": {"knowledge_recall": 0.9472, "instruction_following": 0.0528}, "complexity": null}
+{"prompt_id": "arc_challenge-010", "task_scores": {"math_problem": 0.03316, "knowledge_quantitative": 0.68539, "knowledge_recall": 0.28145}, "complexity": null}
+{"prompt_id": "arc_challenge-011", "task_scores": {"knowledge_quantitative": 0.28935, "knowledge_recall": 0.71065}, "complexity": null}
+{"prompt_id": "arc_challenge-012", "task_scores": {"science_expert": 0.08926, "knowledge_quantitative": 0.7652, "knowledge_recall": 0.14554}, "complexity": null}
+{"prompt_id": "arc_challenge-013", "task_scores": {"science_expert": 0.044799552004479964, "knowledge_quantitative": 0.6496135038649614, "knowledge_recall": 0.3055869441305587}, "complexity": null}
+{"prompt_id": "arc_challenge-014", "task_scores": {"science_expert": 0.04641, "knowledge_quantitative": 0.17393, "knowledge_recall": 0.77966}, "complexity": null}
+{"prompt_id": "arc_challenge-015", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-016", "task_scores": {"knowledge_quantitative": 0.1837, "knowledge_recall": 0.8163}, "complexity": null}
+{"prompt_id": "arc_challenge-017", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-018", "task_scores": {"knowledge_quantitative": 0.04236, "knowledge_recall": 0.95764}, "complexity": null}
+{"prompt_id": "arc_challenge-019", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-020", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-021", "task_scores": {"knowledge_recall": 0.908790912090879, "translation": 0.021549784502154976, "other": 0.06965930340696593}, "complexity": null}
+{"prompt_id": "arc_challenge-022", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-023", "task_scores": {"knowledge_quantitative": 0.05396, "knowledge_recall": 0.94604}, "complexity": null}
+{"prompt_id": "arc_challenge-024", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-025", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-026", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-027", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-028", "task_scores": {"knowledge_quantitative": 0.95357, "instruction_following": 0.04643}, "complexity": null}
+{"prompt_id": "arc_challenge-029", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "arc_challenge-030", "task_scores": {"knowledge_recall": 1.0}, "complexity": null}
+{"prompt_id": "math500-001", "task_scores": {"math_problem": 0.76821, "knowledge_quantitative": 0.23179}, "complexity": null}
+{"prompt_id": "math500-002", "task_scores": {"math_problem": 0.98315, "knowledge_quantitative": 0.01685}, "complexity": null}
+{"prompt_id": "math500-003", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-004", "task_scores": {"math_problem": 0.73023, "knowledge_quantitative": 0.12508, "knowledge_recall": 0.14469}, "complexity": null}
+{"prompt_id": "math500-005", "task_scores": {"math_problem": 0.85705, "knowledge_quantitative": 0.02687, "instruction_following": 0.03185, "conversation": 0.03352, "tool_calling": 0.05071}, "complexity": null}
+{"prompt_id": "math500-006", "task_scores": {"math_problem": 0.84416, "knowledge_quantitative": 0.15584}, "complexity": null}
+{"prompt_id": "math500-007", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-008", "task_scores": {"math_problem": 0.90926, "knowledge_quantitative": 0.09074}, "complexity": null}
+{"prompt_id": "math500-009", "task_scores": {"math_problem": 0.65691, "code_function": 0.15748, "knowledge_quantitative": 0.13991, "instruction_following": 0.0457}, "complexity": null}
+{"prompt_id": "math500-010", "task_scores": {"math_problem": 0.82159, "knowledge_quantitative": 0.17841}, "complexity": null}
+{"prompt_id": "math500-011", "task_scores": {"math_problem": 0.81529, "knowledge_quantitative": 0.18471}, "complexity": null}
+{"prompt_id": "math500-012", "task_scores": {"math_problem": 0.54118, "knowledge_quantitative": 0.45882}, "complexity": null}
+{"prompt_id": "math500-013", "task_scores": {"math_problem": 0.96823, "knowledge_quantitative": 0.03177}, "complexity": null}
+{"prompt_id": "math500-014", "task_scores": {"math_problem": 0.94996, "knowledge_quantitative": 0.05004}, "complexity": null}
+{"prompt_id": "math500-015", "task_scores": {"math_problem": 0.39774, "code_algorithmic": 0.05939, "knowledge_quantitative": 0.16442, "knowledge_recall": 0.37845}, "complexity": null}
+{"prompt_id": "math500-016", "task_scores": {"math_problem": 0.14117, "knowledge_quantitative": 0.04316, "knowledge_recall": 0.04584, "instruction_following": 0.6024, "conversation": 0.16743}, "complexity": null}
+{"prompt_id": "math500-017", "task_scores": {"math_problem": 0.69819, "code_function": 0.20211, "knowledge_quantitative": 0.03578, "instruction_following": 0.03175, "conversation": 0.03217}, "complexity": null}
+{"prompt_id": "math500-018", "task_scores": {"math_problem": 0.60827, "knowledge_quantitative": 0.15098, "knowledge_recall": 0.05884, "instruction_following": 0.18191}, "complexity": null}
+{"prompt_id": "math500-019", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-020", "task_scores": {"math_problem": 0.96441, "knowledge_quantitative": 0.03559}, "complexity": null}
+{"prompt_id": "math500-021", "task_scores": {"math_problem": 0.73711, "knowledge_quantitative": 0.26289}, "complexity": null}
+{"prompt_id": "math500-022", "task_scores": {"math_problem": 0.71235, "knowledge_quantitative": 0.28765}, "complexity": null}
+{"prompt_id": "math500-023", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-024", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-025", "task_scores": {"math_problem": 0.97485, "knowledge_quantitative": 0.02515}, "complexity": null}
+{"prompt_id": "math500-026", "task_scores": {"math_problem": 0.85793, "knowledge_quantitative": 0.14207}, "complexity": null}
+{"prompt_id": "math500-027", "task_scores": {"math_problem": 0.93157, "knowledge_quantitative": 0.06843}, "complexity": null}
+{"prompt_id": "math500-028", "task_scores": {"math_problem": 0.90726, "knowledge_quantitative": 0.09274}, "complexity": null}
+{"prompt_id": "math500-029", "task_scores": {"math_problem": 0.85827, "knowledge_quantitative": 0.14173}, "complexity": null}
+{"prompt_id": "math500-030", "task_scores": {"math_problem": 0.71852, "knowledge_quantitative": 0.22235, "knowledge_recall": 0.05913}, "complexity": null}
+{"prompt_id": "math500-031", "task_scores": {"math_problem": 0.96287, "knowledge_quantitative": 0.03713}, "complexity": null}
+{"prompt_id": "math500-032", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-033", "task_scores": {"math_problem": 0.5024949750502495, "code_function": 0.05047949520504796, "knowledge_quantitative": 0.4470255297447026}, "complexity": null}
+{"prompt_id": "math500-034", "task_scores": {"math_problem": 0.97464, "knowledge_quantitative": 0.02536}, "complexity": null}
+{"prompt_id": "math500-035", "task_scores": {"math_problem": 0.7545475454754547, "code_algorithmic": 0.00048000480004800047, "knowledge_quantitative": 0.24348243482434823, "knowledge_recall": 0.0004300043000430004, "instruction_following": 0.001060010600106001}, "complexity": null}
+{"prompt_id": "math500-036", "task_scores": {"math_problem": 0.57829, "knowledge_quantitative": 0.42171}, "complexity": null}
+{"prompt_id": "math500-037", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-038", "task_scores": {"math_problem": 0.71981, "knowledge_quantitative": 0.16166, "tool_calling": 0.11853}, "complexity": null}
+{"prompt_id": "math500-039", "task_scores": {"math_problem": 0.50653, "knowledge_recall": 0.0468, "conversation": 0.29073, "other": 0.15594}, "complexity": null}
+{"prompt_id": "math500-040", "task_scores": {"math_problem": 0.98293, "knowledge_quantitative": 0.01314, "conversation": 0.00393}, "complexity": null}
+{"prompt_id": "math500-041", "task_scores": {"math_problem": 0.77363, "knowledge_quantitative": 0.17305, "knowledge_recall": 0.05332}, "complexity": null}
+{"prompt_id": "math500-042", "task_scores": {"math_problem": 0.799, "knowledge_quantitative": 0.201}, "complexity": null}
+{"prompt_id": "math500-043", "task_scores": {"math_problem": 0.7324, "code_function": 0.21854, "code_algorithmic": 0.04906}, "complexity": null}
+{"prompt_id": "math500-044", "task_scores": {"math_problem": 0.54784, "knowledge_quantitative": 0.45216}, "complexity": null}
+{"prompt_id": "math500-045", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-046", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-047", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-048", "task_scores": {"math_problem": 0.94054, "knowledge_quantitative": 0.04509, "conversation": 0.01437}, "complexity": null}
+{"prompt_id": "math500-049", "task_scores": {"math_problem": 0.82345, "code_function": 0.17655}, "complexity": null}
+{"prompt_id": "math500-050", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-051", "task_scores": {"math_problem": 0.70496, "knowledge_quantitative": 0.23447, "creative_writing": 0.06057}, "complexity": null}
+{"prompt_id": "math500-052", "task_scores": {"math_problem": 0.80116, "code_function": 0.16999, "knowledge_quantitative": 0.02885}, "complexity": null}
+{"prompt_id": "math500-053", "task_scores": {"math_problem": 0.75126, "code_function": 0.1862, "code_algorithmic": 0.02866, "conversation": 0.03388}, "complexity": null}
+{"prompt_id": "math500-054", "task_scores": {"math_problem": 0.89935, "knowledge_quantitative": 0.10065}, "complexity": null}
+{"prompt_id": "math500-055", "task_scores": {"math_problem": 0.93282, "knowledge_quantitative": 0.03675, "instruction_following": 0.03043}, "complexity": null}
+{"prompt_id": "math500-056", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-057", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-058", "task_scores": {"math_problem": 0.81931, "knowledge_quantitative": 0.18069}, "complexity": null}
+{"prompt_id": "math500-059", "task_scores": {"math_problem": 0.88958, "knowledge_quantitative": 0.11042}, "complexity": null}
+{"prompt_id": "math500-060", "task_scores": {"math_problem": 0.75186, "code_function": 0.05005, "code_algorithmic": 0.07449, "knowledge_quantitative": 0.1236}, "complexity": null}
+{"prompt_id": "math500-061", "task_scores": {"math_problem": 0.99532, "knowledge_quantitative": 0.00468}, "complexity": null}
+{"prompt_id": "math500-062", "task_scores": {"math_problem": 0.7602, "code_algorithmic": 0.06679, "knowledge_quantitative": 0.17301}, "complexity": null}
+{"prompt_id": "math500-063", "task_scores": {"math_problem": 0.94967, "knowledge_quantitative": 0.05033}, "complexity": null}
+{"prompt_id": "math500-064", "task_scores": {"math_problem": 0.9134991349913499, "knowledge_quantitative": 0.043420434204342044, "knowledge_recall": 0.04308043080430804}, "complexity": null}
+{"prompt_id": "math500-065", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-066", "task_scores": {"math_problem": 0.84098, "science_expert": 0.06566, "knowledge_quantitative": 0.09336}, "complexity": null}
+{"prompt_id": "math500-067", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-068", "task_scores": {"math_problem": 0.85793, "knowledge_quantitative": 0.14207}, "complexity": null}
+{"prompt_id": "math500-069", "task_scores": {"math_problem": 0.8088, "knowledge_quantitative": 0.1912}, "complexity": null}
+{"prompt_id": "math500-070", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-071", "task_scores": {"math_problem": 0.8981, "code_function": 0.1019}, "complexity": null}
+{"prompt_id": "math500-072", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-073", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-074", "task_scores": {"math_problem": 0.91321, "knowledge_quantitative": 0.08679}, "complexity": null}
+{"prompt_id": "math500-075", "task_scores": {"math_problem": 0.83939, "knowledge_quantitative": 0.16061}, "complexity": null}
+{"prompt_id": "math500-076", "task_scores": {"math_problem": 0.94364, "knowledge_quantitative": 0.05636}, "complexity": null}
+{"prompt_id": "math500-077", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-078", "task_scores": {"math_problem": 0.95336, "knowledge_quantitative": 0.04664}, "complexity": null}
+{"prompt_id": "math500-079", "task_scores": {"math_problem": 0.90753, "knowledge_quantitative": 0.09247}, "complexity": null}
+{"prompt_id": "math500-080", "task_scores": {"math_problem": 0.86021, "knowledge_quantitative": 0.13979}, "complexity": null}
+{"prompt_id": "math500-081", "task_scores": {"math_problem": 0.83814, "knowledge_quantitative": 0.16186}, "complexity": null}
+{"prompt_id": "math500-082", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-083", "task_scores": {"math_problem": 0.80053, "knowledge_quantitative": 0.19947}, "complexity": null}
+{"prompt_id": "math500-084", "task_scores": {"math_problem": 0.83114, "knowledge_quantitative": 0.16886}, "complexity": null}
+{"prompt_id": "math500-085", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-086", "task_scores": {"math_problem": 0.75359, "code_function": 0.12227, "knowledge_quantitative": 0.02523, "tool_calling": 0.09891}, "complexity": null}
+{"prompt_id": "math500-087", "task_scores": {"math_problem": 0.85964, "knowledge_quantitative": 0.14036}, "complexity": null}
+{"prompt_id": "math500-088", "task_scores": {"math_problem": 0.66218, "knowledge_quantitative": 0.33782}, "complexity": null}
+{"prompt_id": "math500-089", "task_scores": {"math_problem": 0.87481, "knowledge_quantitative": 0.12519}, "complexity": null}
+{"prompt_id": "math500-090", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-091", "task_scores": {"math_problem": 0.9791, "science_expert": 0.0209}, "complexity": null}
+{"prompt_id": "math500-092", "task_scores": {"math_problem": 0.94573, "knowledge_quantitative": 0.05427}, "complexity": null}
+{"prompt_id": "math500-093", "task_scores": {"math_problem": 0.83046, "code_algorithmic": 0.16954}, "complexity": null}
+{"prompt_id": "math500-094", "task_scores": {"math_problem": 0.74647, "knowledge_quantitative": 0.25353}, "complexity": null}
+{"prompt_id": "math500-095", "task_scores": {"math_problem": 0.96363, "knowledge_quantitative": 0.03637}, "complexity": null}
+{"prompt_id": "math500-096", "task_scores": {"math_problem": 0.6424864248642487, "knowledge_quantitative": 0.2803928039280392, "conversation": 0.07712077120771207}, "complexity": null}
+{"prompt_id": "math500-097", "task_scores": {"math_problem": 0.94102, "knowledge_quantitative": 0.05898}, "complexity": null}
+{"prompt_id": "math500-098", "task_scores": {"math_problem": 0.7883, "code_function": 0.1016, "knowledge_quantitative": 0.1101}, "complexity": null}
+{"prompt_id": "math500-099", "task_scores": {"math_problem": 0.8487915120848791, "code_function": 0.042669573304266954, "knowledge_quantitative": 0.044989550104498954, "conversation": 0.06354936450635493}, "complexity": null}
+{"prompt_id": "math500-100", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-101", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-102", "task_scores": {"math_problem": 0.83422, "code_function": 0.07294, "code_algorithmic": 0.04569, "knowledge_quantitative": 0.04715}, "complexity": null}
+{"prompt_id": "math500-103", "task_scores": {"math_problem": 0.90684, "knowledge_quantitative": 0.09316}, "complexity": null}
+{"prompt_id": "math500-104", "task_scores": {"math_problem": 0.95522, "knowledge_quantitative": 0.04478}, "complexity": null}
+{"prompt_id": "math500-105", "task_scores": {"math_problem": 0.8659986599865999, "knowledge_quantitative": 0.13400134001340014}, "complexity": null}
+{"prompt_id": "math500-106", "task_scores": {"math_problem": 0.89426, "knowledge_quantitative": 0.05534, "tool_calling": 0.0504}, "complexity": null}
+{"prompt_id": "math500-107", "task_scores": {"math_problem": 0.85764, "code_function": 0.10028, "knowledge_quantitative": 0.04208}, "complexity": null}
+{"prompt_id": "math500-108", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-109", "task_scores": {"math_problem": 0.96612, "knowledge_quantitative": 0.03388}, "complexity": null}
+{"prompt_id": "math500-110", "task_scores": {"math_problem": 0.89503, "code_function": 0.04142, "knowledge_quantitative": 0.06355}, "complexity": null}
+{"prompt_id": "math500-111", "task_scores": {"math_problem": 0.1254, "knowledge_quantitative": 0.055, "knowledge_recall": 0.77883, "creative_writing": 0.01993, "conversation": 0.02084}, "complexity": null}
+{"prompt_id": "math500-112", "task_scores": {"math_problem": 0.933509335093351, "knowledge_quantitative": 0.06649066490664907}, "complexity": null}
+{"prompt_id": "math500-113", "task_scores": {"math_problem": 0.9709, "knowledge_quantitative": 0.0291}, "complexity": null}
+{"prompt_id": "math500-114", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-115", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-116", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-117", "task_scores": {"math_problem": 0.18067180671806718, "science_expert": 0.1025510255102551, "knowledge_quantitative": 0.39858398583985843, "knowledge_recall": 0.15597155971559717, "instruction_following": 0.055550555505555065, "conversation": 0.05422054220542206, "tool_calling": 0.05245052450524505}, "complexity": null}
+{"prompt_id": "math500-118", "task_scores": {"math_problem": 0.2824771752282477, "code_algorithmic": 0.043289567104328956, "knowledge_quantitative": 0.49003509964900344, "knowledge_recall": 0.0947890521094789, "instruction_following": 0.04347956520434795, "information_extraction": 0.04592954070459295}, "complexity": null}
+{"prompt_id": "math500-119", "task_scores": {"math_problem": 0.90503, "knowledge_quantitative": 0.0472, "knowledge_recall": 0.04777}, "complexity": null}
+{"prompt_id": "math500-120", "task_scores": {"math_problem": 0.64777, "knowledge_quantitative": 0.14536, "tool_calling": 0.20687}, "complexity": null}
+{"prompt_id": "math500-121", "task_scores": {"math_problem": 0.7577224227757722, "knowledge_recall": 0.04217957820421796, "instruction_following": 0.03690963090369096, "conversation": 0.052809471905280944, "other": 0.11037889621103789}, "complexity": null}
+{"prompt_id": "math500-122", "task_scores": {"math_problem": 0.89476, "knowledge_quantitative": 0.10524}, "complexity": null}
+{"prompt_id": "math500-123", "task_scores": {"math_problem": 0.95018, "knowledge_quantitative": 0.04982}, "complexity": null}
+{"prompt_id": "math500-124", "task_scores": {"math_problem": 0.88782, "knowledge_quantitative": 0.11218}, "complexity": null}
+{"prompt_id": "math500-125", "task_scores": {"math_problem": 0.2295722957229572, "knowledge_quantitative": 0.5465954659546596, "knowledge_recall": 0.18270182701827017, "tool_calling": 0.04113041130411304}, "complexity": null}
+{"prompt_id": "math500-126", "task_scores": {"math_problem": 0.8723187231872319, "knowledge_quantitative": 0.05605056050560506, "tool_calling": 0.07163071630716307}, "complexity": null}
+{"prompt_id": "math500-127", "task_scores": {"math_problem": 0.87505, "knowledge_quantitative": 0.12495}, "complexity": null}
+{"prompt_id": "math500-128", "task_scores": {"math_problem": 0.7896, "knowledge_quantitative": 0.2104}, "complexity": null}
+{"prompt_id": "math500-129", "task_scores": {"math_problem": 0.83591, "knowledge_quantitative": 0.16409}, "complexity": null}
+{"prompt_id": "math500-130", "task_scores": {"math_problem": 0.68886, "knowledge_quantitative": 0.31114}, "complexity": null}
+{"prompt_id": "math500-131", "task_scores": {"math_problem": 0.98233, "knowledge_quantitative": 0.01767}, "complexity": null}
+{"prompt_id": "math500-132", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-133", "task_scores": {"math_problem": 0.85021, "knowledge_quantitative": 0.14979}, "complexity": null}
+{"prompt_id": "math500-134", "task_scores": {"math_problem": 0.65417, "code_function": 0.03226, "knowledge_quantitative": 0.31357}, "complexity": null}
+{"prompt_id": "math500-135", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-136", "task_scores": {"math_problem": 0.997280027199728, "knowledge_quantitative": 0.0027199728002719973}, "complexity": null}
+{"prompt_id": "math500-137", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-138", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-139", "task_scores": {"math_problem": 0.98465, "knowledge_quantitative": 0.01535}, "complexity": null}
+{"prompt_id": "math500-140", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-141", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-142", "task_scores": {"math_problem": 0.90696, "knowledge_quantitative": 0.04631, "tool_calling": 0.04673}, "complexity": null}
+{"prompt_id": "math500-143", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-144", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-145", "task_scores": {"math_problem": 0.89534, "knowledge_quantitative": 0.05393, "instruction_following": 0.05073}, "complexity": null}
+{"prompt_id": "math500-146", "task_scores": {"math_problem": 1.0}, "complexity": null}
+{"prompt_id": "math500-147", "task_scores": {"math_problem": 0.92923, "knowledge_quantitative": 0.07077}, "complexity": null}
+{"prompt_id": "math500-148", "task_scores": {"math_problem": 0.930180698193018, "code_function": 0.06981930180698191}, "complexity": null}
+{"prompt_id": "math500-149", "task_scores": {"math_problem": 0.98278, "instruction_following": 0.01722}, "complexity": null}
+{"prompt_id": "math500-150", "task_scores": {"math_problem": 0.92982, "knowledge_quantitative": 0.07018}, "complexity": null}
+{"prompt_id": "ifeval-001", "task_scores": {"instruction_following": 0.3625963740362596, "translation": 0.1836481635183648, "creative_writing": 0.14968850311496884, "conversation": 0.25092749072509274, "other": 0.05313946860531394}, "complexity": null}
+{"prompt_id": "ifeval-002", "task_scores": {"instruction_following": 0.76727, "creative_writing": 0.18824, "conversation": 0.04449}, "complexity": null}
+{"prompt_id": "ifeval-003", "task_scores": {"knowledge_recall": 0.11797882021179787, "instruction_following": 0.42806571934280657, "translation": 0.042319576804231956, "creative_writing": 0.14563854361456383, "conversation": 0.26599734002659975}, "complexity": null}
+{"prompt_id": "ifeval-004", "task_scores": {"knowledge_recall": 0.24863, "instruction_following": 0.34249, "business_writing": 0.06434, "creative_writing": 0.05346, "conversation": 0.29108}, "complexity": null}
+{"prompt_id": "ifeval-005", "task_scores": {"knowledge_recall": 0.05382053820538205, "instruction_following": 0.21510215102151023, "translation": 0.5627456274562745, "information_extraction": 0.05524055240552405, "creative_writing": 0.11309113091130911}, "complexity": null}
+{"prompt_id": "ifeval-006", "task_scores": {"code_algorithmic": 0.05499945000549994, "instruction_following": 0.6745932540674593, "translation": 0.062369376306236936, "conversation": 0.15282847171528283, "other": 0.055209447905520945}, "complexity": null}
+{"prompt_id": "ifeval-007", "task_scores": {"instruction_following": 0.73819, "translation": 0.0291, "creative_writing": 0.16771, "conversation": 0.065}, "complexity": null}
+{"prompt_id": "ifeval-008", "task_scores": {"knowledge_recall": 0.06445, "instruction_following": 0.81071, "creative_writing": 0.12484}, "complexity": null}
+{"prompt_id": "ifeval-009", "task_scores": {"knowledge_quantitative": 0.03614, "instruction_following": 0.46086, "creative_writing": 0.11088, "conversation": 0.35529, "other": 0.03683}, "complexity": null}
+{"prompt_id": "ifeval-010", "task_scores": {"instruction_following": 0.72361, "translation": 0.04718, "conversation": 0.22921}, "complexity": null}
+{"prompt_id": "ifeval-011", "task_scores": {"knowledge_recall": 0.06090939090609093, "instruction_following": 0.24931750682493176, "summarization": 0.0900990990090099, "translation": 0.053349466505334946, "creative_writing": 0.20615793842061578, "conversation": 0.34016659833401663}, "complexity": null}
+{"prompt_id": "ifeval-012", "task_scores": {"knowledge_recall": 0.08433915660843391, "instruction_following": 0.12003879961200387, "information_extraction": 0.2845571544284557, "creative_writing": 0.4633453665463345, "conversation": 0.04771952280477195}, "complexity": null}
+{"prompt_id": "ifeval-013", "task_scores": {"knowledge_recall": 0.35911, "instruction_following": 0.05169, "translation": 0.08381, "conversation": 0.28511, "other": 0.22028}, "complexity": null}
+{"prompt_id": "ifeval-014", "task_scores": {"knowledge_recall": 0.23156, "instruction_following": 0.18492, "business_writing": 0.07964, "summarization": 0.11281, "translation": 0.06751, "creative_writing": 0.09052, "conversation": 0.18099, "other": 0.05205}, "complexity": null}
+{"prompt_id": "ifeval-015", "task_scores": {"instruction_following": 0.56474, "translation": 0.08056, "creative_writing": 0.19551, "conversation": 0.15919}, "complexity": null}
+{"prompt_id": "ifeval-016", "task_scores": {"knowledge_recall": 0.1897581024189758, "instruction_following": 0.4359456405435945, "creative_writing": 0.2147078529214708, "conversation": 0.15958840411595884}, "complexity": null}
+{"prompt_id": "ifeval-017", "task_scores": {"instruction_following": 0.45154, "creative_writing": 0.54846}, "complexity": null}
+{"prompt_id": "ifeval-018", "task_scores": {"instruction_following": 0.77163, "creative_writing": 0.22837}, "complexity": null}
+{"prompt_id": "ifeval-019", "task_scores": {"instruction_following": 0.458, "creative_writing": 0.49619, "conversation": 0.04581}, "complexity": null}
+{"prompt_id": "ifeval-020", "task_scores": {"knowledge_recall": 0.05287, "instruction_following": 0.35475, "business_writing": 0.36365, "creative_writing": 0.10951, "conversation": 0.11922}, "complexity": null}
+{"prompt_id": "ifeval-021", "task_scores": {"knowledge_recall": 0.05445, "instruction_following": 0.73697, "information_extraction": 0.05317, "creative_writing": 0.15541}, "complexity": null}
+{"prompt_id": "ifeval-022", "task_scores": {"instruction_following": 0.93323, "creative_writing": 0.06677}, "complexity": null}
+{"prompt_id": "ifeval-023", "task_scores": {"knowledge_recall": 0.5036750367503675, "instruction_following": 0.11240112401124012, "translation": 0.10799107991079912, "creative_writing": 0.05288052880528806, "conversation": 0.22305223052230524}, "complexity": null}
+{"prompt_id": "ifeval-024", "task_scores": {"knowledge_recall": 0.037989620103798964, "instruction_following": 0.5734842651573484, "creative_writing": 0.3251667483325167, "conversation": 0.06335936640633594}, "complexity": null}
+{"prompt_id": "ifeval-025", "task_scores": {"instruction_following": 0.04103, "creative_writing": 0.94701, "conversation": 0.01196}, "complexity": null}
+{"prompt_id": "ifeval-026", "task_scores": {"instruction_following": 0.10091, "translation": 0.07934, "creative_writing": 0.74382, "conversation": 0.07593}, "complexity": null}
+{"prompt_id": "ifeval-027", "task_scores": {"instruction_following": 0.19272, "translation": 0.64202, "creative_writing": 0.16526}, "complexity": null}
+{"prompt_id": "ifeval-028", "task_scores": {"knowledge_recall": 0.2090379096209038, "instruction_following": 0.041419585804141956, "translation": 0.05917940820591794, "information_extraction": 0.1951680483195168, "creative_writing": 0.04932950670493295, "conversation": 0.30393696063039366, "other": 0.14192858071419284}, "complexity": null}
+{"prompt_id": "ifeval-029", "task_scores": {"knowledge_quantitative": 0.0995390046099539, "knowledge_recall": 0.11407885921140788, "instruction_following": 0.055209447905520945, "translation": 0.05880941190588094, "conversation": 0.6374036259637403, "other": 0.03495965040349596}, "complexity": null}
+{"prompt_id": "ifeval-030", "task_scores": {"knowledge_recall": 0.06167, "instruction_following": 0.58629, "translation": 0.12395, "creative_writing": 0.12056, "conversation": 0.10753}, "complexity": null}
+{"prompt_id": "ifeval-031", "task_scores": {"instruction_following": 0.53612, "creative_writing": 0.41946, "conversation": 0.04442}, "complexity": null}
+{"prompt_id": "ifeval-032", "task_scores": {"instruction_following": 0.81294, "creative_writing": 0.06966, "conversation": 0.06247, "other": 0.05493}, "complexity": null}
+{"prompt_id": "ifeval-033", "task_scores": {"knowledge_recall": 0.32786, "instruction_following": 0.38151, "business_writing": 0.04585, "summarization": 0.06177, "translation": 0.04008, "conversation": 0.14293}, "complexity": null}
+{"prompt_id": "ifeval-034", "task_scores": {"knowledge_recall": 0.03412, "instruction_following": 0.08985, "translation": 0.10274, "creative_writing": 0.18889, "conversation": 0.5844}, "complexity": null}
+{"prompt_id": "ifeval-035", "task_scores": {"science_expert": 0.1153, "knowledge_recall": 0.22446, "instruction_following": 0.46251, "translation": 0.19773}, "complexity": null}
+{"prompt_id": "ifeval-036", "task_scores": {"knowledge_quantitative": 0.04731, "knowledge_recall": 0.11368, "instruction_following": 0.27565, "business_writing": 0.05015, "translation": 0.08145, "creative_writing": 0.35148, "conversation": 0.08028}, "complexity": null}
+{"prompt_id": "ifeval-037", "task_scores": {"knowledge_quantitative": 0.05417, "knowledge_recall": 0.1029, "instruction_following": 0.38639, "business_writing": 0.2359, "translation": 0.06006, "creative_writing": 0.05703, "conversation": 0.10355}, "complexity": null}
+{"prompt_id": "ifeval-038", "task_scores": {"instruction_following": 0.8669786697866978, "translation": 0.08140081400814007, "conversation": 0.051620516205162045}, "complexity": null}
+{"prompt_id": "ifeval-039", "task_scores": {"instruction_following": 0.65077, "translation": 0.06158, "creative_writing": 0.22443, "conversation": 0.06322}, "complexity": null}
+{"prompt_id": "ifeval-040", "task_scores": {"instruction_following": 0.5050849491505085, "translation": 0.06590934090659092, "creative_writing": 0.15603843961560385, "conversation": 0.2729672703272967}, "complexity": null}
+{"prompt_id": "ifeval-041", "task_scores": {"knowledge_recall": 0.06434064340643406, "instruction_following": 0.11822118221182212, "translation": 0.0962109621096211, "creative_writing": 0.45939459394593946, "conversation": 0.26183261832618326}, "complexity": null}
+{"prompt_id": "ifeval-042", "task_scores": {"knowledge_quantitative": 0.05645, "knowledge_recall": 0.46504, "instruction_following": 0.162, "conversation": 0.31651}, "complexity": null}
+{"prompt_id": "ifeval-043", "task_scores": {"instruction_following": 0.69076, "creative_writing": 0.10908, "conversation": 0.06018, "tool_calling": 0.13998}, "complexity": null}
+{"prompt_id": "ifeval-044", "task_scores": {"knowledge_recall": 0.05862058620586206, "translation": 0.05448054480544806, "creative_writing": 0.36676366763667634, "conversation": 0.4520445204452045, "other": 0.06809068090680907}, "complexity": null}
+{"prompt_id": "ifeval-045", "task_scores": {"instruction_following": 0.35461, "creative_writing": 0.43314, "conversation": 0.21225}, "complexity": null}
+{"prompt_id": "ifeval-046", "task_scores": {"knowledge_recall": 0.04548954510454895, "instruction_following": 0.8067219327806721, "business_writing": 0.04391956080439195, "conversation": 0.060349396506034936, "other": 0.04351956480435196}, "complexity": null}
+{"prompt_id": "ifeval-047", "task_scores": {"instruction_following": 0.22247, "translation": 0.26351, "creative_writing": 0.0516, "conversation": 0.46242}, "complexity": null}
+{"prompt_id": "ifeval-048", "task_scores": {"instruction_following": 0.05408, "translation": 0.94592}, "complexity": null}
+{"prompt_id": "ifeval-049", "task_scores": {"instruction_following": 0.20996, "translation": 0.27772, "creative_writing": 0.06812, "conversation": 0.4442}, "complexity": null}
+{"prompt_id": "ifeval-050", "task_scores": {"knowledge_recall": 0.05203, "instruction_following": 0.17736, "creative_writing": 0.72296, "conversation": 0.04765}, "complexity": null}
+{"prompt_id": "ifeval-051", "task_scores": {"knowledge_quantitative": 0.13438, "knowledge_recall": 0.32813, "instruction_following": 0.13029, "summarization": 0.08848, "translation": 0.05127, "information_extraction": 0.26745}, "complexity": null}
+{"prompt_id": "ifeval-052", "task_scores": {"knowledge_quantitative": 0.05042, "knowledge_recall": 0.4208, "instruction_following": 0.18379, "translation": 0.08952, "conversation": 0.13281, "other": 0.12266}, "complexity": null}
+{"prompt_id": "ifeval-053", "task_scores": {"instruction_following": 1.0}, "complexity": null}
+{"prompt_id": "ifeval-054", "task_scores": {"knowledge_recall": 0.05022, "instruction_following": 0.63691, "translation": 0.31287}, "complexity": null}
+{"prompt_id": "ifeval-055", "task_scores": {"knowledge_recall": 0.0296, "instruction_following": 0.09907, "summarization": 0.03105, "information_extraction": 0.2699, "conversation": 0.57038}, "complexity": null}
+{"prompt_id": "ifeval-056", "task_scores": {"knowledge_recall": 0.20699206992069924, "instruction_following": 0.1723317233172332, "translation": 0.25331253312533125, "creative_writing": 0.1068310683106831, "conversation": 0.26053260532605327}, "complexity": null}
+{"prompt_id": "ifeval-057", "task_scores": {"instruction_following": 0.1353, "creative_writing": 0.57429, "conversation": 0.29041}, "complexity": null}
+{"prompt_id": "ifeval-058", "task_scores": {"instruction_following": 0.90634, "conversation": 0.09366}, "complexity": null}
+{"prompt_id": "ifeval-059", "task_scores": {"knowledge_recall": 0.2131121311213112, "instruction_following": 0.2509325093250932, "translation": 0.16971169711697115, "creative_writing": 0.22317223172231723, "conversation": 0.05152051520515205, "other": 0.09155091550915509}, "complexity": null}
+{"prompt_id": "ifeval-060", "task_scores": {"instruction_following": 0.86676, "summarization": 0.06788, "other": 0.06536}, "complexity": null}
+{"prompt_id": "ifeval-061", "task_scores": {"instruction_following": 0.4271, "translation": 0.11279, "creative_writing": 0.32357, "conversation": 0.13654}, "complexity": null}
+{"prompt_id": "ifeval-062", "task_scores": {"knowledge_recall": 0.4651453485465145, "instruction_following": 0.16088839111608882, "creative_writing": 0.32127678723212766, "conversation": 0.05268947310526895}, "complexity": null}
+{"prompt_id": "ifeval-063", "task_scores": {"knowledge_quantitative": 0.0527, "instruction_following": 0.67242, "creative_writing": 0.05922, "conversation": 0.16507, "other": 0.05059}, "complexity": null}
+{"prompt_id": "ifeval-064", "task_scores": {"instruction_following": 0.09481, "translation": 0.85471, "conversation": 0.05048}, "complexity": null}
+{"prompt_id": "ifeval-065", "task_scores": {"creative_writing": 0.19116, "conversation": 0.49921, "other": 0.30963}, "complexity": null}
+{"prompt_id": "ifeval-066", "task_scores": {"knowledge_recall": 0.08888, "instruction_following": 0.88036, "creative_writing": 0.03076}, "complexity": null}
+{"prompt_id": "ifeval-067", "task_scores": {"knowledge_recall": 0.06652, "instruction_following": 0.72785, "creative_writing": 0.10114, "conversation": 0.10449}, "complexity": null}
+{"prompt_id": "ifeval-068", "task_scores": {"knowledge_recall": 0.07952, "instruction_following": 0.25421, "translation": 0.08815, "creative_writing": 0.41833, "conversation": 0.15979}, "complexity": null}
+{"prompt_id": "ifeval-069", "task_scores": {"instruction_following": 0.7263, "conversation": 0.12263, "other": 0.15107}, "complexity": null}
+{"prompt_id": "ifeval-070", "task_scores": {"knowledge_recall": 0.03982, "instruction_following": 0.09857, "information_extraction": 0.02618, "creative_writing": 0.77341, "conversation": 0.06202}, "complexity": null}
+{"prompt_id": "ifeval-071", "task_scores": {"knowledge_quantitative": 0.1879218792187922, "knowledge_recall": 0.2733827338273383, "instruction_following": 0.11465114651146512, "summarization": 0.08245082450824508, "translation": 0.16846168461684616, "conversation": 0.17313173131731316}, "complexity": null}
+{"prompt_id": "ifeval-072", "task_scores": {"knowledge_recall": 0.12440124401244013, "instruction_following": 0.04791047910479105, "information_extraction": 0.05940059400594006, "creative_writing": 0.4992649926499265, "conversation": 0.2690226902269023}, "complexity": null}
+{"prompt_id": "ifeval-073", "task_scores": {"instruction_following": 0.54329, "translation": 0.06821, "creative_writing": 0.05299, "conversation": 0.33551}, "complexity": null}
+{"prompt_id": "ifeval-074", "task_scores": {"knowledge_recall": 0.08091919080809191, "instruction_following": 0.06435935640643593, "summarization": 0.049079509204907945, "conversation": 0.6428435715642844, "tool_calling": 0.16279837201627984}, "complexity": null}
+{"prompt_id": "ifeval-075", "task_scores": {"knowledge_recall": 0.04770952290477095, "instruction_following": 0.46470535294647053, "translation": 0.3127968720312797, "creative_writing": 0.05680943190568094, "conversation": 0.11797882021179787}, "complexity": null}
+{"prompt_id": "ifeval-076", "task_scores": {"instruction_following": 0.29179291792917933, "translation": 0.25497254972549727, "creative_writing": 0.08334083340833409, "conversation": 0.36989369893698937}, "complexity": null}
+{"prompt_id": "ifeval-077", "task_scores": {"instruction_following": 0.45421, "translation": 0.09664, "creative_writing": 0.27294, "conversation": 0.17621}, "complexity": null}
+{"prompt_id": "ifeval-078", "task_scores": {"knowledge_recall": 0.14112, "instruction_following": 0.62657, "translation": 0.05162, "conversation": 0.18069}, "complexity": null}
+{"prompt_id": "ifeval-079", "task_scores": {"instruction_following": 0.2637673623263767, "translation": 0.6222437775622243, "information_extraction": 0.05963940360596393, "conversation": 0.05434945650543494}, "complexity": null}
+{"prompt_id": "ifeval-080", "task_scores": {"math_problem": 0.1534, "knowledge_quantitative": 0.20647, "instruction_following": 0.64013}, "complexity": null}
+{"prompt_id": "writingbench_business-001", "task_scores": {"knowledge_recall": 0.06318063180631805, "business_writing": 0.7037770377703777, "translation": 0.09190091900919008, "creative_writing": 0.051680516805168046, "conversation": 0.08946089460894609}, "complexity": null}
+{"prompt_id": "writingbench_business-002", "task_scores": {"knowledge_recall": 0.03455034550345503, "instruction_following": 0.02885028850288503, "business_writing": 0.879428794287943, "creative_writing": 0.030880308803088036, "other": 0.02629026290262903}, "complexity": null}
+{"prompt_id": "writingbench_business-003", "task_scores": {"knowledge_quantitative": 0.04188, "business_writing": 0.80007, "translation": 0.07892, "information_extraction": 0.07913}, "complexity": null}
+{"prompt_id": "writingbench_business-004", "task_scores": {"business_writing": 0.94076, "conversation": 0.05924}, "complexity": null}
+{"prompt_id": "writingbench_business-005", "task_scores": {"instruction_following": 0.18475, "business_writing": 0.24916, "translation": 0.03071, "information_extraction": 0.08131, "creative_writing": 0.09774, "conversation": 0.35633}, "complexity": null}
+{"prompt_id": "writingbench_business-006", "task_scores": {"business_writing": 0.88429, "translation": 0.06078, "information_extraction": 0.02373, "conversation": 0.0312}, "complexity": null}
+{"prompt_id": "writingbench_business-007", "task_scores": {"business_writing": 0.27954, "translation": 0.11517, "information_extraction": 0.28563, "creative_writing": 0.05236, "conversation": 0.21268, "other": 0.05462}, "complexity": null}
+{"prompt_id": "writingbench_business-008", "task_scores": {"instruction_following": 0.16133838661613384, "business_writing": 0.6519834801651982, "translation": 0.11017889821101788, "conversation": 0.07649923500764992}, "complexity": null}
+{"prompt_id": "writingbench_business-009", "task_scores": {"instruction_following": 0.07878, "business_writing": 0.8612, "creative_writing": 0.06002}, "complexity": null}
+{"prompt_id": "writingbench_business-010", "task_scores": {"knowledge_recall": 0.07684923150768493, "instruction_following": 0.0958190418095819, "business_writing": 0.3507464925350746, "translation": 0.3688863111368886, "creative_writing": 0.05888941110588893, "conversation": 0.04880951190488095}, "complexity": null}
+{"prompt_id": "writingbench_business-011", "task_scores": {"knowledge_recall": 0.10251, "instruction_following": 0.27337, "business_writing": 0.31274, "creative_writing": 0.15626, "conversation": 0.15512}, "complexity": null}
+{"prompt_id": "writingbench_business-012", "task_scores": {"knowledge_quantitative": 0.00803, "instruction_following": 0.0418, "business_writing": 0.92097, "creative_writing": 0.0292}, "complexity": null}
+{"prompt_id": "writingbench_business-013", "task_scores": {"knowledge_recall": 0.61848, "business_writing": 0.38152}, "complexity": null}
+{"prompt_id": "writingbench_business-014", "task_scores": {"instruction_following": 0.14139, "business_writing": 0.83241, "translation": 0.0262}, "complexity": null}
+{"prompt_id": "writingbench_business-015", "task_scores": {"business_writing": 1.0}, "complexity": null}
+{"prompt_id": "writingbench_business-016", "task_scores": {"instruction_following": 0.04725, "business_writing": 0.80985, "information_extraction": 0.06781, "conversation": 0.07509}, "complexity": null}
+{"prompt_id": "writingbench_business-017", "task_scores": {"instruction_following": 0.00317, "business_writing": 0.9782, "translation": 0.00337, "creative_writing": 0.01149, "other": 0.00377}, "complexity": null}
+{"prompt_id": "writingbench_business-018", "task_scores": {"instruction_following": 0.03423, "business_writing": 0.9309, "translation": 0.03487}, "complexity": null}
+{"prompt_id": "writingbench_business-019", "task_scores": {"knowledge_quantitative": 0.04725, "instruction_following": 0.10427, "business_writing": 0.08596, "translation": 0.04872, "conversation": 0.7138}, "complexity": null}
+{"prompt_id": "writingbench_business-020", "task_scores": {"instruction_following": 0.05408, "business_writing": 0.88244, "translation": 0.00887, "conversation": 0.05461}, "complexity": null}
+{"prompt_id": "writingbench_business-021", "task_scores": {"knowledge_quantitative": 0.02186, "business_writing": 0.4816, "summarization": 0.06929, "translation": 0.20034, "information_extraction": 0.05587, "creative_writing": 0.12832, "conversation": 0.04272}, "complexity": null}
+{"prompt_id": "writingbench_business-022", "task_scores": {"instruction_following": 0.02984, "business_writing": 0.60448, "translation": 0.03366, "creative_writing": 0.23431, "conversation": 0.09771}, "complexity": null}
+{"prompt_id": "writingbench_business-023", "task_scores": {"instruction_following": 0.16179838201617983, "business_writing": 0.11027889721102789, "summarization": 0.12376876231237688, "translation": 0.10935890641093589, "creative_writing": 0.21880781192188078, "conversation": 0.27598724012759873}, "complexity": null}
+{"prompt_id": "writingbench_business-024", "task_scores": {"instruction_following": 0.00935, "business_writing": 0.97789, "translation": 0.00173, "information_extraction": 0.00152, "creative_writing": 0.00252, "conversation": 0.00205, "tool_calling": 0.00494}, "complexity": null}
+{"prompt_id": "writingbench_business-025", "task_scores": {"business_writing": 1.0}, "complexity": null}
+{"prompt_id": "writingbench_business-026", "task_scores": {"instruction_following": 0.04803, "business_writing": 0.8783, "information_extraction": 0.07367}, "complexity": null}
+{"prompt_id": "writingbench_business-027", "task_scores": {"knowledge_recall": 0.05445, "instruction_following": 0.04917, "business_writing": 0.89638}, "complexity": null}
+{"prompt_id": "writingbench_business-028", "task_scores": {"instruction_following": 0.0921909219092191, "business_writing": 0.3805538055380554, "translation": 0.1013910139101391, "creative_writing": 0.04392043920439205, "conversation": 0.32524325243252433, "other": 0.05670056700567006}, "complexity": null}
+{"prompt_id": "writingbench_business-029", "task_scores": {"knowledge_recall": 0.05639943600563994, "instruction_following": 0.11911880881191188, "business_writing": 0.15374846251537483, "translation": 0.07101928980710193, "creative_writing": 0.23412765872341276, "conversation": 0.36558634413655866}, "complexity": null}
+{"prompt_id": "writingbench_business-030", "task_scores": {"instruction_following": 0.09402, "business_writing": 0.28971, "translation": 0.05015, "creative_writing": 0.50748, "conversation": 0.05864}, "complexity": null}
+{"prompt_id": "writingbench_business-031", "task_scores": {"instruction_following": 0.04549, "business_writing": 0.95451}, "complexity": null}
+{"prompt_id": "writingbench_business-032", "task_scores": {"business_writing": 1.0}, "complexity": null}
+{"prompt_id": "writingbench_business-033", "task_scores": {"code_algorithmic": 0.03796, "knowledge_quantitative": 0.03656, "instruction_following": 0.09476, "business_writing": 0.83072}, "complexity": null}
+{"prompt_id": "writingbench_business-034", "task_scores": {"knowledge_recall": 0.06038, "business_writing": 0.89392, "creative_writing": 0.0457}, "complexity": null}
+{"prompt_id": "writingbench_business-035", "task_scores": {"instruction_following": 0.02689026890268903, "business_writing": 0.92089920899209, "creative_writing": 0.02639026390263903, "conversation": 0.025820258202582026}, "complexity": null}
+{"prompt_id": "writingbench_business-036", "task_scores": {"business_writing": 0.92194, "creative_writing": 0.07806}, "complexity": null}
+{"prompt_id": "writingbench_business-037", "task_scores": {"business_writing": 0.95338, "conversation": 0.04662}, "complexity": null}
+{"prompt_id": "writingbench_business-038", "task_scores": {"instruction_following": 0.0519, "business_writing": 0.1988, "translation": 0.4794, "creative_writing": 0.23745, "conversation": 0.03245}, "complexity": null}
+{"prompt_id": "writingbench_business-039", "task_scores": {"instruction_following": 0.14739, "business_writing": 0.74053, "creative_writing": 0.08712, "conversation": 0.02496}, "complexity": null}
+{"prompt_id": "writingbench_business-040", "task_scores": {"knowledge_recall": 0.04606046060460604, "instruction_following": 0.040310403104031035, "business_writing": 0.17646176461764618, "summarization": 0.06267062670626707, "translation": 0.19976199761997618, "information_extraction": 0.04339043390433904, "creative_writing": 0.28670286702867026, "conversation": 0.14464144641446414}, "complexity": null}
+{"prompt_id": "writingbench_business-041", "task_scores": {"knowledge_recall": 0.09666, "business_writing": 0.85552, "translation": 0.04782}, "complexity": null}
+{"prompt_id": "writingbench_business-042", "task_scores": {"business_writing": 0.9518, "translation": 0.01122, "creative_writing": 0.03698}, "complexity": null}
+{"prompt_id": "writingbench_business-043", "task_scores": {"knowledge_recall": 0.01525, "instruction_following": 0.07191, "business_writing": 0.85879, "creative_writing": 0.01781, "conversation": 0.03624}, "complexity": null}
+{"prompt_id": "writingbench_business-044", "task_scores": {"instruction_following": 0.20333, "business_writing": 0.59014, "translation": 0.1014, "creative_writing": 0.10513}, "complexity": null}
+{"prompt_id": "writingbench_business-045", "task_scores": {"knowledge_recall": 0.08109, "instruction_following": 0.04372, "business_writing": 0.57729, "translation": 0.07755, "conversation": 0.22035}, "complexity": null}
+{"prompt_id": "writingbench_business-046", "task_scores": {"instruction_following": 0.0496, "business_writing": 0.81469, "conversation": 0.13571}, "complexity": null}
+{"prompt_id": "writingbench_business-047", "task_scores": {"knowledge_quantitative": 0.06527, "instruction_following": 0.04733, "business_writing": 0.83178, "translation": 0.05562}, "complexity": null}
+{"prompt_id": "writingbench_business-048", "task_scores": {"instruction_following": 0.03599, "business_writing": 0.63896, "translation": 0.09118, "information_extraction": 0.15249, "conversation": 0.08138}, "complexity": null}
+{"prompt_id": "writingbench_business-049", "task_scores": {"instruction_following": 0.27745, "business_writing": 0.72255}, "complexity": null}
+{"prompt_id": "writingbench_business-050", "task_scores": {"instruction_following": 0.2659073409265907, "business_writing": 0.2948470515294847, "translation": 0.1991880081199188, "creative_writing": 0.16307836921630783, "conversation": 0.07697923020769792}, "complexity": null}
+{"prompt_id": "writingbench_business-051", "task_scores": {"instruction_following": 0.23401, "business_writing": 0.45036, "creative_writing": 0.06935, "conversation": 0.24628}, "complexity": null}
+{"prompt_id": "writingbench_business-052", "task_scores": {"instruction_following": 0.11665, "business_writing": 0.81784, "translation": 0.06551}, "complexity": null}
+{"prompt_id": "writingbench_business-053", "task_scores": {"instruction_following": 0.05016, "business_writing": 0.4234, "creative_writing": 0.02624, "conversation": 0.5002}, "complexity": null}
+{"prompt_id": "writingbench_business-054", "task_scores": {"business_writing": 0.98307, "translation": 0.01693}, "complexity": null}
+{"prompt_id": "writingbench_business-055", "task_scores": {"business_writing": 1.0}, "complexity": null}
+{"prompt_id": "writingbench_business-056", "task_scores": {"knowledge_quantitative": 0.03416, "business_writing": 0.91751, "translation": 0.04833}, "complexity": null}
+{"prompt_id": "writingbench_business-057", "task_scores": {"business_writing": 1.0}, "complexity": null}
+{"prompt_id": "writingbench_business-058", "task_scores": {"knowledge_recall": 0.03061, "instruction_following": 0.06118, "business_writing": 0.67663, "translation": 0.08863, "conversation": 0.14295}, "complexity": null}
+{"prompt_id": "writingbench_business-059", "task_scores": {"instruction_following": 0.13491134911349115, "business_writing": 0.8444684446844469, "translation": 0.020620206202062022}, "complexity": null}
+{"prompt_id": "writingbench_business-060", "task_scores": {"instruction_following": 0.23006769932300675, "business_writing": 0.5011149888501115, "translation": 0.06225937740622594, "creative_writing": 0.2065579344206558}, "complexity": null}

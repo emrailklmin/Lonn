@@ -6,7 +6,7 @@ from pathlib import Path
 # Allow direct execution from a checkout without installing the package.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from lonn.router import Router, select_model, weighted_score
+from lonn.router import Router, rank_models, select_model, weighted_score
 from lonn.schemas import ComplexityResult, Model, TopicCategory as Topic
 
 
@@ -21,6 +21,20 @@ class RouterTests(unittest.TestCase):
             with self.subTest(alpha=alpha):
                 signal = ComplexityResult(0.7, {Topic.CODING: 1.0})
                 self.assertIs(Router().select_model(signal, [strong, cheap], alpha), expected)
+
+    def test_rank_models_returns_top_five_in_selection_order(self):
+        candidates = [model(f"model-{score}", score / 10, 10 - score) for score in range(1, 8)]
+        signal = ComplexityResult(1, {Topic.CODING: 1})
+        ranked = rank_models(signal, candidates, alpha=1)
+        self.assertEqual([item.id for item in ranked],
+                         ["model-7", "model-6", "model-5", "model-4", "model-3"])
+        self.assertEqual(Router.rank_models(signal, candidates, alpha=1, limit=2), ranked[:2])
+
+    def test_rank_models_rejects_invalid_limit(self):
+        for limit in (0, -1, 1.5, True):
+            with self.subTest(limit=limit), self.assertRaises(ValueError):
+                rank_models(ComplexityResult(.5, {Topic.CODING: 1}),
+                            [model("valid", .5)], limit=limit)
 
     def test_uses_full_topic_distribution(self):
         coding = model("coding", 0.9)

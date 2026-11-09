@@ -1,10 +1,11 @@
-"""Execute a selected NVIDIA NIM model through LiteLLM.
+"""Execute a selected NVIDIA NIM or OpenRouter model through LiteLLM.
 
 Requires ``litellm`` and ``python-dotenv``. The caller supplies a schemas.Model
-whose ID is the full ``nvidia_nim/...`` ID from model_pool/pool.yaml. Loading
-the pool, filtering active models, and routing remain the caller's job.
+whose ID is the full ``<provider>/<publisher>/<model>`` ID from
+config/models.yaml. Loading the pool, filtering active models, and routing
+remain the caller's job.
 
-Costs are estimates from configured prices, not NVIDIA billing information.
+Costs are computed from configured prices, not from provider billing data.
 """
 
 import os
@@ -12,15 +13,15 @@ from math import isfinite
 from pathlib import Path
 from time import perf_counter
 
-from .schemas import Model, ModelResponse, TokenUsage
+from .schemas import PROVIDER_API_KEYS, Model, ModelResponse, TokenUsage
 
 
 def execute(
     prompt: str,
     model: Model,
     *,
-    timeout: float = 60.0,
-    max_tokens: int = 1024,
+    timeout: float = 120.0,
+    max_tokens: int = 4096,
 ) -> ModelResponse:
     """Send one non-streaming text request to the selected model.
 
@@ -32,9 +33,11 @@ def execute(
     """
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("Prompt must be a non-empty string")
+    if model.provider not in PROVIDER_API_KEYS:
+        raise ValueError(f"Model provider must be one of {', '.join(PROVIDER_API_KEYS)}")
     parts = model.id.split("/", 2)
-    if len(parts) != 3 or parts[0] != "nvidia_nim" or not all(parts):
-        raise ValueError("Model ID must be a full nvidia_nim/<publisher>/<model> ID")
+    if len(parts) != 3 or parts[0] != model.provider or not all(parts):
+        raise ValueError(f"Model ID must be a full {model.provider}/<publisher>/<model> ID")
     if not isfinite(timeout) or timeout <= 0:
         raise ValueError("Timeout must be finite and positive")
     if type(max_tokens) is not int or max_tokens <= 0:
@@ -57,9 +60,10 @@ def execute(
         ) from exc
 
     load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
-    api_key = os.environ.get("NVIDIA_NIM_API_KEY", "").strip()
-    if not api_key or api_key == "nvapi-your-key-here":
-        raise ValueError("Set NVIDIA_NIM_API_KEY in the environment or repository .env")
+    key_name = PROVIDER_API_KEYS[model.provider]
+    api_key = os.environ.get(key_name, "").strip()
+    if not api_key or api_key.endswith("-your-key-here"):
+        raise ValueError(f"Set {key_name} in the environment or repository .env")
 
     started = perf_counter()
     response = completion(
@@ -79,8 +83,15 @@ def execute(
         raise ValueError("Provider returned no response choices")
     message = getattr(choices[0], "message", None)
     content = getattr(message, "content", None)
+    finish_reason = getattr(choices[0], "finish_reason", None)
+    # Reasoning can exhaust the output budget before any final text is emitted.
+    # Preserve usage and finish_reason so the caller can explain the outcome.
+    if message is not None and content is None and finish_reason == "length":
+        content = ""
     if not isinstance(content, str) or getattr(message, "tool_calls", None):
         raise ValueError("Executor expected a text response, not tool calls or null content")
+    if not content.strip() and finish_reason != "length":
+        raise ValueError("Provider returned no final text")
 
     usage = getattr(response, "usage", None)
     prompt_tokens = getattr(usage, "prompt_tokens", None)
@@ -101,7 +112,7 @@ def execute(
             total_cost=input_cost + output_cost,
         ),
         latency_ms=latency_ms,
-        finish_reason=getattr(choices[0], "finish_reason", None),
+        finish_reason=finish_reason,
     )
 
 
