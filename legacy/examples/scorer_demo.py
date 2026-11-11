@@ -4,9 +4,9 @@ Laya is loaded and warmed up once at startup; after that each prompt is scored
 with the model already in memory, and the time per prompt is shown.
 
 Usage:
-    python examples/scorer_demo.py            # interactive, Ctrl+C to quit
-    python examples/scorer_demo.py "Write a Python function that sorts a list"
-    python examples/scorer_demo.py "..." --debug   # also log Laya's raw output
+    python legacy/examples/scorer_demo.py            # interactive, Ctrl+C to quit
+    python legacy/examples/scorer_demo.py "Write a Python function that sorts a list"
+    python legacy/examples/scorer_demo.py "..." --debug   # also log Laya's raw output
 """
 
 import argparse
@@ -18,7 +18,7 @@ import warnings
 from pathlib import Path
 
 # Allow direct execution from a checkout without installing the package.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 

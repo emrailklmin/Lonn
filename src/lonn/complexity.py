@@ -14,7 +14,7 @@ dropped, because requests often follow long pasted context.
 The Laya router is loaded lazily and reused across requests. Set
 LONN_LAYA_MODEL (environment or repository .env) to a Hugging Face repo id or
 local directory to replace the English checkpoint with a fine-tuned one; see
-scripts/finetune_laya.py.
+legacy/scripts/finetune_laya.py.
 """
 
 import json

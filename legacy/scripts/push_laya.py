@@ -2,9 +2,9 @@
 
 Usage:
     hf auth login                       # once, with a write token
-    python3 scripts/push_laya.py --repo <hf-user>/laya-lonn
+    python3 legacy/scripts/push_laya.py --repo <hf-user>/laya-lonn
 
-Uploads the directory written by scripts/finetune_laya.py (weights, config, tokenizer,
+Uploads the directory written by legacy/scripts/finetune_laya.py (weights, config, tokenizer,
 encoder config, metrics.json and the model card). The repo is created private if it does
 not exist; an existing repo keeps its visibility. Colleagues need read access and
 `hf auth login`, then set LONN_LAYA_MODEL=<repo> in .env.
@@ -13,7 +13,7 @@ not exist; an existing repo keeps its visibility. Colleagues need read access an
 import argparse
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 REQUIRED = ("rl_agent_config.json", "model.safetensors", "tokenizer", "encoder")
 
 
@@ -27,7 +27,7 @@ def main():
     missing = [name for name in REQUIRED if not (args.dir / name).exists()]
     if missing:
         parser.error(f"{args.dir} is not a complete checkpoint (missing {', '.join(missing)}); "
-                     "run scripts/finetune_laya.py first")
+                     "run legacy/scripts/finetune_laya.py first")
 
     from huggingface_hub import HfApi
 

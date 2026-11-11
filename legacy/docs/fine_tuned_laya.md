@@ -27,7 +27,7 @@ The model is in a private Hugging Face repo:
 5. Check it works. The first run downloads the model (about 1.6 GB):
 
    ```bash
-   python3 examples/scorer_demo.py
+   python3 legacy/examples/scorer_demo.py
    ```
 
 Without `LONN_LAYA_MODEL`, everything still works with the stock Laya model.
@@ -94,13 +94,13 @@ correlation 0.37 versus 0.27.
 
 | File | Purpose |
 |---|---|
-| `scripts/finetune_laya.py` | Trains the model on labelled prompts and reports before/after results |
-| `scripts/push_laya.py` | Uploads a trained model to a private Hugging Face repo |
-| `data/labels/pilot.jsonl` | 228 labelled training prompts |
-| `data/labels/pilot_spotcheck.md` | 30 of those prompts for a human to check the labels |
-| `docs/labeling_guide.md` | Rules for labelling topic and complexity |
-| `examples/scorer_demo.py` | Try the scorer interactively (was `classify_prompt.py`) |
-| `examples/scorer_benchmark.py` | Measure the scorer's speed on your machine |
+| `legacy/scripts/finetune_laya.py` | Trains the model on labelled prompts and reports before/after results |
+| `legacy/scripts/push_laya.py` | Uploads a trained model to a private Hugging Face repo |
+| `legacy/data/labels/pilot.jsonl` | 228 labelled training prompts |
+| `legacy/data/labels/pilot_spotcheck.md` | 30 of those prompts for a human to check the labels |
+| `legacy/docs/labeling_guide.md` | Rules for labelling topic and complexity |
+| `legacy/examples/scorer_demo.py` | Try the scorer interactively (was `classify_prompt.py`) |
+| `legacy/examples/scorer_benchmark.py` | Measure the scorer's speed on your machine |
 
 `tests/test_complexity.py` covers the new complexity question, long-prompt
 shortening and `LONN_LAYA_MODEL`. It also fixes 12 tests that failed on the
@@ -109,8 +109,8 @@ prototype branch.
 ## Retraining
 
 ```bash
-python3 scripts/finetune_laya.py
-python3 scripts/push_laya.py --repo LonnAI/laya-lonn
+python3 legacy/scripts/finetune_laya.py
+python3 legacy/scripts/push_laya.py --repo LonnAI/laya-lonn
 ```
 
 - Training takes about 15-20 minutes on an Apple-silicon Mac and needs several
@@ -125,8 +125,8 @@ python3 scripts/push_laya.py --repo LonnAI/laya-lonn
 
 - The training set is small: 228 prompts, mostly real chat prompts from
   WildChat plus public datasets (each row records its source).
-- The labels were written by Claude following `docs/labeling_guide.md`. The
-  human spot check in `data/labels/pilot_spotcheck.md` is not finished yet.
+- The labels were written by Claude following `legacy/docs/labeling_guide.md`. The
+  human spot check in `legacy/data/labels/pilot_spotcheck.md` is not finished yet.
 - Most prompts are labelled complexity 2 and only one is labelled 5. Training
   complexity on these labels does not improve it; more prompts labelled 3-5,
   or measured "did the cheap model fail?" results, should.

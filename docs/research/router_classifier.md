@@ -119,7 +119,7 @@ Other recent work, noted but not adopted:
 | Backbone | Params | Context | Licence | Notes | Source |
 |---|---:|---:|---|---|---|
 | ModernBERT-base | 149M | 8,192 | Apache-2.0 | 2T tokens of English + code; no CPU latency on the card | [card](https://huggingface.co/answerdotai/ModernBERT-base) |
-| ModernBERT-large | 395M | 8,192 | Apache-2.0 | Laya's English backbone. Lonn measured ~133–143 ms per prompt on an Apple-silicon Mac (Laya forward pass, `docs/fine_tuned_laya.md`) | [card](https://huggingface.co/answerdotai/ModernBERT-base) |
+| ModernBERT-large | 395M | 8,192 | Apache-2.0 | Laya's English backbone. Lonn measured ~133–143 ms per prompt on an Apple-silicon Mac (Laya forward pass, `legacy/docs/fine_tuned_laya.md`) | [card](https://huggingface.co/answerdotai/ModernBERT-base) |
 | Ettin encoder (17M–1B; 150M ≈ base, 400M ≈ large) | 17M … 1B | 8k | MIT | Card claims it beats ModernBERT: GLUE 88.9 vs 88.4 (base), MTEB-v2 English retrieval 45.7 vs 43.9 | [card](https://huggingface.co/jhu-clsp/ettin-encoder-150m) |
 | DeBERTa-v3-base | 86M backbone + 98M embeddings | 512 (unverified on card; standard setting) | MIT | 128k vocab; used by RouterDC (mDeBERTa), Hybrid LLM and the NVIDIA classifier | [card](https://huggingface.co/microsoft/deberta-v3-base) |
 | DeBERTa-v3-large | 304M + 131M | 512 (unverified) | MIT | | [card](https://huggingface.co/microsoft/deberta-v3-large) |
@@ -127,7 +127,7 @@ Other recent work, noted but not adopted:
 | bge-base-en-v1.5 (embedder) | ~110M | 512 | MIT | MTEB 63.55 (small 62.17, large 64.23) | [card](https://huggingface.co/BAAI/bge-base-en-v1.5) |
 | Qwen3-Embedding-0.6B | 0.6B, 28 layers | 32k | Apache-2.0 | MTEB-Eng-v2 70.70; likely too slow for < 200 ms on CPU (unverified) | [card](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B) |
 
-**CPU latency.** None of these model cards report CPU latency. The only measured number is Lonn's: ModernBERT-large inside Laya at ~140 ms per prompt on an Apple-silicon Mac. A base-size model (149M, about 2.6× fewer parameters) should fit well under 200 ms, but **this is unverified; benchmark it with `examples/scorer_benchmark.py`-style timing**. kNN or linear heads on top add milliseconds: kNN routing was the fastest method in [Li 2025 Table 3](https://arxiv.org/abs/2505.12601).
+**CPU latency.** None of these model cards report CPU latency. The only measured number is Lonn's: ModernBERT-large inside Laya at ~140 ms per prompt on an Apple-silicon Mac. A base-size model (149M, about 2.6× fewer parameters) should fit well under 200 ms, but **this is unverified; benchmark it with `legacy/examples/scorer_benchmark.py`-style timing**. kNN or linear heads on top add milliseconds: kNN routing was the fastest method in [Li 2025 Table 3](https://arxiv.org/abs/2505.12601).
 
 **What Laya is** (verified from the installed package `laya==0.3.29` metadata and its checkpoint config):
 - **Publisher:** Convai Innovations (author Nandha Kishor M); [HF model](https://huggingface.co/convaiinnovations/laya), [GitHub](https://github.com/NandhaKishorM/laya). Licence Apache-2.0.
@@ -136,7 +136,7 @@ Other recent work, noted but not adopted:
   - `laya`: ModernBERT-large, 421M, 512 tokens. The `rl_agent_config.json` says `encoder: answerdotai/ModernBERT-large`, `max_len: 512`, `head_max_len: 192`.
   - `laya-multilingual`: mmBERT-base, 322M, 1024–8192 tokens.
   - `laya-typed-decisions`.
-- **Trainability:** it is open and trainable. `laya.train.TrainConfig` has `freeze_encoder: bool = False`, so even full fine-tuning is supported. Lonn's `scripts/finetune_laya.py` deliberately freezes the encoder because only 228 labels exist.
+- **Trainability:** it is open and trainable. `laya.train.TrainConfig` has `freeze_encoder: bool = False`, so even full fine-tuning is supported. Lonn's `legacy/scripts/finetune_laya.py` deliberately freezes the encoder because only 228 labels exist.
 - **Jev (TypeSafe AI)** is the proprietary API that Laya's server can emulate (`LAYA_JEV_STRICT`). It is not a model we can train.
 
 **Laya verdict, reasons:**
@@ -258,4 +258,4 @@ Recommended use: **pretrain the prompt side** (the encoder plus the difficulty a
 - NVIDIA prompt-task-and-complexity-classifier. https://huggingface.co/nvidia/prompt-task-and-complexity-classifier
 - ModernBERT. https://huggingface.co/answerdotai/ModernBERT-base · Ettin https://huggingface.co/jhu-clsp/ettin-encoder-150m · DeBERTa-v3 https://huggingface.co/microsoft/deberta-v3-base, https://huggingface.co/microsoft/deberta-v3-large · gte-modernbert-base https://huggingface.co/Alibaba-NLP/gte-modernbert-base · bge-base-en-v1.5 https://huggingface.co/BAAI/bge-base-en-v1.5 · Qwen3-Embedding-0.6B https://huggingface.co/Qwen/Qwen3-Embedding-0.6B
 - Laya: https://huggingface.co/convaiinnovations/laya · https://github.com/NandhaKishorM/laya (facts checked against the installed `laya` 0.3.29 package metadata and the cached checkpoint's `rl_agent_config.json`)
-- Lonn internal: `results/router_eval/runs.csv`, `results/benchmark/**`, `docs/router_evaluation.md`, `docs/fine_tuned_laya.md`
+- Lonn internal: `results/router_eval/runs.csv`, `results/benchmark/**`, `docs/router_evaluation.md`, `legacy/docs/fine_tuned_laya.md`

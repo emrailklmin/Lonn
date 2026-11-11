@@ -1,8 +1,8 @@
 """Fine-tune Laya's decision head on Lonn's labelled prompts.
 
 Usage:
-    python3 scripts/finetune_laya.py
-    python3 scripts/finetune_laya.py --data data/labels/pilot.jsonl --out models/laya-lonn
+    python3 legacy/scripts/finetune_laya.py
+    python3 legacy/scripts/finetune_laya.py --data legacy/data/labels/pilot.jsonl --out models/laya-lonn
 
 Only the English checkpoint is trained: Laya's router sends non-English prompts to
 its multilingual checkpoint, so those are skipped. The ModernBERT encoder is frozen
@@ -42,7 +42,7 @@ import warnings
 
 os.environ.setdefault("USE_TF", "0")  # Must precede the transformers import inside laya.
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 import numpy as np
@@ -61,7 +61,7 @@ QUESTION_IDS = list(QUESTIONS)
 INTERNAL = {qid: Agent._to_internal(q) for qid, q in QUESTIONS.items()}
 CATEGORY_KEYS = list(QUESTIONS["category"]["criteria"])
 CHECKPOINT_FILES = ("rl_agent_config.json", "model.safetensors", "tokenizer/*", "encoder/*")
-MAX_LEVEL = 5  # docs/labeling_guide.md scores complexity 1-5.
+MAX_LEVEL = 5  # legacy/docs/labeling_guide.md scores complexity 1-5.
 HARD_LEVEL = 3  # Labels at or above this count as hard when computing AUC.
 
 
@@ -406,7 +406,7 @@ The model is trained for the exact question wording in `src/lonn/complexity.py`
 ## Training
 
 - Data: `{data['path']}`, {data['english_prompts']} English prompts
-  ({data['skipped_non_english']} non-English skipped), labels per `docs/labeling_guide.md`.
+  ({data['skipped_non_english']} non-English skipped), labels per `legacy/docs/labeling_guide.md`.
 - Split, stratified by main topic (seed {meta['seed']}): {data['train']} train,
   {data['validation']} validation (early stopping), {data['test']} held-out test.
 - Trained: head layers, type embedding and option scorer. Frozen: encoder, act head.
@@ -439,7 +439,7 @@ For comparison, prompt length alone gives a rank correlation of
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--data", type=Path, default=ROOT / "data/labels/pilot.jsonl")
+    parser.add_argument("--data", type=Path, default=ROOT / "legacy/data/labels/pilot.jsonl")
     parser.add_argument("--out", type=Path, default=ROOT / "models/laya-lonn")
     parser.add_argument("--test-fraction", type=float, default=0.2)
     parser.add_argument("--val-fraction", type=float, default=0.15, help="share of the training part")

@@ -4,8 +4,8 @@ Times the model load, the first (cold) call, and repeated warm calls for each
 Laya round separately and for a full score_prompt (both rounds).
 
 Usage:
-    python examples/scorer_benchmark.py
-    python examples/scorer_benchmark.py --runs 50
+    python legacy/examples/scorer_benchmark.py
+    python legacy/examples/scorer_benchmark.py --runs 50
 """
 
 import argparse
@@ -18,7 +18,7 @@ import warnings
 from pathlib import Path
 
 # Allow direct execution from a checkout without installing the package.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 os.environ.setdefault("USE_TF", "0")  # Avoids a known TensorFlow import hang.
 

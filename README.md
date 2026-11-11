@@ -17,11 +17,10 @@ src/lonn/                   # Runtime code
     schemas.py              # Shared data contracts
 scripts/discover_models.py  # Optional catalog discovery
 scripts/check_models.py     # Optional live text-availability checks
-scripts/finetune_laya.py    # Fine-tune Laya's decision head on labelled prompts
-scripts/push_laya.py        # Upload a fine-tuned checkpoint to Hugging Face
 examples/                   # App and usage examples
 tests/                      # Automated tests
 docs/                       # Architecture
+legacy/                     # Old Laya scorer tooling: demos, fine-tuning, labels and docs
 reports/                    # Generated reports (created on demand, gitignored)
 ```
 
@@ -206,13 +205,13 @@ Two scripts in `examples/` let you try the scorer with the real Laya model:
   how long it took (add `--debug` to see Laya's raw output):
 
   ```bash
-  python3 examples/scorer_demo.py
+  python3 legacy/examples/scorer_demo.py
   ```
 
 - `scorer_benchmark.py` measures load time and per-prompt speed on your machine:
 
   ```bash
-  python3 examples/scorer_benchmark.py
+  python3 legacy/examples/scorer_benchmark.py
   ```
 
 Prompts longer than Laya's window (about 370 tokens for English, after the
@@ -222,7 +221,7 @@ usually is.
 ### Fine-tuned Laya checkpoint
 
 The team's fine-tuned model is `LonnAI/laya-lonn` (private). See
-[docs/fine_tuned_laya.md](docs/fine_tuned_laya.md) for access, setup, what it
+[legacy/docs/fine_tuned_laya.md](legacy/docs/fine_tuned_laya.md) for access, setup, what it
 changes, and its results.
 
 To use a fine-tuned checkpoint for English prompts, set `LONN_LAYA_MODEL` in
@@ -232,10 +231,10 @@ run `hf auth login` once with an account that has access. Unset, the stock
 Laya's multilingual checkpoint.
 
 To train one from labelled prompts (format and rules in
-`docs/labeling_guide.md`):
+`legacy/docs/labeling_guide.md`):
 
 ```bash
-python3 scripts/finetune_laya.py --data data/labels/pilot.jsonl --out models/laya-lonn
+python3 legacy/scripts/finetune_laya.py --data legacy/data/labels/pilot.jsonl --out models/laya-lonn
 ```
 
 Only the decision head is trained; the encoder stays frozen. A stratified 20%
@@ -246,7 +245,7 @@ holds `metrics.json` and a model card. Upload it to a private repo with:
 
 ```bash
 hf auth login
-python3 scripts/push_laya.py --repo <hf-user>/laya-lonn
+python3 legacy/scripts/push_laya.py --repo <hf-user>/laya-lonn
 ```
 
 The checkpoint is trained for the exact question wording in
